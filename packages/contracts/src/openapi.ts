@@ -32,6 +32,7 @@ const ERR_DESC: Record<number, string> = {
   403: "Authenticated but not allowed (FORBIDDEN)",
   404: "Not found in the caller's organization (NOT_FOUND)",
   409: "Conflict (CONFLICT / IDEMPOTENCY_IN_PROGRESS)",
+  413: "Request body too large",
   422: "Idempotency-Key reused with a different request (IDEMPOTENCY_KEY_REUSED)",
   429: "Too many attempts (RATE_LIMITED); see Retry-After",
 };
@@ -171,6 +172,18 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: "get", path: "/catalog/price-lists/{id}/approved-prices", id: "listApprovedPrices", summary: "CONSUMPTION VIEW: prices of an approved list whose items are currently approved", tag: "Pricing", permission: "catalog:read",
     pathParams: ["id"], query: C.PageQuery, success: { status: 200, schema: C.ApprovedPricePageDto, description: "Page" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/catalog/imports", id: "importCatalogCsv", summary: "Validate (dry_run) or apply a CSV of items. All-or-nothing: any row error rejects the whole apply. Creates/updates DRAFTS only", tag: "Catalog", permission: "catalog:manage",
+    body: C.ImportRequest, idempotent: true, success: { status: 200, schema: C.ImportResultDto, description: "Outcome with per-row actions and errors" }, errors: [400, 401, 403, 409, 413, 422],
+  },
+  {
+    method: "get", path: "/catalog/imports", id: "listImportJobs", summary: "Import history (keyset by id)", tag: "Catalog", permission: "catalog:manage",
+    query: C.PageQuery, success: { status: 200, schema: C.ImportJobPageDto, description: "Page" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/catalog/imports/{id}", id: "getImportJob", summary: "One import job", tag: "Catalog", permission: "catalog:manage",
+    pathParams: ["id"], success: { status: 200, schema: C.ImportJobDto, description: "Job" }, errors: [400, 401, 403, 404],
   },
   {
     method: "get", path: "/memberships", id: "listMemberships", summary: "Members of the caller's organization", tag: "Memberships", permission: "members:read",

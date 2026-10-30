@@ -141,67 +141,74 @@ export class CatalogService {
 
   async createItem(auth: AuthContext, input: CreateItemRequest): Promise<ItemDto> {
     try {
-      return await this.db.withTenant(auth, async (tx) => {
-        await this.assertCategory(tx, auth, input.categoryId);
-        const item = await tx.catalogItem.create({
-          data: { organization_id: auth.organizationId, kind: input.kind, sku: input.sku, sku_key: input.sku.toLowerCase(), created_by: auth.userId },
-        });
-        await tx.catalogItemVersion.create({
-          data: {
-            organization_id: auth.organizationId, item_id: item.id, version: 1, state: "draft", name: input.name, description: input.description ?? null,
-            unit: input.unit ?? null, category_id: input.categoryId ?? null, features: (input.features ?? []) as Prisma.InputJsonValue, created_by: auth.userId,
-          },
-        });
-        await this.audit.record(tx, auth, { action: "catalog.item_created", resourceType: "catalog_item", resourceId: item.id, metadata: { kind: input.kind } });
-        return this.load(tx, auth, item.id);
-      });
+      return await this.db.withTenant(auth, (tx) => this.createItemTx(tx, auth, input));
     } catch (e) {
       throw isUnique(e) ? conflict("An item with that SKU already exists") : e;
     }
   }
 
-  updateDraft(auth: AuthContext, id: string, input: UpdateItemDraftRequest): Promise<ItemDto> {
-    return this.db.withTenant(auth, async (tx) => {
-      const item = await this.lock(tx, auth, id);
-      this.assertNotArchived(item);
-      const draft = await this.openDraft(tx, auth, id);
-      if (!draft) throw conflict("There is no open draft; start a new version first");
-      await this.assertCategory(tx, auth, input.categoryId);
-      await tx.catalogItemVersion.update({
-        where: { id: draft.id },
-        data: {
-          ...(input.name !== undefined ? { name: input.name } : {}),
-          ...(input.description !== undefined ? { description: input.description } : {}),
-          ...(input.unit !== undefined ? { unit: input.unit } : {}),
-          ...(input.categoryId !== undefined ? { category_id: input.categoryId } : {}),
-          ...(input.features !== undefined ? { features: input.features as Prisma.InputJsonValue } : {}),
-        },
-      });
-      await this.audit.record(tx, auth, {
-        action: "catalog.item_draft_updated", resourceType: "catalog_item", resourceId: id, metadata: { version: draft.version, changedFields: Object.keys(input) },
-      });
-      return this.load(tx, auth, id);
+  /** Transaction-level variant (also used by the CSV import); a duplicate SKU surfaces as Prisma P2002. */
+  async createItemTx(tx: Tx, auth: AuthContext, input: CreateItemRequest): Promise<ItemDto> {
+    await this.assertCategory(tx, auth, input.categoryId);
+    const item = await tx.catalogItem.create({
+      data: { organization_id: auth.organizationId, kind: input.kind, sku: input.sku, sku_key: input.sku.toLowerCase(), created_by: auth.userId },
     });
+    await tx.catalogItemVersion.create({
+      data: {
+        organization_id: auth.organizationId, item_id: item.id, version: 1, state: "draft", name: input.name, description: input.description ?? null,
+        unit: input.unit ?? null, category_id: input.categoryId ?? null, features: (input.features ?? []) as Prisma.InputJsonValue, created_by: auth.userId,
+      },
+    });
+    await this.audit.record(tx, auth, { action: "catalog.item_created", resourceType: "catalog_item", resourceId: item.id, metadata: { kind: input.kind } });
+    return this.load(tx, auth, item.id);
+  }
+
+  updateDraft(auth: AuthContext, id: string, input: UpdateItemDraftRequest): Promise<ItemDto> {
+    return this.db.withTenant(auth, (tx) => this.updateDraftTx(tx, auth, id, input));
+  }
+
+  async updateDraftTx(tx: Tx, auth: AuthContext, id: string, input: UpdateItemDraftRequest): Promise<ItemDto> {
+    const item = await this.lock(tx, auth, id);
+    this.assertNotArchived(item);
+    const draft = await this.openDraft(tx, auth, id);
+    if (!draft) throw conflict("There is no open draft; start a new version first");
+    await this.assertCategory(tx, auth, input.categoryId);
+    await tx.catalogItemVersion.update({
+      where: { id: draft.id },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.unit !== undefined ? { unit: input.unit } : {}),
+        ...(input.categoryId !== undefined ? { category_id: input.categoryId } : {}),
+        ...(input.features !== undefined ? { features: input.features as Prisma.InputJsonValue } : {}),
+      },
+    });
+    await this.audit.record(tx, auth, {
+      action: "catalog.item_draft_updated", resourceType: "catalog_item", resourceId: id, metadata: { version: draft.version, changedFields: Object.keys(input) },
+    });
+    return this.load(tx, auth, id);
   }
 
   createDraft(auth: AuthContext, id: string): Promise<ItemDto> {
-    return this.db.withTenant(auth, async (tx) => {
-      const item = await this.lock(tx, auth, id);
-      this.assertNotArchived(item);
-      if (await this.openDraft(tx, auth, id)) throw conflict("This item already has an open draft");
-      const source = await tx.catalogItemVersion.findFirst({ where: { organization_id: auth.organizationId, item_id: id, version: item.latest_version } });
-      if (!source) throw new NotFoundException();
-      const next = item.latest_version + 1;
-      await tx.catalogItemVersion.create({
-        data: {
-          organization_id: auth.organizationId, item_id: id, version: next, state: "draft", name: source.name, description: source.description, unit: source.unit,
-          category_id: source.category_id, features: source.features as Prisma.InputJsonValue, created_by: auth.userId,
-        },
-      });
-      await tx.catalogItem.update({ where: { id }, data: { latest_version: next } });
-      await this.audit.record(tx, auth, { action: "catalog.item_version_created", resourceType: "catalog_item", resourceId: id, metadata: { version: next, basedOn: source.version } });
-      return this.load(tx, auth, id);
+    return this.db.withTenant(auth, (tx) => this.createDraftTx(tx, auth, id));
+  }
+
+  async createDraftTx(tx: Tx, auth: AuthContext, id: string): Promise<ItemDto> {
+    const item = await this.lock(tx, auth, id);
+    this.assertNotArchived(item);
+    if (await this.openDraft(tx, auth, id)) throw conflict("This item already has an open draft");
+    const source = await tx.catalogItemVersion.findFirst({ where: { organization_id: auth.organizationId, item_id: id, version: item.latest_version } });
+    if (!source) throw new NotFoundException();
+    const next = item.latest_version + 1;
+    await tx.catalogItemVersion.create({
+      data: {
+        organization_id: auth.organizationId, item_id: id, version: next, state: "draft", name: source.name, description: source.description, unit: source.unit,
+        category_id: source.category_id, features: source.features as Prisma.InputJsonValue, created_by: auth.userId,
+      },
     });
+    await tx.catalogItem.update({ where: { id }, data: { latest_version: next } });
+    await this.audit.record(tx, auth, { action: "catalog.item_version_created", resourceType: "catalog_item", resourceId: id, metadata: { version: next, basedOn: source.version } });
+    return this.load(tx, auth, id);
   }
 
   approve(auth: AuthContext, id: string): Promise<ItemDto> {

@@ -47,6 +47,7 @@ model Organization {
   catalog_versions   CatalogItemVersion[]
   price_lists        PriceList[]
   price_entries      PriceListEntry[]
+  import_jobs        ImportJob[]
 
   @@map("organizations")
 }
@@ -342,4 +343,27 @@ model PriceListEntry {
   @@unique([price_list_id, item_id])
   @@index([organization_id, item_id])
   @@map("price_list_entries")
+}
+
+/// Append-only record of every CSV import run (dry run or apply). Stores counts, a capped error list and the SHA-256 of the file, never the file.
+model ImportJob {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String   @db.Uuid
+  kind            String
+  mode            String
+  status          String
+  file_hash       String
+  total_rows      Int
+  created_count   Int
+  updated_count   Int
+  unchanged_count Int
+  error_count     Int
+  errors          Json     @default("[]")
+  created_by      String   @db.Uuid
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@index([organization_id, created_at(sort: Desc)])
+  @@map("import_jobs")
 }

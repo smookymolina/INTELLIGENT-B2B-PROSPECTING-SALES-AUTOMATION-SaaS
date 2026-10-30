@@ -36,7 +36,7 @@ export class ProblemFilter implements ExceptionFilter {
       // body-parser / http-errors (malformed JSON, payload too large, ...)
       status = exception.status;
       code = "BAD_REQUEST";
-      message = "Malformed request";
+      message = exception.status === 413 ? "Payload too large" : "Malformed request";
     } else {
       const e = exception as { name?: string; code?: string };
       this.logger.error(`request_id=${requestId} unexpected ${e?.name ?? "error"}${e?.code ? ` code=${e.code}` : ""}`);

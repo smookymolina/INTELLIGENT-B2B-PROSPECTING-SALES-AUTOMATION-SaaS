@@ -197,6 +197,26 @@ export type PriceListQuery = z.infer<typeof PriceListQuery>;
 export const PageQuery = z.strictObject({ limit: z.coerce.number().int().min(1).max(100).default(50), cursor: z.uuid().optional() });
 export type PageQuery = z.infer<typeof PageQuery>;
 
+/* ---------- CSV import (P3-04) ---------- */
+
+export const IMPORT_LIMITS = { maxRows: 1000, maxColumns: 60, maxChars: 1_000_000, maxFieldLength: 5000, maxReportedErrors: 100 } as const;
+
+/** Columns: sku, kind, name (required); description, unit, category (optional); any number of `feature:<Name>`. */
+export const ImportRequest = z.strictObject({ mode: z.enum(["dry_run", "apply"]), csv: z.string().min(1).max(IMPORT_LIMITS.maxChars) });
+export type ImportRequest = z.infer<typeof ImportRequest>;
+
+/** One CSV row after header mapping. `category` is the NAME of an existing active category (never auto-created). */
+export const ImportRow = z.strictObject({
+  kind: z.enum(["product", "service"]),
+  sku: z.string().regex(SKU, "letters, digits, . _ - (max 64)"),
+  name: text(200),
+  description: text(4000).nullish(),
+  unit: text(30).nullish(),
+  category: text(100).nullish(),
+  features: features.optional(),
+});
+export type ImportRow = z.infer<typeof ImportRow>;
+
 export const UuidParam = z.uuid();
 
 export const AuditQuery = z.strictObject({ limit: z.coerce.number().int().min(1).max(100).default(50) });
@@ -342,6 +362,34 @@ export const ApprovedPriceDto = z.object({
 export type ApprovedPriceDto = z.infer<typeof ApprovedPriceDto>;
 export const ApprovedPricePageDto = z.object({ items: z.array(ApprovedPriceDto), nextCursor: z.uuid().nullable() });
 export type ApprovedPricePageDto = z.infer<typeof ApprovedPricePageDto>;
+
+export const ImportRowErrorDto = z.object({
+  row: z.number().int(),
+  sku: z.string().nullable(),
+  column: z.string().nullable(),
+  code: z.string(),
+  message: z.string(),
+});
+export type ImportRowErrorDto = z.infer<typeof ImportRowErrorDto>;
+/** Row numbers are file lines of records (header = 1). Counts are planned in dry_run, applied in applied, zero when rejected. */
+export const ImportJobDto = z.object({
+  id: z.uuid(),
+  mode: z.enum(["dry_run", "apply"]),
+  status: z.enum(["valid", "invalid", "applied", "rejected"]),
+  fileHash: z.string(),
+  totals: z.object({ rows: z.number().int(), created: z.number().int(), updated: z.number().int(), unchanged: z.number().int(), errors: z.number().int() }),
+  errors: z.array(ImportRowErrorDto),
+  errorsTruncated: z.boolean(),
+  createdBy: z.uuid(),
+  createdAt: z.iso.datetime(),
+});
+export type ImportJobDto = z.infer<typeof ImportJobDto>;
+export const ImportResultDto = ImportJobDto.extend({
+  rows: z.array(z.object({ row: z.number().int(), sku: z.string().nullable(), action: z.enum(["create", "update", "unchanged", "error"]) })),
+});
+export type ImportResultDto = z.infer<typeof ImportResultDto>;
+export const ImportJobPageDto = z.object({ items: z.array(ImportJobDto), nextCursor: z.uuid().nullable() });
+export type ImportJobPageDto = z.infer<typeof ImportJobPageDto>;
 
 /** Uniform error envelope for every non-2xx response. `details` is null unless the error carries structured data. */
 export const ProblemDto = z.object({ code: z.string(), message: z.string(), details: z.unknown().nullable(), request_id: z.uuid() });

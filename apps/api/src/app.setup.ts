@@ -5,6 +5,7 @@ import { requestId } from "./http/request-id.js";
 /** Shared by main.ts and integration tests so both run the same HTTP configuration. */
 export function configureApp(app: INestApplication): void {
   app.setGlobalPrefix("v1");
+  (app as unknown as { useBodyParser(type: string, options: { limit: string }): void }).useBodyParser("json", { limit: "1500kb" });
   app.use(requestId);
   app.useGlobalFilters(new ProblemFilter());
   const hops = Number.parseInt(process.env.TRUST_PROXY ?? "0", 10);

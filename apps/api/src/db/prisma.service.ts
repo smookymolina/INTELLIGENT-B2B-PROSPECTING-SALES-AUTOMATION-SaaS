@@ -19,7 +19,7 @@ export class PrismaService implements OnModuleDestroy {
   }
 
   /** Runs `fn` in one transaction as the unprivileged `app_runtime` role with the tenant context set (RLS applies). */
-  withTenant<T>(ctx: TenantContext, fn: (tx: Tx) => Promise<T>): Promise<T> {
+  withTenant<T>(ctx: TenantContext, fn: (tx: Tx) => Promise<T>, options: { timeoutMs?: number } = {}): Promise<T> {
     return this.client.$transaction(
       async (tx) => {
         await tx.$executeRaw`SET LOCAL ROLE app_runtime`;
@@ -27,7 +27,7 @@ export class PrismaService implements OnModuleDestroy {
           set_config('app.user_id', ${ctx.userId}, true), set_config('app.role', ${ctx.role}, true)`;
         return fn(tx);
       },
-      { timeout: 10_000 },
+      { timeout: options.timeoutMs ?? 10_000 },
     );
   }
 
