@@ -65,6 +65,10 @@ model Organization {
   opportunity_tasks  OpportunityTask[]
   ai_budget          AiBudget?
   ai_runs            AiRun[]
+  contacts           Contact[]
+  consent_events     ConsentEvent[]
+  campaigns          Campaign[]
+  send_attempts      SendAttempt[]
   opportunity_assignments OpportunityAssignment[]
   quote_settings     QuoteSettings?
   quote_counter      QuoteCounter?
@@ -428,6 +432,7 @@ model Prospect {
   leads        Lead[]
   assessments  IntentAssessment[]
   opportunities Opportunity[]
+  contacts      Contact[]
 
   @@unique([organization_id, id])
   @@unique([organization_id, dedupe_key])
@@ -886,4 +891,96 @@ model AiRun {
   @@index([organization_id, created_at])
   @@index([organization_id, needs_review, created_at])
   @@map("ai_runs")
+}
+
+/// A person's contact point at a prospect. Never created by inference: every row carries its source. Contacting requires a recorded, live consent.
+model Contact {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String   @db.Uuid
+  prospect_id     String   @db.Uuid
+  channel         String   @default("email")
+  address         String
+  address_key     String
+  display_name    String?
+  source          String
+  status          String   @default("active")
+  created_by      String   @db.Uuid
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @updatedAt @db.Timestamptz(6)
+
+  organization Organization    @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  prospect     Prospect        @relation(fields: [organization_id, prospect_id], references: [organization_id, id], onDelete: Restrict)
+  consents     ConsentEvent[]
+  attempts     SendAttempt[]
+
+  @@unique([organization_id, id])
+  @@unique([organization_id, channel, address_key])
+  @@index([organization_id, prospect_id])
+  @@map("contacts")
+}
+
+/// Append-only consent ledger. The current consent is the latest event. recorded_by is NULL only for a self-service unsubscribe.
+model ConsentEvent {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String   @db.Uuid
+  contact_id      String   @db.Uuid
+  event           String
+  purpose         String   @default("commercial_outreach")
+  evidence        String
+  occurred_at     DateTime @db.Timestamptz(6)
+  recorded_by     String?  @db.Uuid
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  contact      Contact      @relation(fields: [organization_id, contact_id], references: [organization_id, id], onDelete: Restrict)
+
+  @@index([organization_id, contact_id, occurred_at])
+  @@map("consent_events")
+}
+
+/// One email, written once, approved by a human before it can be launched. The body must carry the unsubscribe placeholder.
+model Campaign {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String    @db.Uuid
+  name             String
+  subject          String
+  body             String
+  state            String    @default("draft")
+  min_days_between Int       @default(7)
+  created_by       String    @db.Uuid
+  approved_by      String?   @db.Uuid
+  approved_at      DateTime? @db.Timestamptz(6)
+  launched_at      DateTime? @db.Timestamptz(6)
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime  @updatedAt @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  attempts     SendAttempt[]
+
+  @@unique([organization_id, id])
+  @@index([organization_id, state])
+  @@map("campaigns")
+}
+
+/// One attempt per (campaign, contact); the unique pair makes launching and dispatching idempotent. Eligibility is re-checked at send time.
+model SendAttempt {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id     String    @db.Uuid
+  campaign_id         String    @db.Uuid
+  contact_id          String    @db.Uuid
+  state               String    @default("queued")
+  skip_reason         String?
+  provider            String?
+  provider_message_id String?
+  attempted_at        DateTime? @db.Timestamptz(6)
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  campaign     Campaign     @relation(fields: [organization_id, campaign_id], references: [organization_id, id], onDelete: Restrict)
+  contact      Contact      @relation(fields: [organization_id, contact_id], references: [organization_id, id], onDelete: Restrict)
+
+  @@unique([campaign_id, contact_id])
+  @@index([organization_id, campaign_id, state])
+  @@index([organization_id, contact_id, state])
+  @@map("send_attempts")
 }

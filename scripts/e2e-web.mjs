@@ -2,7 +2,7 @@
 // Prerequisites: `npm run build`, PostgreSQL up, `npm run db:test:setup`. Usage: npm run test:e2e
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -60,7 +60,7 @@ const api = async (method, path, token, body) => {
 
 try {
   start("api", [join(root, "apps/api/dist/main.js")], join(root, "apps/api"), {
-    DATABASE_URL: dbUrl, API_PORT: String(API_PORT), HMAC_SECRET: "e2e-only-hmac-secret-0123456789abcdef", ENCRYPTION_KEY: Buffer.alloc(32, 9).toString("base64"), TRUST_PROXY: "1", NODE_ENV: "production", AI_PROVIDER: "mock",
+    DATABASE_URL: dbUrl, API_PORT: String(API_PORT), HMAC_SECRET: "e2e-only-hmac-secret-0123456789abcdef", ENCRYPTION_KEY: Buffer.alloc(32, 9).toString("base64"), TRUST_PROXY: "1", NODE_ENV: "production", AI_PROVIDER: "mock", EMAIL_PROVIDER: "sandbox",
   });
   await waitFor(`${API}/health`, "API");
   start("web", [join(root, "node_modules/next/dist/bin/next"), "start", "-p", String(WEB_PORT), "-H", "127.0.0.1"], join(root, "apps/web"), { API_URL: `http://127.0.0.1:${API_PORT}`, NODE_ENV: "production" });
@@ -726,6 +726,59 @@ try {
     assert.ok(!(await html(await get("/", analyst.cookie))).includes('href="/ai"'), "no navigation entry without ai:use");
     assert.equal(where(await post("/actions/ai/budget", { limit: "999" }, session.seller.cookie)), "/ai?error=forbidden", "only org_admin sets the budget");
     assert.equal(where(await post("/actions/ai/analyze", { refs: ref, text: "x" }, analyst.cookie)), "/ai?error=forbidden");
+  });
+
+  await step("F7: contacts and consent by form, an approved campaign reaches only the eligible, and the public unsubscribe link works without a session", async () => {
+    const p1 = (await api("POST", "/prospects", session.token, { name: "Cliente Con Permiso", domain: "permiso-" + randomUUID().slice(0, 6) + ".example" })).body;
+    const p2 = (await api("POST", "/prospects", session.token, { name: "Cliente Sin Permiso", domain: "sinpermiso-" + randomUUID().slice(0, 6) + ".example" })).body;
+    const addr1 = "compras@" + p1.domain;
+    assert.equal(where(await post("/actions/contacts/add", { prospectId: p1.id, address: addr1, source: "Formulario web 2026-09-01", displayName: "Compras" }, session.pair)), "/prospects/" + p1.id + "?ok=contactadded");
+    assert.equal(where(await post("/actions/contacts/add", { prospectId: p1.id, address: addr1, source: "Formulario web" }, session.pair)), "/prospects/" + p1.id + "?error=conflict");
+    assert.equal(where(await post("/actions/contacts/add", { prospectId: p2.id, address: "x@" + p2.domain, source: "Lista comprada sin permiso" }, session.pair)), "/prospects/" + p2.id + "?ok=contactadded");
+    let page = await html(await get("/prospects/" + p1.id, session.pair));
+    assert.ok(page.includes(addr1) && page.includes("Ninguno registrado") && page.includes("no implica permiso"));
+
+    const when = new Date(Date.now() - 3_600_000).toISOString().slice(0, 16);
+    const cid = (await api("GET", "/prospects/" + p1.id + "/contacts", session.token)).body.items[0].id;
+    assert.equal(where(await post("/actions/contacts/" + cid + "/consent", { prospectId: p1.id, event: "granted", evidence: "Casilla marcada en el formulario web", occurredAt: when }, session.pair)), "/prospects/" + p1.id + "?ok=consentrecorded");
+    assert.equal(where(await post("/actions/contacts/" + cid + "/consent", { prospectId: p1.id, event: "granted", evidence: "x", occurredAt: when }, session.pair)), "/prospects/" + p1.id + "?error=input");
+    page = await html(await get("/prospects/" + p1.id, session.pair));
+    assert.ok(page.includes("Otorgado"));
+
+    const bad = await post("/actions/campaigns/create", { name: "Sin baja", subject: "Hola", body: "sin enlace", minDaysBetween: "7" }, session.pair);
+    assert.equal(where(bad), "/campaigns?error=input");
+    const created = await post("/actions/campaigns/create", { name: "Lanzamiento E2E", subject: "Hola {{company}}", body: "Para {{company}}. Baja: {{unsubscribe_url}}", minDaysBetween: "7" }, session.pair);
+    const campId = /^\/campaigns\/([0-9a-f-]{36})\?ok=campaigncreated$/.exec(where(created) ?? "")?.[1];
+    assert.ok(campId, "unexpected redirect " + where(created));
+    assert.equal(where(await post("/actions/campaigns/" + campId + "/launch", {}, session.pair)), "/campaigns/" + campId + "?error=conflict"); // not approved yet
+    assert.equal((await post("/actions/campaigns/" + campId + "/explode", {}, session.pair)).status, 404);
+    assert.equal(where(await post("/actions/campaigns/" + campId + "/approve", {}, session.seller.cookie)), "/campaigns/" + campId + "?error=forbidden");
+    assert.equal(where(await post("/actions/campaigns/" + campId + "/approve", {}, session.pair)), "/campaigns/" + campId + "?ok=campaignapproved");
+    page = await html(await get("/campaigns/" + campId, session.pair));
+    assert.ok(page.includes("Audiencia ahora") && page.includes("Sin consentimiento vigente"), "the preview explains exclusions");
+    assert.equal(where(await post("/actions/campaigns/" + campId + "/launch", {}, session.pair)), "/campaigns/" + campId + "?ok=campaignlaunched");
+    assert.equal(where(await post("/actions/campaigns/" + campId + "/dispatch", {}, session.pair)), "/campaigns/" + campId + "?ok=campaigndispatched");
+    const sent = (await api("GET", "/campaigns/" + campId + "/attempts", session.token)).body.items;
+    assert.equal(sent.length, 1);
+    assert.deepEqual([sent[0].address, sent[0].state], [addr1, "sent"]);
+    assert.ok(!(await html(await get("/campaigns/" + campId, session.pair))).includes("x@" + p2.domain), "the contact without consent was never queued");
+
+    // public unsubscribe: no session, signature produced the way the API signs links
+    const org = (await api("GET", "/me", session.token)).body.organization.id;
+    const sig = createHmac("sha256", "e2e-only-hmac-secret-0123456789abcdef").update("unsub:" + org + ":" + cid).digest("hex");
+    const link = "/unsubscribe?o=" + org + "&c=" + cid + "&s=" + sig;
+    const landing = await html(await get(link));
+    assert.ok(landing.includes("Confirmar baja"), "the link only shows a confirmation; opening it unsubscribes nobody");
+    assert.equal((await api("GET", "/prospects/" + p1.id + "/contacts", session.token)).body.items[0].status, "active");
+    assert.equal(where(await post("/actions/public/unsubscribe", { o: org, c: cid, s: sig })), "/unsubscribe?ok=unsubscribed");
+    const after = (await api("GET", "/prospects/" + p1.id + "/contacts", session.token)).body.items[0];
+    assert.deepEqual([after.status, after.consent], ["opted_out", "withdrawn"]);
+    assert.ok((await html(await get("/unsubscribe?o=bad&c=bad&s=bad"))).includes("no es válido"));
+    const forgedPost = await fetch(WEB + "/actions/public/unsubscribe", { ...form({ o: org, c: cid, s: sig }), headers: { ...form({}).headers, origin: "https://evil.example" } });
+    assert.equal(forgedPost.status, 403, "cross-site posts are refused even on the public endpoint");
+
+    assert.match(await html(await get("/campaigns", session.seller.cookie)), /no tiene acceso a las campañas/);
+    assert.ok(!(await html(await get("/", session.seller.cookie))).includes('href="/campaigns"'));
   });
 
   await step("wrong passwords show a generic error and the account throttle kicks in", async () => {

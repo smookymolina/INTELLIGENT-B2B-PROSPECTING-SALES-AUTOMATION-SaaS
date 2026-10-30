@@ -34,3 +34,4 @@ No bloquean la Fase 1: ICP/vertical inicial, proveedor cloud/IdP/pagos, polític
 - Fase 12 (parte interna): P12-01 y P12-02 COMPLETED (`planning/PHASE_12_EXECUTION.md`). Progreso global ≈63 %.
 - P9-02 (tareas) y P11-02 (exportación CSV) COMPLETED. Progreso global ≈63 %.
 - Fase 6 (interna): P6-01 COMPLETED; P6-02/P6-03 BLOCKED por proveedor (`planning/PHASE_6_EXECUTION.md`). Progreso global ≈66 %.
+- Fase 7 (interna): P7-01 y P7-02 COMPLETED; P7-03/P7-04 BLOCKED (`planning/PHASE_7_EXECUTION.md`). Progreso global ≈70 %. El 80 % ya no es alcanzable con trabajo interno: lo que falta depende de proveedores/decisiones (ver PROGRESS).

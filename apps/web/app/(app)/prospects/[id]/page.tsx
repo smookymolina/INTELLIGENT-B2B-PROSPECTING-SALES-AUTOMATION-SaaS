@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { AttributeListDto, IntentAssessmentListDto, ProspectDetailDto, ProspectScoreDto } from "@prospecting/contracts";
+import type { AttributeListDto, ContactListDto, IntentAssessmentListDto, ProspectDetailDto, ProspectScoreDto } from "@prospecting/contracts";
 import { api } from "../../../../lib/api";
 import { requireSession } from "../../../../lib/auth";
 import { formatDate } from "../../../../lib/format";
 import { Flash } from "../../../components/flash";
 
 const LABELS: Record<string, string> = { candidate: "Candidato", qualified: "Calificado", disqualified: "Descalificado" };
+const CONTACT_STATUS: Record<string, string> = { active: "Activo", opted_out: "Dado de baja", bounced: "Rebotado" };
+const CONSENT: Record<string, string> = { granted: "Otorgado", withdrawn: "Retirado", none: "Ninguno registrado" };
 const SOURCE: Record<string, string> = { manual: "Captura manual", csv_import: "Importación CSV" };
 const ATTR_STATUS: Record<string, string> = { unverified: "Sin verificar", verified: "Verificado", rejected: "Rechazado" };
 const CONF: Record<string, string> = { low: "Baja", medium: "Media", high: "Alta" };
@@ -25,6 +27,8 @@ export default async function ProspectPage({ params, searchParams }: { params: P
   if (!result.ok) throw new Error("The prospect could not be loaded");
   const p = result.data;
   const manage = me.permissions.includes("prospects:manage");
+  const canContacts = me.permissions.includes("campaigns:read");
+  const contacts = canContacts ? await api<ContactListDto>(`/prospects/${id}/contacts`, { token }) : null;
   const [attrs, score, replies] = await Promise.all([
     api<AttributeListDto>(`/prospects/${id}/attributes`, { token }),
     api<ProspectScoreDto>(`/prospects/${id}/score`, { token }),
@@ -112,6 +116,51 @@ export default async function ProspectPage({ params, searchParams }: { params: P
           <label>Texto de la respuesta<textarea name="text" required rows={4} maxLength={4000} /></label>
           <button type="submit">Clasificar</button>
         </form>
+      ) : null}
+
+      {contacts?.ok ? (
+        <>
+          <h2>Contactos y consentimiento</h2>
+          <p className="hint">Un contacto <strong>no implica permiso</strong>: sólo cuenta el consentimiento que una persona registre con su evidencia. Una baja es inmediata y sólo se revierte con un consentimiento nuevo.</p>
+          {contacts.data.items.length === 0 ? <p className="empty">Sin contactos.</p> : (
+            <div className="table-wrap">
+              <table>
+                <caption className="sr">Contactos</caption>
+                <thead><tr><th scope="col">Correo</th><th scope="col">Origen</th><th scope="col">Estado</th><th scope="col">Consentimiento</th>{manage ? <th scope="col">Registrar</th> : null}</tr></thead>
+                <tbody>
+                  {contacts.data.items.map((c) => (
+                    <tr key={c.id}>
+                      <td>{c.address}{c.displayName ? ` (${c.displayName})` : ""}</td><td>{c.source}</td><td>{CONTACT_STATUS[c.status]}</td>
+                      <td>{CONSENT[c.consent]}{c.consentAt ? ` · ${formatDate(c.consentAt)}` : ""}</td>
+                      {manage ? (
+                        <td>
+                          <form method="post" action={`/actions/contacts/${c.id}/consent`} className="inline">
+                            <input type="hidden" name="prospectId" value={p.id} />
+                            <label className="sr" htmlFor={`ev-${c.id}`}>Evidencia</label>
+                            <input id={`ev-${c.id}`} name="evidence" required minLength={3} maxLength={500} placeholder="Cómo y dónde se obtuvo / retiró" />
+                            <label className="sr" htmlFor={`dt-${c.id}`}>Fecha (UTC)</label>
+                            <input id={`dt-${c.id}`} name="occurredAt" type="datetime-local" required />
+                            <select name="event" aria-label="Evento"><option value="granted">Consentimiento otorgado</option><option value="withdrawn">Consentimiento retirado</option></select>
+                            <button type="submit">Registrar</button>
+                          </form>
+                        </td>
+                      ) : null}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {manage ? (
+            <form method="post" action="/actions/contacts/add" className="inline" aria-label="Nuevo contacto">
+              <input type="hidden" name="prospectId" value={p.id} />
+              <label>Correo<input name="address" type="email" required maxLength={254} autoComplete="off" /></label>
+              <label>Nombre (opcional)<input name="displayName" maxLength={120} /></label>
+              <label>Origen del dato<input name="source" required minLength={3} maxLength={300} placeholder="Formulario web, 2026-09-01" /></label>
+              <button type="submit">Agregar contacto</button>
+            </form>
+          ) : null}
+        </>
       ) : null}
 
       {manage ? (

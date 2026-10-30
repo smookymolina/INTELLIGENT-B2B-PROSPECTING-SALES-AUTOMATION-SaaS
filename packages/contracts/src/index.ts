@@ -11,14 +11,14 @@ export type HealthStatus = Readonly<{
 export const MEMBERSHIP_ROLES = ["org_admin", "campaign_manager", "sales_manager", "seller", "analyst", "viewer"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
-export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove", "scoring:manage", "scoring:approve", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "quotes:approve", "analytics:read", "ai:use", "ai:manage"] as const;
+export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove", "scoring:manage", "scoring:approve", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "quotes:approve", "analytics:read", "ai:use", "ai:manage", "campaigns:read", "campaigns:manage", "campaigns:approve"] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 /** Single source of truth for role -> permission. `saas_admin` is platform-level and intentionally absent (ADR-011). */
 export const ROLE_PERMISSIONS: Readonly<Record<MembershipRole, readonly Permission[]>> = {
   org_admin: PERMISSIONS,
-  campaign_manager: ["organization:read", "members:read", "catalog:read", "prospects:read", "prospects:manage", "suppressions:manage", "leads:read", "crm:read", "analytics:read", "ai:use"],
-  sales_manager: ["organization:read", "members:read", "catalog:read", "catalog:manage", "prospects:read", "prospects:manage", "suppressions:manage", "scoring:manage", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "analytics:read", "ai:use"],
+  campaign_manager: ["organization:read", "members:read", "catalog:read", "prospects:read", "prospects:manage", "suppressions:manage", "leads:read", "crm:read", "analytics:read", "ai:use", "campaigns:read", "campaigns:manage"],
+  sales_manager: ["organization:read", "members:read", "catalog:read", "catalog:manage", "prospects:read", "prospects:manage", "suppressions:manage", "scoring:manage", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "analytics:read", "ai:use", "campaigns:read", "campaigns:manage", "campaigns:approve"],
   seller: ["organization:read", "catalog:read", "prospects:read", "crm:read", "crm:work", "quotes:read", "quotes:manage", "ai:use"],
   analyst: ["organization:read", "catalog:read", "prospects:read", "leads:read", "crm:read", "quotes:read", "analytics:read"],
   viewer: ["organization:read", "catalog:read", "prospects:read", "leads:read", "crm:read", "quotes:read", "analytics:read"],
@@ -487,6 +487,102 @@ export const AiUsageDto = z.object({
   byCapability: z.array(z.object({ capability: z.string(), runs: z.number().int(), costMicros: z.number().int() })),
 });
 export type AiUsageDto = z.infer<typeof AiUsageDto>;
+
+/* ---------- Contacts, consent and campaigns (F7 domain; sandbox channel only) ---------- */
+
+export const CAMPAIGN_STATES = ["draft", "approved", "running", "paused", "completed", "cancelled"] as const;
+export const ATTEMPT_STATES = ["queued", "sent", "skipped", "failed", "cancelled"] as const;
+export const UNSUBSCRIBE_PLACEHOLDER = "{{unsubscribe_url}}";
+const campaignBody = z.string().trim().min(1).max(5000).refine((v) => v.includes(UNSUBSCRIBE_PLACEHOLDER), { message: "the body must include {{unsubscribe_url}}" });
+
+export const AddContactRequest = z.strictObject({ address: email, displayName: text(120).optional(), source: text(300).min(3) });
+export type AddContactRequest = z.infer<typeof AddContactRequest>;
+/** Consent is only ever recorded by a person, with the evidence of how and when it was given or withdrawn. Nothing is defaulted. */
+export const RecordConsentRequest = z.strictObject({ event: z.enum(["granted", "withdrawn"]), evidence: text(500).min(3), occurredAt: z.iso.datetime() });
+export type RecordConsentRequest = z.infer<typeof RecordConsentRequest>;
+export const ContactDto = z.object({
+  id: z.uuid(),
+  prospectId: z.uuid(),
+  channel: z.literal("email"),
+  address: z.string(),
+  displayName: z.string().nullable(),
+  source: z.string(),
+  status: z.enum(["active", "opted_out", "bounced"]),
+  consent: z.enum(["granted", "withdrawn", "none"]),
+  consentAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+});
+export type ContactDto = z.infer<typeof ContactDto>;
+export const ContactListDto = z.object({ items: z.array(ContactDto) });
+export type ContactListDto = z.infer<typeof ContactListDto>;
+
+export const CreateCampaignRequest = z.strictObject({ name: text(120), subject: text(200), body: campaignBody, minDaysBetween: z.number().int().min(0).max(365).default(7) });
+export type CreateCampaignRequest = z.infer<typeof CreateCampaignRequest>;
+export const UpdateCampaignRequest = z
+  .strictObject({ name: text(120).optional(), subject: text(200).optional(), body: campaignBody.optional(), minDaysBetween: z.number().int().min(0).max(365).optional() })
+  .refine((v) => Object.keys(v).length > 0, "at least one field is required");
+export type UpdateCampaignRequest = z.infer<typeof UpdateCampaignRequest>;
+export const CampaignListQuery = z.strictObject({
+  state: z.enum(["all", ...CAMPAIGN_STATES]).default("all"),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.uuid().optional(),
+});
+export type CampaignListQuery = z.infer<typeof CampaignListQuery>;
+export const CampaignDto = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  subject: z.string(),
+  body: z.string(),
+  state: z.enum(CAMPAIGN_STATES),
+  minDaysBetween: z.number().int(),
+  createdBy: z.uuid(),
+  approvedAt: z.iso.datetime().nullable(),
+  launchedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  attempts: z.object({ queued: z.number().int(), sent: z.number().int(), skipped: z.number().int(), failed: z.number().int(), cancelled: z.number().int() }),
+});
+export type CampaignDto = z.infer<typeof CampaignDto>;
+export const CampaignPageDto = z.object({ items: z.array(CampaignDto), nextCursor: z.uuid().nullable() });
+export type CampaignPageDto = z.infer<typeof CampaignPageDto>;
+export const EXCLUSION_REASONS = ["no_consent", "opted_out", "bounced", "suppressed", "recently_contacted", "already_in_campaign"] as const;
+export const AudiencePreviewDto = z.object({
+  total: z.number().int(),
+  eligible: z.number().int(),
+  excluded: z.object({ no_consent: z.number().int(), opted_out: z.number().int(), bounced: z.number().int(), suppressed: z.number().int(), recently_contacted: z.number().int(), already_in_campaign: z.number().int() }),
+});
+export type AudiencePreviewDto = z.infer<typeof AudiencePreviewDto>;
+export const DispatchRequest = z.strictObject({ limit: z.number().int().min(1).max(200).default(50) });
+export type DispatchRequest = z.infer<typeof DispatchRequest>;
+export const DispatchResultDto = z.object({
+  processed: z.number().int(),
+  sent: z.number().int(),
+  failed: z.number().int(),
+  skipped: z.record(z.string(), z.number().int()),
+  remainingQueued: z.number().int(),
+  campaignState: z.enum(CAMPAIGN_STATES),
+});
+export type DispatchResultDto = z.infer<typeof DispatchResultDto>;
+export const AttemptListQuery = z.strictObject({
+  state: z.enum(["all", ...ATTEMPT_STATES]).default("all"),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.uuid().optional(),
+});
+export type AttemptListQuery = z.infer<typeof AttemptListQuery>;
+export const AttemptDto = z.object({
+  id: z.uuid(),
+  contactId: z.uuid(),
+  address: z.string(),
+  state: z.enum(ATTEMPT_STATES),
+  skipReason: z.string().nullable(),
+  providerMessageId: z.string().nullable(),
+  attemptedAt: z.iso.datetime().nullable(),
+});
+export type AttemptDto = z.infer<typeof AttemptDto>;
+export const AttemptPageDto = z.object({ items: z.array(AttemptDto), nextCursor: z.uuid().nullable() });
+export type AttemptPageDto = z.infer<typeof AttemptPageDto>;
+/** Public self-service unsubscribe: the signature is an HMAC over org + contact, produced when the message was rendered. */
+export const UnsubscribeRequest = z.strictObject({ org: z.uuid(), contact: z.uuid(), sig: z.string().regex(/^[0-9a-f]{64}$/) });
+export type UnsubscribeRequest = z.infer<typeof UnsubscribeRequest>;
 
 /* ---------- Quotes and sales (P10-01) ---------- */
 

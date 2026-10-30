@@ -37,3 +37,15 @@ No se considera cerrado hasta implementar controles en las fases propietarias.
 | Manipulación del libro | tabla append-only (sin UPDATE/DELETE para la aplicación) | `ai.int.spec.ts` |
 | Evidencia de otro tenant | resolución bajo RLS del tenant; ajena = no evidencia | `ai.int.spec.ts` |
 
+## Campañas y consentimiento (P7)
+
+| Amenaza | Mitigación | Evidencia |
+|---|---|---|
+| Contactar a quien no dio consentimiento | consentimiento explícito con evidencia; elegibilidad en vista previa, lanzamiento y cada envío; trigger que rechaza `sent` | `campaigns.int.spec.ts` |
+| Enviar tras una baja | baja inmediata (libro + estado del contacto); revalidación por envío; trigger de respaldo | `campaigns.int.spec.ts`, E2E F7 |
+| Baja falsificada o enumeración de contactos | HMAC sobre organización+contacto; 204 idéntico para válido/inválido; Origin check en el BFF | `campaigns.int.spec.ts`, E2E F7 |
+| Baja accidental por escáner de correo | la página sólo confirma; hace falta un POST | E2E F7 |
+| Doble envío por reintento | un intento por (campaña, contacto); clave de idempotencia al adaptador | `campaigns.int.spec.ts` |
+| Contenido alterado tras la aprobación | contenido inmutable fuera de borrador; aprobador/hora sellados por la base | `campaigns.int.spec.ts` |
+| Manipulación del historial de consentimiento | tabla append-only para la aplicación | `campaigns.int.spec.ts` |
+

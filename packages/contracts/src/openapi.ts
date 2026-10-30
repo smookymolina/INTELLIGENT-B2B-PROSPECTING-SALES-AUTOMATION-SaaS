@@ -67,6 +67,70 @@ export const OPERATIONS: readonly Operation[] = [
     body: C.SetAiBudgetRequest, success: { status: 200, schema: C.AiUsageDto, description: "Usage with the new limit" }, errors: [400, 401, 403],
   },
   {
+    method: "post", path: "/prospects/{id}/contacts", id: "addContact", summary: "Add an email contact to a prospect (source required; no consent is implied)", tag: "Campaigns", permission: "prospects:manage",
+    pathParams: ["id"], body: C.AddContactRequest, success: { status: 201, schema: C.ContactDto, description: "Created" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/prospects/{id}/contacts", id: "listContacts", summary: "Contacts of a prospect with their current consent", tag: "Campaigns", permission: "campaigns:read",
+    pathParams: ["id"], success: { status: 200, schema: C.ContactListDto, description: "Contacts" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/contacts/{id}/consent", id: "recordConsent", summary: "Record a granted/withdrawn consent with its evidence (append-only ledger)", tag: "Campaigns", permission: "prospects:manage",
+    pathParams: ["id"], body: C.RecordConsentRequest, success: { status: 201, schema: C.ContactDto, description: "Recorded" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/campaigns", id: "createCampaign", summary: "Create a draft campaign (one email; the body must contain {{unsubscribe_url}})", tag: "Campaigns", permission: "campaigns:manage",
+    body: C.CreateCampaignRequest, success: { status: 201, schema: C.CampaignDto, description: "Created" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/campaigns", id: "listCampaigns", summary: "Campaigns (keyset by id)", tag: "Campaigns", permission: "campaigns:read",
+    query: C.CampaignListQuery, success: { status: 200, schema: C.CampaignPageDto, description: "Page" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/campaigns/{id}", id: "getCampaign", summary: "One campaign with attempt counts", tag: "Campaigns", permission: "campaigns:read",
+    pathParams: ["id"], success: { status: 200, schema: C.CampaignDto, description: "Campaign" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "patch", path: "/campaigns/{id}", id: "updateCampaign", summary: "Edit a DRAFT campaign", tag: "Campaigns", permission: "campaigns:manage",
+    pathParams: ["id"], body: C.UpdateCampaignRequest, success: { status: 200, schema: C.CampaignDto, description: "Updated" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/campaigns/{id}/approve", id: "approveCampaign", summary: "Approve a draft (org_admin, sales_manager); approver and time are stamped by the database", tag: "Campaigns", permission: "campaigns:approve",
+    pathParams: ["id"], success: { status: 200, schema: C.CampaignDto, description: "Approved" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/campaigns/{id}/preview", id: "previewAudience", summary: "Who would be reached and why the rest is excluded (consent, opt-out, suppression, frequency)", tag: "Campaigns", permission: "campaigns:read",
+    pathParams: ["id"], success: { status: 200, schema: C.AudiencePreviewDto, description: "Preview" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/campaigns/{id}/launch", id: "launchCampaign", summary: "Start an APPROVED campaign: queue one attempt per eligible contact (idempotent)", tag: "Campaigns", permission: "campaigns:manage",
+    pathParams: ["id"], success: { status: 200, schema: C.CampaignDto, description: "Running" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/campaigns/{id}/dispatch", id: "dispatchCampaign", summary: "Process queued attempts through the configured email adapter, re-checking consent and suppression for EACH one. 503 without an adapter", tag: "Campaigns", permission: "campaigns:manage",
+    pathParams: ["id"], body: C.DispatchRequest, success: { status: 200, schema: C.DispatchResultDto, description: "Result" }, errors: [400, 401, 403, 404, 409, 503],
+  },
+  {
+    method: "post", path: "/campaigns/{id}/pause", id: "pauseCampaign", summary: "Pause a running campaign", tag: "Campaigns", permission: "campaigns:manage",
+    pathParams: ["id"], success: { status: 200, schema: C.CampaignDto, description: "Paused" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/campaigns/{id}/resume", id: "resumeCampaign", summary: "Resume a paused campaign", tag: "Campaigns", permission: "campaigns:manage",
+    pathParams: ["id"], success: { status: 200, schema: C.CampaignDto, description: "Running" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/campaigns/{id}/cancel", id: "cancelCampaign", summary: "Cancel a campaign and its queued attempts", tag: "Campaigns", permission: "campaigns:manage",
+    pathParams: ["id"], success: { status: 200, schema: C.CampaignDto, description: "Cancelled" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/campaigns/{id}/attempts", id: "listAttempts", summary: "Send attempts of a campaign with their outcome (keyset by id)", tag: "Campaigns", permission: "campaigns:read",
+    pathParams: ["id"], query: C.AttemptListQuery, success: { status: 200, schema: C.AttemptPageDto, description: "Page" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/public/unsubscribe", id: "unsubscribe", summary: "Self-service unsubscribe from a signed link in a message; identical answer for every valid-looking request", tag: "Campaigns", public: true,
+    body: C.UnsubscribeRequest, success: { status: 204, description: "Unsubscribed (or already)" }, errors: [400, 429],
+  },
+  {
     method: "post", path: "/auth/register", id: "register", summary: "Create user, organization and first org_admin session", tag: "Auth", public: true,
     body: C.RegisterRequest, idempotent: true, success: { status: 201, schema: C.SessionDto, description: "Session opened" }, errors: [400, 409, 422],
   },
