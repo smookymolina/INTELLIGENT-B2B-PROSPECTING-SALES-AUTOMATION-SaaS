@@ -29,6 +29,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       <h1>Catálogo</h1>
       <p className="toolbar">
         {me.permissions.includes("catalog:manage") ? <Link href="/catalog/new">+ Nuevo elemento</Link> : null}
+        {me.permissions.includes("catalog:manage") ? <Link href="/catalog/import">Importar CSV</Link> : null}
         <Link href="/catalog/categories">Categorías</Link>
       </p>
       <form method="get" className="filters" aria-label="Filtros">

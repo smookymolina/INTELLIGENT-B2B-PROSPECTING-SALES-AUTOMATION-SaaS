@@ -13,6 +13,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         <nav aria-label="Principal">
           <Link href="/">Inicio</Link>
           <Link href="/catalog">Catálogo</Link>
+          <Link href="/pricing">Precios</Link>
+          <Link href="/prospects">Prospectos</Link>
           <Link href="/company">Empresa</Link>
         </nav>
         <span className="who">{me.user.displayName} · {label(ROLE_LABELS, me.role)}</span>

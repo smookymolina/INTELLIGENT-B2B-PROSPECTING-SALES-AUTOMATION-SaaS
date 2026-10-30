@@ -237,6 +237,98 @@ try {
     assert.equal((await api("GET", `/catalog/items/${id}`, session.token)).body.status, "approved");
   });
 
+  const jobOf = (res) => /\?job=([0-9a-f-]{36})$/.exec(where(res))?.[1];
+
+  await step("W-F4: prospects, do-not-contact list and CSV import through the forms", async () => {
+    const domain = `acme-e2e-${randomUUID().slice(0, 6)}.example`;
+    const created = await post("/actions/prospects/create", { name: "Acme Web", domain: `https://www.${domain}/x`, country: "mx", city: "Monterrey" }, session.pair);
+    const pid = /^\/prospects\/([0-9a-f-]{36})\?ok=created$/.exec(where(created))?.[1];
+    assert.ok(pid, `unexpected redirect ${where(created)}`);
+    let page = await html(await get(`/prospects/${pid}`, session.pair));
+    for (const t of ["Acme Web", domain, "Captura manual", "ninguno", "Candidato"]) assert.ok(page.includes(t), `missing ${t}`);
+    assert.equal(where(await post("/actions/prospects/create", { name: "Otro nombre", domain }, session.pair)), `/prospects/${pid}?error=conflict`); // dedupe sends you to the existing record
+    assert.equal(where(await post("/actions/prospects/create", { name: "x", domain: "not a domain" }, session.pair)), "/prospects/new?error=input");
+
+    assert.equal(where(await post(`/actions/prospects/${pid}/status`, { status: "qualified" }, session.pair)), `/prospects/${pid}?ok=status`);
+    assert.ok((await html(await get("/prospects?status=qualified", session.pair))).includes("Acme Web"));
+    assert.equal(where(await post(`/actions/prospects/${pid}/update`, { name: "Acme Web SA", domain, country: "MX", region: "NL", city: "Monterrey", industry: "Logística", notes: "" }, session.pair)), `/prospects/${pid}?ok=updated`);
+
+    assert.equal(where(await post("/actions/prospects/suppressions", { kind: "domain", value: domain, reason: "opt-out" }, session.pair)), "/prospects/suppressions?ok=suppression");
+    page = await html(await get(`/prospects/${pid}`, session.pair));
+    assert.ok(page.includes("lista de no contactar") && page.includes("Descalificado"));
+    assert.equal(where(await post(`/actions/prospects/${pid}/status`, { status: "qualified" }, session.pair)), `/prospects/${pid}?error=conflict`);
+    const supp = await html(await get("/prospects/suppressions", session.pair));
+    assert.ok(supp.includes(domain));
+    const suppId = (await api("GET", "/suppressions", session.token)).body.items[0].id;
+    assert.equal(where(await post(`/actions/prospects/suppressions/${suppId}`, {}, session.pair)), "/prospects/suppressions?ok=removed");
+
+    const csv = `name,domain\nImp Uno,imp1-${domain}\nImp Dos,imp2-${domain}\n`;
+    const dry = await post("/actions/prospects/import", { mode: "dry_run", csv }, session.pair);
+    assert.ok(jobOf(dry));
+    assert.match(await html(await get(`/prospects/import?job=${jobOf(dry)}`, session.pair)), /Validación correcta/);
+    const applied = await post("/actions/prospects/import", { mode: "apply", csv }, session.pair);
+    assert.match(await html(await get(`/prospects/import?job=${jobOf(applied)}`, session.pair)), /Importación aplicada/);
+    assert.ok((await html(await get("/prospects?q=imp", session.pair))).includes("Imp Uno"));
+    const bad = await post("/actions/prospects/import", { mode: "apply", csv: "name,domain\nMala,not a domain\n" }, session.pair);
+    const badPage = await html(await get(`/prospects/import?job=${jobOf(bad)}`, session.pair));
+    assert.match(badPage, /Importación rechazada/);
+    assert.ok(!badPage.includes("not a domain"), "cell value echoed");
+    assert.equal(where(await post("/actions/prospects/import", { mode: "apply", csv: "price\n1\n" }, session.pair)), "/prospects/import?error=input");
+  });
+
+  await step("W-04/W-03: catalog CSV import and price lists through the forms", async () => {
+    const sku = `IMP-${randomUUID().slice(0, 5)}`;
+    const imported = await post("/actions/catalog/import", { mode: "apply", csv: `sku,kind,name\n${sku},product,Importado\n` }, session.pair);
+    assert.match(await html(await get(`/catalog/import?job=${jobOf(imported)}`, session.pair)), /Importación aplicada/);
+    const draftItem = (await api("GET", "/catalog/items?status=draft&limit=100", session.token)).body.items.find((i) => i.sku === sku);
+    assert.ok(draftItem && draftItem.status === "draft");
+
+    const made = await post("/actions/pricing/create", { name: `Lista ${randomUUID().slice(0, 4)}`, currency: "mxn", validFrom: "2026-01-01" }, session.pair);
+    const lid = /^\/pricing\/([0-9a-f-]{36})\?ok=created$/.exec(where(made))?.[1];
+    assert.ok(lid);
+    assert.equal(where(await post("/actions/pricing/create", { name: "x", currency: "ZZZ" }, session.pair)), "/pricing/new?error=input");
+    assert.equal(where(await post(`/actions/pricing/${lid}/price`, { itemId: session.itemId, unitPrice: "120.5" }, session.pair)), `/pricing/${lid}?ok=price`);
+    assert.equal(where(await post(`/actions/pricing/${lid}/price`, { itemId: session.itemId, unitPrice: "12,5" }, session.pair)), `/pricing/${lid}?error=input`);
+    assert.equal(where(await post(`/actions/pricing/${lid}/price`, { itemId: draftItem.id, unitPrice: "5" }, session.pair)), `/pricing/${lid}?ok=price`);
+    assert.ok((await html(await get(`/pricing/${lid}`, session.pair))).includes("120.5000"));
+    assert.equal(where(await post(`/actions/pricing/${lid}/approve`, {}, session.pair)), `/pricing/${lid}?error=conflict`); // a priced item is not approved
+    assert.equal(where(await post(`/actions/pricing/${lid}/unprice`, { itemId: draftItem.id }, session.pair)), `/pricing/${lid}?ok=unprice`);
+    assert.equal(where(await post(`/actions/pricing/${lid}/approve`, {}, session.pair)), `/pricing/${lid}?ok=approve`);
+    const approvedPage = await html(await get(`/pricing/${lid}`, session.pair));
+    assert.ok(approvedPage.includes("Vigente para consumo") && approvedPage.includes("Sí"));
+    assert.ok(!approvedPage.includes("Guardar precio"));
+    assert.equal(where(await post(`/actions/pricing/${lid}/price`, { itemId: session.itemId, unitPrice: "1" }, session.pair)), `/pricing/${lid}?error=conflict`); // approved lists are immutable
+    const clone = await post(`/actions/pricing/${lid}/clone`, { name: `Clon ${randomUUID().slice(0, 4)}` }, session.pair);
+    assert.match(where(clone), /^\/pricing\/[0-9a-f-]{36}\?ok=cloned$/);
+    assert.ok((await html(await get("/pricing?status=draft", session.pair))).includes("Clon"));
+    assert.equal((await post(`/actions/pricing/${lid}/delete`, {}, session.pair)).status, 404);
+  });
+
+  await step("W-F4/W-03: a viewer cannot write prospects, suppressions or prices even with forced requests", async () => {
+    const admin = await api("GET", "/me", session.token);
+    const email2 = `viewer2-${randomUUID().slice(0, 8)}@example.test`;
+    const inv = await api("POST", "/invitations", session.token, { email: email2, role: "viewer" });
+    const reg = await fetch(`${API}/auth/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: email2, password, displayName: "Viewer 2", organizationName: `V2 ${randomUUID().slice(0, 4)}` }) });
+    await api("POST", "/invitations/accept", (await reg.json()).token, { token: inv.body.token });
+    const login = await fetch(`${WEB}/session/login`, form({ email: email2, password, organizationSlug: admin.body.organization.slug }));
+    const vc = cookieOf(login).pair;
+
+    assert.ok(!(await html(await get("/prospects", vc))).includes("+ Nuevo prospecto"));
+    assert.match(await html(await get("/prospects/new", vc)), /no permite crear/);
+    assert.match(await html(await get("/prospects/import", vc)), /no permite importar/);
+    const sp = await html(await get("/prospects/suppressions", vc));
+    assert.ok(!sp.includes('action="/actions/prospects/suppressions') && !sp.includes(">Quitar<"), "viewer sees suppression write controls");
+    assert.ok(!(await html(await get("/pricing", vc))).includes("+ Nueva lista"));
+    const priceList = (await api("GET", "/catalog/price-lists?status=approved", session.token)).body.items[0].id;
+    const pl = await html(await get(`/pricing/${priceList}`, vc));
+    assert.ok(!pl.includes("Aprobar lista") && !pl.includes("Clonar") && !pl.includes("Archivar"));
+
+    assert.equal(where(await post("/actions/prospects/create", { name: "Forzado", domain: "forzado.example" }, vc)), "/prospects/new?error=forbidden");
+    assert.equal(where(await post("/actions/prospects/suppressions", { kind: "name", value: "Forzado", reason: "x" }, vc)), "/prospects/suppressions?error=forbidden");
+    assert.equal(where(await post(`/actions/pricing/${priceList}/archive`, {}, vc)), `/pricing/${priceList}?error=forbidden`);
+    assert.equal((await api("GET", `/catalog/price-lists/${priceList}`, session.token)).body.status, "approved");
+  });
+
   await step("wrong passwords show a generic error and the account throttle kicks in", async () => {
     const wrong = await fetch(`${WEB}/session/login`, form({ email, password: "definitely wrong password" }));
     assert.equal(wrong.headers.get("location"), "/login?error=invalid");

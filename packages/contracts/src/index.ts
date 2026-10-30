@@ -11,17 +11,17 @@ export type HealthStatus = Readonly<{
 export const MEMBERSHIP_ROLES = ["org_admin", "campaign_manager", "sales_manager", "seller", "analyst", "viewer"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
-export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve"] as const;
+export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove"] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 /** Single source of truth for role -> permission. `saas_admin` is platform-level and intentionally absent (ADR-011). */
 export const ROLE_PERMISSIONS: Readonly<Record<MembershipRole, readonly Permission[]>> = {
   org_admin: PERMISSIONS,
-  campaign_manager: ["organization:read", "members:read", "catalog:read"],
-  sales_manager: ["organization:read", "members:read", "catalog:read", "catalog:manage"],
-  seller: ["organization:read", "catalog:read"],
-  analyst: ["organization:read", "catalog:read"],
-  viewer: ["organization:read", "catalog:read"],
+  campaign_manager: ["organization:read", "members:read", "catalog:read", "prospects:read", "prospects:manage", "suppressions:manage"],
+  sales_manager: ["organization:read", "members:read", "catalog:read", "catalog:manage", "prospects:read", "prospects:manage", "suppressions:manage"],
+  seller: ["organization:read", "catalog:read", "prospects:read"],
+  analyst: ["organization:read", "catalog:read", "prospects:read"],
+  viewer: ["organization:read", "catalog:read", "prospects:read"],
 };
 
 export function hasPermission(role: MembershipRole, permission: Permission): boolean {
@@ -224,6 +224,79 @@ export type EvidenceQuery = z.infer<typeof EvidenceQuery>;
 export const MAX_RESOLVE_REFS = 50;
 export const ResolveRefsRequest = z.strictObject({ refs: z.array(z.string().max(100)).min(1).max(MAX_RESOLVE_REFS) });
 export type ResolveRefsRequest = z.infer<typeof ResolveRefsRequest>;
+
+/* ---------- Prospects & suppression (P4-01) ---------- */
+
+const DOMAIN = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+/** "https://www.Example.com:8080/path?x" -> "example.com"; emails, IPs, userinfo and non-ASCII (use punycode) are rejected (null). */
+export function normalizeDomain(input: string): string | null {
+  let v = input.trim().toLowerCase();
+  v = v.replace(/^[a-z][a-z0-9+.-]*:\/\//, "");
+  v = v.split(/[/?#]/)[0] ?? "";
+  if (v.includes("@")) return null;
+  v = v.replace(/:\d{1,5}$/, "").replace(/^www\./, "").replace(/\.$/, "");
+  return v.length <= 253 && DOMAIN.test(v) ? v : null;
+}
+export const normalizeNameKey = (name: string): string => name.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+/** Dedupe identity of a prospect: its domain, or name|country when it has none. */
+export const prospectKeys = (name: string, domain: string | null | undefined, country: string | null | undefined) => {
+  const domainKey = domain ? normalizeDomain(domain) : null;
+  const nameKey = normalizeNameKey(name);
+  return { domainKey, nameKey, dedupeKey: domainKey ?? `${nameKey}|${country ?? ""}` };
+};
+
+const domainField = z.string().trim().max(300).refine((v) => normalizeDomain(v) !== null, "a domain or URL such as example.com");
+export const PROSPECT_STATUSES = ["candidate", "qualified", "disqualified"] as const;
+
+export const CreateProspectRequest = z.strictObject({
+  name: text(200),
+  domain: domainField.nullish(),
+  country: country.nullish(),
+  region: text(100).nullish(),
+  city: text(100).nullish(),
+  industry: text(100).nullish(),
+  notes: text(2000).nullish(),
+});
+export type CreateProspectRequest = z.infer<typeof CreateProspectRequest>;
+export const UpdateProspectRequest = z
+  .strictObject({
+    name: text(200).optional(),
+    domain: domainField.nullable().optional(),
+    country: country.nullable().optional(),
+    region: text(100).nullable().optional(),
+    city: text(100).nullable().optional(),
+    industry: text(100).nullable().optional(),
+    notes: text(2000).nullable().optional(),
+  })
+  .refine(nonEmpty, "at least one field is required");
+export type UpdateProspectRequest = z.infer<typeof UpdateProspectRequest>;
+export const SetProspectStatusRequest = z.strictObject({ status: z.enum(PROSPECT_STATUSES), reason: text(200).nullish() });
+export type SetProspectStatusRequest = z.infer<typeof SetProspectStatusRequest>;
+export const ProspectListQuery = z.strictObject({
+  status: z.enum(["all", ...PROSPECT_STATUSES]).default("all"),
+  country: country.optional(),
+  suppressed: z.enum(["true", "false"]).optional(),
+  q: text(100).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.uuid().optional(),
+});
+export type ProspectListQuery = z.infer<typeof ProspectListQuery>;
+
+export const CreateSuppressionRequest = z
+  .strictObject({ kind: z.enum(["domain", "name"]), value: text(300), reason: text(200) })
+  .refine((v) => v.kind !== "domain" || normalizeDomain(v.value) !== null, { message: "a domain or URL such as example.com", path: ["value"] });
+export type CreateSuppressionRequest = z.infer<typeof CreateSuppressionRequest>;
+
+/** Prospect CSV: name (required); domain, country, region, city, industry (optional). Natural key = domain, else name|country. */
+export const ProspectImportRow = z.strictObject({
+  name: text(200),
+  domain: domainField.nullish(),
+  country: country.nullish(),
+  region: text(100).nullish(),
+  city: text(100).nullish(),
+  industry: text(100).nullish(),
+});
+export type ProspectImportRow = z.infer<typeof ProspectImportRow>;
 
 export const UuidParam = z.uuid();
 
@@ -453,6 +526,58 @@ export const ResolvedRefDto = z.object({
 export type ResolvedRefDto = z.infer<typeof ResolvedRefDto>;
 export const ResolveRefsDto = z.object({ results: z.array(ResolvedRefDto) });
 export type ResolveRefsDto = z.infer<typeof ResolveRefsDto>;
+
+export const ProspectDto = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  domain: z.string().nullable(),
+  country: z.string().nullable(),
+  region: z.string().nullable(),
+  city: z.string().nullable(),
+  industry: z.string().nullable(),
+  notes: z.string().nullable(),
+  status: z.enum(PROSPECT_STATUSES),
+  statusReason: z.string().nullable(),
+  /** True when the domain or name is on the do-not-contact list. */
+  suppressed: z.boolean(),
+  /** A prospect is only a candidate: it never carries permission to be contacted. */
+  contactPermission: z.literal("none"),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+export type ProspectDto = z.infer<typeof ProspectDto>;
+export const ProspectSourceDto = z.object({ id: z.uuid(), type: z.enum(["manual", "csv_import"]), ref: z.string().nullable(), collectedAt: z.iso.datetime(), createdBy: z.uuid() });
+export const ProspectDetailDto = ProspectDto.extend({ sources: z.array(ProspectSourceDto) });
+export type ProspectDetailDto = z.infer<typeof ProspectDetailDto>;
+export const ProspectPageDto = z.object({ items: z.array(ProspectDto), nextCursor: z.uuid().nullable() });
+export type ProspectPageDto = z.infer<typeof ProspectPageDto>;
+export const SuppressionDto = z.object({ id: z.uuid(), kind: z.enum(["domain", "name"]), value: z.string(), reason: z.string(), createdAt: z.iso.datetime() });
+export type SuppressionDto = z.infer<typeof SuppressionDto>;
+export const SuppressionListDto = z.object({ items: z.array(SuppressionDto) });
+export type SuppressionListDto = z.infer<typeof SuppressionListDto>;
+export const ConnectorsDto = z.object({ connectors: z.array(z.object({ id: z.string(), name: z.string(), enabled: z.boolean() })), note: z.string() });
+export type ConnectorsDto = z.infer<typeof ConnectorsDto>;
+
+export const ProspectImportErrorDto = z.object({ row: z.number().int(), name: z.string().nullable(), column: z.string().nullable(), code: z.string(), message: z.string() });
+export type ProspectImportErrorDto = z.infer<typeof ProspectImportErrorDto>;
+export const ProspectImportJobDto = z.object({
+  id: z.uuid(),
+  mode: z.enum(["dry_run", "apply"]),
+  status: z.enum(["valid", "invalid", "applied", "rejected"]),
+  fileHash: z.string(),
+  totals: z.object({ rows: z.number().int(), created: z.number().int(), updated: z.number().int(), unchanged: z.number().int(), errors: z.number().int() }),
+  errors: z.array(ProspectImportErrorDto),
+  errorsTruncated: z.boolean(),
+  createdBy: z.uuid(),
+  createdAt: z.iso.datetime(),
+});
+export type ProspectImportJobDto = z.infer<typeof ProspectImportJobDto>;
+export const ProspectImportResultDto = ProspectImportJobDto.extend({
+  rows: z.array(z.object({ row: z.number().int(), name: z.string().nullable(), action: z.enum(["create", "update", "unchanged", "error"]) })),
+});
+export type ProspectImportResultDto = z.infer<typeof ProspectImportResultDto>;
+export const ProspectImportJobPageDto = z.object({ items: z.array(ProspectImportJobDto), nextCursor: z.uuid().nullable() });
+export type ProspectImportJobPageDto = z.infer<typeof ProspectImportJobPageDto>;
 
 /** Uniform error envelope for every non-2xx response. `details` is null unless the error carries structured data. */
 export const ProblemDto = z.object({ code: z.string(), message: z.string(), details: z.unknown().nullable(), request_id: z.uuid() });

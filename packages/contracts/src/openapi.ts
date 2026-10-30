@@ -194,6 +194,54 @@ export const OPERATIONS: readonly Operation[] = [
     body: C.ResolveRefsRequest, success: { status: 200, schema: C.ResolveRefsDto, description: "One result per ref, in order" }, errors: [400, 401, 403],
   },
   {
+    method: "get", path: "/prospects", id: "listProspects", summary: "Prospects (keyset by id; filters; suppressed flag computed)", tag: "Prospecting", permission: "prospects:read",
+    query: C.ProspectListQuery, success: { status: 200, schema: C.ProspectPageDto, description: "Page" }, errors: [400, 401, 403],
+  },
+  {
+    method: "post", path: "/prospects", id: "createProspect", summary: "Create a candidate (manual provenance recorded). Duplicate domain or name|country -> 409 with details.existingId", tag: "Prospecting", permission: "prospects:manage",
+    body: C.CreateProspectRequest, success: { status: 201, schema: C.ProspectDto, description: "Created" }, errors: [400, 401, 403, 409],
+  },
+  {
+    method: "get", path: "/prospects/{id}", id: "getProspect", summary: "One prospect with its provenance", tag: "Prospecting", permission: "prospects:read",
+    pathParams: ["id"], success: { status: 200, schema: C.ProspectDetailDto, description: "Prospect" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "patch", path: "/prospects/{id}", id: "updateProspect", summary: "Edit a prospect", tag: "Prospecting", permission: "prospects:manage",
+    pathParams: ["id"], body: C.UpdateProspectRequest, success: { status: 200, schema: C.ProspectDto, description: "Updated" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/prospects/{id}/status", id: "setProspectStatus", summary: "Qualify/disqualify. Suppressed prospects cannot be qualified", tag: "Prospecting", permission: "prospects:manage",
+    pathParams: ["id"], body: C.SetProspectStatusRequest, success: { status: 200, schema: C.ProspectDto, description: "Updated" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/prospects/connectors", id: "listConnectors", summary: "Prospecting connectors available to this deployment (none until a provider is approved)", tag: "Prospecting", permission: "prospects:read",
+    success: { status: 200, schema: C.ConnectorsDto, description: "Connectors" }, errors: [401, 403],
+  },
+  {
+    method: "post", path: "/prospects/imports", id: "importProspectsCsv", summary: "Validate (dry_run) or apply a CSV of prospects. All-or-nothing; never changes status; records csv_import provenance", tag: "Prospecting", permission: "prospects:manage",
+    body: C.ImportRequest, idempotent: true, success: { status: 200, schema: C.ProspectImportResultDto, description: "Outcome" }, errors: [400, 401, 403, 409, 413, 422],
+  },
+  {
+    method: "get", path: "/prospects/imports", id: "listProspectImports", summary: "Prospect import history (keyset by id)", tag: "Prospecting", permission: "prospects:manage",
+    query: C.PageQuery, success: { status: 200, schema: C.ProspectImportJobPageDto, description: "Page" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/prospects/imports/{id}", id: "getProspectImport", summary: "One prospect import job", tag: "Prospecting", permission: "prospects:manage",
+    pathParams: ["id"], success: { status: 200, schema: C.ProspectImportJobDto, description: "Job" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "get", path: "/suppressions", id: "listSuppressions", summary: "Do-not-contact list", tag: "Prospecting", permission: "prospects:read",
+    success: { status: 200, schema: C.SuppressionListDto, description: "Entries" }, errors: [401, 403],
+  },
+  {
+    method: "post", path: "/suppressions", id: "createSuppression", summary: "Add a domain or name; matching qualified prospects are disqualified immediately", tag: "Prospecting", permission: "suppressions:manage",
+    body: C.CreateSuppressionRequest, success: { status: 201, schema: C.SuppressionDto, description: "Created" }, errors: [400, 401, 403, 409],
+  },
+  {
+    method: "delete", path: "/suppressions/{id}", id: "removeSuppression", summary: "Remove an entry (org_admin only, audited)", tag: "Prospecting", permission: "suppressions:remove",
+    pathParams: ["id"], success: { status: 204, description: "Removed" }, errors: [400, 401, 403, 404],
+  },
+  {
     method: "get", path: "/memberships", id: "listMemberships", summary: "Members of the caller's organization", tag: "Memberships", permission: "members:read",
     success: { status: 200, schema: z.array(C.MemberDto), description: "Members" }, errors: [401, 403],
   },

@@ -7,6 +7,13 @@ export const OK: Record<string, string> = {
   restore: "Elemento restaurado.",
   category: "Categoría creada.",
   saved: "Guardado.",
+  status: "Estado actualizado.",
+  suppression: "Entrada agregada a la lista de no contactar; los prospectos calificados que coinciden se descalificaron.",
+  removed: "Entrada eliminada.",
+  price: "Precio guardado.",
+  unprice: "Precio eliminado.",
+  cloned: "Lista clonada como borrador.",
+  clone: "Lista clonada como borrador.",
 };
 export const ERR: Record<string, string> = {
   input: "Revisa los datos ingresados.",

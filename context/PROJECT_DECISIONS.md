@@ -12,6 +12,12 @@
 
 Pendientes: proveedor cloud, pagos, proveedor de identidad, retención, DPA/aviso de privacidad, jurisdicciones y SLAs.
 
+## Fase 4
+
+| ID | Decisión | Estado | Motivo |
+|---|---|---|---|
+| ADR-023 | Prospectos internos sin proveedores: candidato ≠ permiso de contacto (`contactPermission` constante `none`); dedupe en BD (dominio o nombre+país); procedencia append-only; lista de no contactar con descalificación por trigger y bloqueo de calificación; permisos `prospects:read/manage`, `suppressions:manage/remove`; importaciones y su política RLS por tipo; conectores sólo con proveedor aprobado | Aprobada | cumplimiento (no contactar por ser público) y trazabilidad |
+
 ## Web
 
 | ID | Decisión | Estado | Motivo |

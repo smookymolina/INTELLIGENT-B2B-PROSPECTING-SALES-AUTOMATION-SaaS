@@ -121,7 +121,7 @@ export class ImportService {
   listJobs(auth: AuthContext, q: PageQuery): Promise<ImportJobPageDto> {
     return this.db.withTenant(auth, async (tx) => {
       const rows = await tx.importJob.findMany({
-        where: { organization_id: auth.organizationId, ...(q.cursor ? { id: { gt: q.cursor } } : {}) },
+        where: { organization_id: auth.organizationId, kind: "catalog_items", ...(q.cursor ? { id: { gt: q.cursor } } : {}) },
         orderBy: { id: "asc" },
         take: q.limit + 1,
       });
@@ -132,7 +132,7 @@ export class ImportService {
 
   getJob(auth: AuthContext, id: string): Promise<ImportJobDto> {
     return this.db.withTenant(auth, async (tx) => {
-      const job = await tx.importJob.findFirst({ where: { id, organization_id: auth.organizationId } });
+      const job = await tx.importJob.findFirst({ where: { id, organization_id: auth.organizationId, kind: "catalog_items" } });
       if (!job) throw new NotFoundException();
       return this.toDto(job);
     });

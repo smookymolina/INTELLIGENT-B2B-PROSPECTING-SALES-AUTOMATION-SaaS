@@ -48,6 +48,9 @@ model Organization {
   price_lists        PriceList[]
   price_entries      PriceListEntry[]
   import_jobs        ImportJob[]
+  prospects          Prospect[]
+  prospect_sources   ProspectSource[]
+  suppressions       Suppression[]
 
   @@map("organizations")
 }
@@ -366,4 +369,74 @@ model ImportJob {
 
   @@index([organization_id, created_at(sort: Desc)])
   @@map("import_jobs")
+}
+
+enum ProspectStatus {
+  candidate
+  qualified
+  disqualified
+
+  @@map("prospect_status")
+}
+
+/// A company that MIGHT be worth contacting. Never a permission to contact. dedupe_key = domain_key, or name_key|country when no domain.
+model Prospect {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String         @db.Uuid
+  name            String
+  name_key        String
+  domain_key      String?
+  dedupe_key      String
+  website         String?
+  country         String?        @db.Char(2)
+  region          String?
+  city            String?
+  industry        String?
+  notes           String?
+  status          ProspectStatus @default(candidate)
+  status_reason   String?
+  created_by      String         @db.Uuid
+  created_at      DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime       @updatedAt @db.Timestamptz(6)
+
+  organization Organization     @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  sources      ProspectSource[]
+
+  @@unique([organization_id, id])
+  @@unique([organization_id, dedupe_key])
+  @@index([organization_id, status])
+  @@map("prospects")
+}
+
+/// Provenance (append-only): where and when a prospect record came from.
+model ProspectSource {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String   @db.Uuid
+  prospect_id     String   @db.Uuid
+  source_type     String
+  source_ref      String?
+  created_by      String   @db.Uuid
+  collected_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  prospect     Prospect     @relation(fields: [organization_id, prospect_id], references: [organization_id, id], onDelete: Restrict)
+
+  @@index([organization_id, prospect_id])
+  @@map("prospect_sources")
+}
+
+/// Do-not-contact list. A matching prospect can never be qualified; downstream modules must consult it before any outreach.
+model Suppression {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String   @db.Uuid
+  kind            String
+  value_key       String
+  reason          String
+  created_by      String   @db.Uuid
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@unique([organization_id, kind, value_key])
+  @@map("suppressions")
 }
