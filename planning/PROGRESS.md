@@ -16,7 +16,7 @@ Sólo suma lo entregado **con pruebas ejecutadas** (y documentado). Lo que depen
 | F3 Empresa y catálogo | 6 | 90 % | 5,4 | falta sólo adjuntos (bloqueado) |
 | F4 Prospección | 8 | 60 % | 4,8 | P4-01: prospectos, procedencia, dedupe, lista de no contactar, importación CSV. Falta (bloqueado por proveedor): conectores de búsqueda geolocalizada |
 | F5 Enriquecimiento y scoring | 6 | 65 % | 3,9 | P5-01: atributos verificables, modelo versionado, puntuación explicable. Falta (bloqueado): enriquecimiento con proveedores y merge reversible |
-| F6 IA | 6 | 0 % | 0 | requiere proveedor de modelos |
+| F6 IA | 6 | 40 % | 2,4 | P6-01 puerta de entrada neutral (sin proveedor real): presupuesto por tenant, evidencia aprobada, minimización de PII, esquema y verificación de cifras, libro de uso. Falta (bloqueado): adaptadores reales (OpenAI/Anthropic), evaluación con datos reales, clasificación de intención con modelo |
 | F7 Campañas y canales | 10 | 0 % | 0 | requiere proveedores/credenciales/consentimiento |
 | F8 Intención y leads | 5 | 80 % | 4,0 | P8-01: leads por regla/intención con revisión humana, clasificador por reglas. Falta (bloqueado): clasificación con IA y recepción por canales |
 | F9 CRM y routing | 6 | 95 % | 5,7 | P9-01 oportunidades/etapas/SLA/visibilidad; P9-02 tareas de seguimiento con RLS y máquina de estados en la base. Faltan (bloqueado): notificaciones por canales |
@@ -24,7 +24,7 @@ Sólo suma lo entregado **con pruebas ejecutadas** (y documentado). Lo que depen
 | F11 Analítica | 4 | 92 % | 3,7 | P11-01 (API y pantalla) y P11-02 exportación CSV segura y auditada. Falta (F7/otros): atribución por campaña, cohortes, paneles configurables |
 | F12 SaaS, hardening y producción | 10 | 18 % | 1,8 | P12-01 sesiones/contraseña, P12-02 readiness y métricas. Falta: retención/derechos del titular, respaldo, Dockerfiles verificados; BLOCKED: nube, IdP, jurisdicciones |
 | Interfaz web (transversal) | 20 | 90 % | 18,0 | W-01…W-06 y la CSP con nonces de W-07 (0,5 de 2,5); falta auditoría a11y en navegador real y pruebas Playwright |
-| **Total** | **98** | | **62,2** | **≈ 63 %** (hitos de commit alcanzados: 20, 30, 40, 50 y 60 %; siguiente: 70 %) |
+| **Total** | **98** | | **64,6** | **≈ 66 %** (hitos de commit alcanzados: 20, 30, 40, 50 y 60 %; siguiente: 70 %) |
 
 ## Qué puede frenar el avance (decisiones humanas, no técnicas)
 

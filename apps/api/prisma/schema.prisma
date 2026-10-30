@@ -63,6 +63,8 @@ model Organization {
   opportunity_history OpportunityStageHistory[]
   opportunity_notes  OpportunityNote[]
   opportunity_tasks  OpportunityTask[]
+  ai_budget          AiBudget?
+  ai_runs            AiRun[]
   opportunity_assignments OpportunityAssignment[]
   quote_settings     QuoteSettings?
   quote_counter      QuoteCounter?
@@ -841,4 +843,47 @@ model Sale {
 
   @@unique([organization_id, quote_id])
   @@map("sales")
+}
+
+/// Monthly AI spend limit per tenant, in micro-units (1 000 000 = 1.00). No row means AI is blocked for the tenant (deny by default).
+model AiBudget {
+  organization_id      String   @id @db.Uuid
+  monthly_limit_micros BigInt
+  updated_by           String   @db.Uuid
+  updated_at           DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@map("ai_budgets")
+}
+
+/// One AI gateway call: what was asked (capability + versioned prompt), what it cost, what came back and why it did or did not need review.
+/// Append-only (no UPDATE/DELETE grants). The raw untrusted text is never stored, only the validated output.
+model AiRun {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String   @db.Uuid
+  user_id         String   @db.Uuid
+  capability      String
+  prompt_key      String
+  prompt_version  Int
+  provider        String
+  model           String
+  status          String
+  input_tokens    Int      @default(0)
+  output_tokens   Int      @default(0)
+  cost_micros     BigInt   @default(0)
+  latency_ms      Int      @default(0)
+  evidence_refs   String[]
+  flags           String[]
+  needs_review    Boolean  @default(false)
+  confidence      Decimal? @db.Decimal(4, 3)
+  output          Json?
+  request_id      String
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@index([organization_id, created_at])
+  @@index([organization_id, needs_review, created_at])
+  @@map("ai_runs")
 }

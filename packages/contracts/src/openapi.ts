@@ -51,6 +51,22 @@ export const OPERATIONS: readonly Operation[] = [
     query: C.ProspectExportQuery, success: { status: 200, description: "text/csv attachment" }, errors: [400, 401, 403],
   },
   {
+    method: "post", path: "/ai/analyze", id: "aiAnalyze", summary: "Run a capability through the AI gateway: budget check, PII minimisation, evidence-only prompt, schema and groundedness validation, usage ledger. 503 without a configured provider", tag: "AI", permission: "ai:use",
+    body: C.AiAnalyzeRequest, success: { status: 201, schema: C.AiRunDto, description: "Recorded run (status ok or needs_review)" }, errors: [400, 401, 403, 409, 429, 503],
+  },
+  {
+    method: "get", path: "/ai/runs", id: "listAiRuns", summary: "AI runs of the organization (keyset by id); filter by needsReview", tag: "AI", permission: "ai:use",
+    query: C.AiRunListQuery, success: { status: 200, schema: C.AiRunPageDto, description: "Page" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/ai/usage", id: "getAiUsage", summary: "Current UTC month spend against the tenant budget", tag: "AI", permission: "ai:use",
+    success: { status: 200, schema: C.AiUsageDto, description: "Usage" }, errors: [401, 403],
+  },
+  {
+    method: "put", path: "/ai/budget", id: "setAiBudget", summary: "Set the monthly AI budget (micro-units). Without a budget AI is blocked for the tenant", tag: "AI", permission: "ai:manage",
+    body: C.SetAiBudgetRequest, success: { status: 200, schema: C.AiUsageDto, description: "Usage with the new limit" }, errors: [400, 401, 403],
+  },
+  {
     method: "post", path: "/auth/register", id: "register", summary: "Create user, organization and first org_admin session", tag: "Auth", public: true,
     body: C.RegisterRequest, idempotent: true, success: { status: 201, schema: C.SessionDto, description: "Session opened" }, errors: [400, 409, 422],
   },

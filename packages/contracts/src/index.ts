@@ -11,15 +11,15 @@ export type HealthStatus = Readonly<{
 export const MEMBERSHIP_ROLES = ["org_admin", "campaign_manager", "sales_manager", "seller", "analyst", "viewer"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
-export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove", "scoring:manage", "scoring:approve", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "quotes:approve", "analytics:read"] as const;
+export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove", "scoring:manage", "scoring:approve", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "quotes:approve", "analytics:read", "ai:use", "ai:manage"] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 /** Single source of truth for role -> permission. `saas_admin` is platform-level and intentionally absent (ADR-011). */
 export const ROLE_PERMISSIONS: Readonly<Record<MembershipRole, readonly Permission[]>> = {
   org_admin: PERMISSIONS,
-  campaign_manager: ["organization:read", "members:read", "catalog:read", "prospects:read", "prospects:manage", "suppressions:manage", "leads:read", "crm:read", "analytics:read"],
-  sales_manager: ["organization:read", "members:read", "catalog:read", "catalog:manage", "prospects:read", "prospects:manage", "suppressions:manage", "scoring:manage", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "analytics:read"],
-  seller: ["organization:read", "catalog:read", "prospects:read", "crm:read", "crm:work", "quotes:read", "quotes:manage"],
+  campaign_manager: ["organization:read", "members:read", "catalog:read", "prospects:read", "prospects:manage", "suppressions:manage", "leads:read", "crm:read", "analytics:read", "ai:use"],
+  sales_manager: ["organization:read", "members:read", "catalog:read", "catalog:manage", "prospects:read", "prospects:manage", "suppressions:manage", "scoring:manage", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "analytics:read", "ai:use"],
+  seller: ["organization:read", "catalog:read", "prospects:read", "crm:read", "crm:work", "quotes:read", "quotes:manage", "ai:use"],
   analyst: ["organization:read", "catalog:read", "prospects:read", "leads:read", "crm:read", "quotes:read", "analytics:read"],
   viewer: ["organization:read", "catalog:read", "prospects:read", "leads:read", "crm:read", "quotes:read", "analytics:read"],
 };
@@ -426,6 +426,67 @@ export const TaskDto = z.object({
 export type TaskDto = z.infer<typeof TaskDto>;
 export const TaskPageDto = z.object({ items: z.array(TaskDto), nextCursor: z.uuid().nullable() });
 export type TaskPageDto = z.infer<typeof TaskPageDto>;
+
+/* ---------- AI gateway (F6, provider-neutral) ---------- */
+
+export const AI_CAPABILITIES = ["offer_brief"] as const;
+export const AI_RUN_STATUSES = ["ok", "needs_review", "blocked", "budget_exceeded", "provider_error", "schema_invalid"] as const;
+/** Raw model output contract (prompts ask for exactly this). Evidence ids must come from the evidence the gateway supplied. */
+export const AiModelOutput = z.strictObject({
+  summary: z.string().trim().min(1).max(1200),
+  evidence_ids: z.array(z.string().max(100)).min(1).max(10),
+  confidence: z.number().min(0).max(1),
+  needs_review: z.boolean(),
+});
+export type AiModelOutput = z.infer<typeof AiModelOutput>;
+export const AiAnalyzeRequest = z.strictObject({
+  capability: z.enum(AI_CAPABILITIES),
+  /** Untrusted content (for example a pasted reply). It is minimised and labelled as data before it reaches a model. */
+  text: z.string().trim().min(1).max(4000),
+  /** Approved evidence refs ("item:<id>:v<n>", "price:<entryId>"); the model may only cite these. */
+  evidenceRefs: z.array(z.string().max(100)).min(1).max(10),
+});
+export type AiAnalyzeRequest = z.infer<typeof AiAnalyzeRequest>;
+export const AiRunDto = z.object({
+  id: z.uuid(),
+  capability: z.string(),
+  promptKey: z.string(),
+  promptVersion: z.number().int(),
+  provider: z.string(),
+  model: z.string(),
+  status: z.enum(AI_RUN_STATUSES),
+  needsReview: z.boolean(),
+  flags: z.array(z.string()),
+  confidence: z.number().nullable(),
+  evidenceRefs: z.array(z.string()),
+  output: z.object({ summary: z.string(), evidenceIds: z.array(z.string()) }).nullable(),
+  inputTokens: z.number().int(),
+  outputTokens: z.number().int(),
+  costMicros: z.number().int(),
+  latencyMs: z.number().int(),
+  createdAt: z.iso.datetime(),
+});
+export type AiRunDto = z.infer<typeof AiRunDto>;
+export const AiRunListQuery = z.strictObject({
+  needsReview: z.enum(["true", "false"]).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.uuid().optional(),
+});
+export type AiRunListQuery = z.infer<typeof AiRunListQuery>;
+export const AiRunPageDto = z.object({ items: z.array(AiRunDto), nextCursor: z.uuid().nullable() });
+export type AiRunPageDto = z.infer<typeof AiRunPageDto>;
+export const SetAiBudgetRequest = z.strictObject({ monthlyLimitMicros: z.number().int().min(0).max(1_000_000_000_000) });
+export type SetAiBudgetRequest = z.infer<typeof SetAiBudgetRequest>;
+export const AiUsageDto = z.object({
+  period: z.object({ from: z.iso.datetime(), to: z.iso.datetime() }),
+  monthlyLimitMicros: z.number().int().nullable(),
+  spentMicros: z.number().int(),
+  remainingMicros: z.number().int().nullable(),
+  runs: z.number().int(),
+  needsReview: z.number().int(),
+  byCapability: z.array(z.object({ capability: z.string(), runs: z.number().int(), costMicros: z.number().int() })),
+});
+export type AiUsageDto = z.infer<typeof AiUsageDto>;
 
 /* ---------- Quotes and sales (P10-01) ---------- */
 

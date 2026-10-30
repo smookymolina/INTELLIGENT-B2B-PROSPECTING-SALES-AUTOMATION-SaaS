@@ -74,3 +74,8 @@ Pendientes: proveedor cloud, pagos, proveedor de identidad, retención, DPA/avis
 | ADR-010 | Sesiones opacas (SHA-256 en BD, TTL 12 h, revocables) y contraseñas con scrypt de Node | Aprobada | sin dependencias nativas; revocación inmediata; el IdP externo sigue pendiente de decisión humana |
 | ADR-011 | Roles de membresía = 6 roles de organización; `saas_admin` queda fuera de `memberships` | Aprobada | acceso de plataforma debe ser rol separado, justificado y auditado (ACCESS_CONTROL); se implementará aparte |
 | ADR-012 | No añadir miembros por email directo; se hará por invitación aceptada por el invitado | Aprobada | evita membresía forzada y enumeración de usuarios entre tenants |
+
+## ADR-028 — Puerta de entrada de IA neutral, deny-by-default y sin acciones automáticas (2026-10-30)
+
+Decisión: la IA se integra por una puerta única (`apps/api/src/ai`) con presupuesto por tenant (sin presupuesto = bloqueada), sólo evidencia aprobada, minimización de PII, prompts versionados, esquema estricto, verificación de citas y cifras, y un libro append-only de uso/costos. El único adaptador incluido es `mock`; los reales requieren proveedor/región/DPA aprobados (BLOCKED). La salida es una sugerencia registrada: nunca dispara acciones. Alternativas descartadas: llamar al proveedor directamente desde cada módulo (sin control de costos ni de datos) y registrar el texto crudo del cliente (retención innecesaria de datos personales). Consecuencia aceptada: el control de presupuesto es previo a la llamada (puede excederse por concurrencia).
+

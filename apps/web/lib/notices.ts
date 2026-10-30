@@ -42,6 +42,8 @@ export const OK: Record<string, string> = {
   task: "Tarea creada.",
   taskdone: "Tarea completada.",
   taskcancelled: "Tarea cancelada.",
+  aibudget: "Presupuesto de IA guardado.",
+  aianalyzed: "Sugerencia registrada en las ejecuciones.",
   branch: "Sede creada.",
   branchupdated: "Sede actualizada.",
   memberremoved: "Miembro quitado de la organización.",
@@ -52,6 +54,8 @@ export const OK: Record<string, string> = {
 };
 export const ERR: Record<string, string> = {
   input: "Revisa los datos ingresados.",
+  aibudget: "La IA no tiene presupuesto disponible. Un administrador debe configurarlo o esperar al próximo mes.",
+  noevidence: "Ninguna referencia es evidencia aprobada y vigente de tu catálogo.",
   mismatch: "La confirmación no coincide con la contraseña nueva.",
   wrongpassword: "La contraseña actual no es correcta.",
   forbidden: "Tu rol no permite esta acción.",

@@ -25,3 +25,15 @@ Estado: **Fase 1, base revisable**. Alcance: API, web, workers futuros, PostgreS
 | Caída/duplicación proveedor | timeout, backoff, outbox/DLQ | pruebas de reintento |
 
 No se considera cerrado hasta implementar controles en las fases propietarias.
+
+## IA (P6-01)
+
+| Amenaza | Mitigación | Evidencia |
+|---|---|---|
+| Inyección de prompt desde texto de un tercero | texto delimitado como dato, sin `<` `>`, patrones marcados, nunca ejecuta acciones; todo lo dudoso a revisión humana | `safety.spec.ts`, `ai.int.spec.ts` |
+| Fuga de datos personales a un proveedor | redacción de correo/teléfono/URL con credenciales/identificadores; el texto crudo no se guarda | `ai.int.spec.ts` (el proveedor espía no ve el correo) |
+| Hechos o precios inventados | sólo evidencia aprobada; citas y cifras verificadas; confianza mínima | `ai.int.spec.ts` |
+| Gasto descontrolado | presupuesto por tenant deny-by-default, libro de costos | `ai.int.spec.ts` |
+| Manipulación del libro | tabla append-only (sin UPDATE/DELETE para la aplicación) | `ai.int.spec.ts` |
+| Evidencia de otro tenant | resolución bajo RLS del tenant; ajena = no evidencia | `ai.int.spec.ts` |
+

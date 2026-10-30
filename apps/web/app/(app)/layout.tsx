@@ -30,6 +30,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           {me.permissions.includes("leads:read") ? <Link href="/leads">Leads</Link> : null}
           {me.permissions.includes("crm:read") ? <Link href="/pipeline">Pipeline</Link> : null}
           {me.permissions.includes("crm:read") ? <Link href="/tasks">Tareas</Link> : null}
+          {me.permissions.includes("ai:use") ? <Link href="/ai">IA</Link> : null}
           {me.permissions.includes("quotes:read") ? <Link href="/sales">Ventas</Link> : null}
           {me.permissions.includes("analytics:read") ? <Link href="/analytics">Analítica</Link> : null}
           <Link href="/company">Empresa</Link>
