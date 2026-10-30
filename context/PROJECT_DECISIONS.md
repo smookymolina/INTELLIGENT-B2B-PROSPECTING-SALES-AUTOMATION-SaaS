@@ -14,6 +14,8 @@ Pendientes: proveedor cloud, pagos, proveedor de identidad, retención, DPA/avis
 
 ## Fase 3
 
+| ADR-021 | Evidencia: lectura única de hechos comerciales con referencias citables (`item:<id>:v<n>`, `price:<entryId>`), sólo contenido aprobado y vigente; ausencia = `no_evidence` + razón (nunca valores por defecto); validación de citas por lote que trata refs inventadas como respuesta; sin caché en consumidores; permiso `catalog:read` | Aprobada | requisito "ninguna alucinación comercial aceptada" del módulo M02 |
+
 | ADR-020 | Importación CSV: JSON con texto CSV (sin multipart/archivos); parser propio sin dependencias; permiso `catalog:manage`; sólo crea/edita borradores; todo-o-nada en una transacción ordenada por SKU; idempotencia por comparación de contenido (+ `Idempotency-Key`); categorías nunca se crean; precios no se importan aquí; XLSX diferido por riesgo de parsers; registro `import_jobs` inmutable con SHA-256 y errores acotados | Aprobada | seguridad, simplicidad y trazabilidad; evita aprobaciones o precios por la puerta de atrás |
 
 | ADR-019 | Precios: lista inmutable al aprobar (cambio = clon); moneda fija por lista; importes como cadena decimal exacta (numeric(18,4), sin floats); sin escalas/impuestos/descuentos hasta que el negocio los defina; aprobar exige precios y todos los ítems aprobados; vista de consumo = lista aprobada ∩ ítem hoy aprobado; auditoría sin importes; mismos permisos que el catálogo | Aprobada | evita precios inventados o alterados y errores de redondeo/moneda |

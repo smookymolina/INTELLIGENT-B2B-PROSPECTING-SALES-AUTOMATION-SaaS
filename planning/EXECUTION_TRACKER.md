@@ -11,7 +11,7 @@
 - Fase 1: COMPLETED (re-verificada con `npm run check`).
 - Fase 2 (núcleo): esquema, migraciones, RLS, auth, RBAC, auditoría y contratos, throttle, idempotencia, OpenAPI, invitaciones y cambio de organización con 101/101 pruebas de integración.
 
-- Fase 3: P3-01 a P3-04 COMPLETED (222 integración + 7 unitarias). Pendiente P3-05 (BLOCKED) y P3-06. Progreso global ≈15 % (`planning/PROGRESS.md`). Detalle: `planning/PHASE_3_EXECUTION.md`.
+- Fase 3: IN_REVIEW. P3-01…P3-04 y P3-06 COMPLETED (245 integración + 7 unitarias); P3-05 BLOCKED. Progreso global ≈16 % (`planning/PROGRESS.md`). Detalle: `planning/PHASE_3_EXECUTION.md`.
 
 ## En curso
 
@@ -19,7 +19,7 @@
 
 ## Siguiente, en orden
 
-1. Fase 3: P3-06 contrato de lectura aprobada para IA (IDs citables / "sin evidencia") y cierre de Fase 3 salvo P3-05 (BLOCKED).
+1. Trabajo no bloqueado por decisiones humanas: cimientos de la interfaz web (sesión, navegación, vistas de catálogo) y modelo interno de prospectos (Fase 4) sin proveedores.
 2. Cerrar Fase 2: obtener evidencia de CI remoto (requiere push autorizado), decisión sobre `saas_admin` y revisión independiente; entonces COMPLETED y arrancar Fase 3 (empresa/catálogo).
 3. Fase 3: perfil de empresa y catálogo con importación validada.
 4. Fases 4–12 conforme a `planning/MASTER_ROADMAP.md`; no se activan proveedores externos sin credenciales, aprobación y cumplimiento.

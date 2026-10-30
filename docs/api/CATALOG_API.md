@@ -68,3 +68,15 @@ Concurrencia: cada mutación bloquea la lista (`FOR UPDATE`); las entradas toman
 - **Límites:** 1000 filas, 60 columnas, 5000 caracteres por campo, 1 000 000 caracteres de CSV (cuerpo > 1,5 MB → 413). Los valores que empiezan por `=`, `+`, `@` se guardan como texto; cualquier futura exportación a hoja de cálculo deberá neutralizarlos.
 - **XLSX:** diferido (superficie de ataque de los parsers); se decidirá con evidencia y una librería revisada.
 - Auditoría: `catalog.import_applied|rejected` con conteos y hash del archivo; además los eventos normales por ítem. El trabajo (`import_jobs`) guarda conteos, errores acotados y SHA-256, nunca el archivo.
+
+## Contrato de evidencia para IA y cotizaciones (P3-06)
+
+Única vía de lectura de hechos comerciales para otros módulos (motor de IA, cotizaciones). Sólo lectura, `catalog:read` (el motor correrá bajo una sesión de tenant). Contrato en `docs/api/openapi.v1.json` (tag *Evidence*).
+
+**Referencias citables.** `item:<itemId>:v<versión>` = una versión APROBADA de un ítem; `price:<entryId>` = un precio de una lista APROBADA (inmutable, por lo que la referencia es estable).
+
+- `GET /catalog/evidence?sku=…[&priceListId=…]` → `{ sku, item, price? }`. Cada parte es `{status:"evidence", ref, …contenido aprobado}` o `{status:"no_evidence", reason}`. `price` sólo aparece si se pidió lista. Nunca se devuelven borradores, listas sin aprobar ni ítems archivados; el contenido de un borrador jamás se expone.
+- `POST /catalog/evidence/resolve` `{refs:[…≤50]}` → un resultado por referencia, en orden: `current` (con evidencia), `superseded` (con `currentRef`, sin contenido), `archived`, o `no_evidence`. Una cita inventada o mal formada es una **respuesta** (`unknown_ref`/`malformed_ref`), no un error, para que una alucinación no rompa el lote.
+- **Razones:** `item_not_found`, `item_not_approved`, `item_archived`, `price_list_not_found`, `price_list_not_approved`, `price_list_archived`, `no_price_for_item`, `unknown_ref`, `malformed_ref`, `not_approved`. Un recurso de otro tenant es indistinguible de uno inexistente.
+
+**Regla para consumidores (Fase 6/10):** todo dato comercial (existencia, características, precio, moneda, vigencia) debe provenir de una referencia que `resolve` devuelva como `current`; si no hay evidencia, la respuesta correcta es "sin evidencia". Los consumidores no deben cachear evidencia más allá de la operación en curso.

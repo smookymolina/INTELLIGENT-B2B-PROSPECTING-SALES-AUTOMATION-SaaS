@@ -186,6 +186,14 @@ export const OPERATIONS: readonly Operation[] = [
     pathParams: ["id"], success: { status: 200, schema: C.ImportJobDto, description: "Job" }, errors: [400, 401, 403, 404],
   },
   {
+    method: "get", path: "/catalog/evidence", id: "getEvidence", summary: "Approved facts for one SKU (and optionally its price in an approved list), each with a citable ref, or explicit no_evidence + reason", tag: "Evidence", permission: "catalog:read",
+    query: C.EvidenceQuery, success: { status: 200, schema: C.EvidenceDto, description: "Evidence or no_evidence" }, errors: [400, 401, 403],
+  },
+  {
+    method: "post", path: "/catalog/evidence/resolve", id: "resolveEvidenceRefs", summary: "Check citations: current, superseded, archived or no_evidence (malformed or unknown refs are answers, not errors)", tag: "Evidence", permission: "catalog:read",
+    body: C.ResolveRefsRequest, success: { status: 200, schema: C.ResolveRefsDto, description: "One result per ref, in order" }, errors: [400, 401, 403],
+  },
+  {
     method: "get", path: "/memberships", id: "listMemberships", summary: "Members of the caller's organization", tag: "Memberships", permission: "members:read",
     success: { status: 200, schema: z.array(C.MemberDto), description: "Members" }, errors: [401, 403],
   },

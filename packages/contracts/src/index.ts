@@ -217,6 +217,14 @@ export const ImportRow = z.strictObject({
 });
 export type ImportRow = z.infer<typeof ImportRow>;
 
+/* ---------- Evidence for AI / quotes (P3-06) ---------- */
+
+export const EvidenceQuery = z.strictObject({ sku: z.string().regex(SKU, "letters, digits, . _ - (max 64)"), priceListId: z.uuid().optional() });
+export type EvidenceQuery = z.infer<typeof EvidenceQuery>;
+export const MAX_RESOLVE_REFS = 50;
+export const ResolveRefsRequest = z.strictObject({ refs: z.array(z.string().max(100)).min(1).max(MAX_RESOLVE_REFS) });
+export type ResolveRefsRequest = z.infer<typeof ResolveRefsRequest>;
+
 export const UuidParam = z.uuid();
 
 export const AuditQuery = z.strictObject({ limit: z.coerce.number().int().min(1).max(100).default(50) });
@@ -390,6 +398,61 @@ export const ImportResultDto = ImportJobDto.extend({
 export type ImportResultDto = z.infer<typeof ImportResultDto>;
 export const ImportJobPageDto = z.object({ items: z.array(ImportJobDto), nextCursor: z.uuid().nullable() });
 export type ImportJobPageDto = z.infer<typeof ImportJobPageDto>;
+
+/**
+ * Citable references. `item:<itemId>:v<version>` names one APPROVED item version; `price:<entryId>` names one price of an APPROVED list.
+ * A claim about the catalog is only valid if it cites a ref that still resolves as "current" (see POST /catalog/evidence/resolve).
+ */
+export const EVIDENCE_REASONS = [
+  "item_not_found", "item_not_approved", "item_archived", "price_list_not_found", "price_list_not_approved", "price_list_archived",
+  "no_price_for_item", "unknown_ref", "malformed_ref", "not_approved",
+] as const;
+export type EvidenceReason = (typeof EVIDENCE_REASONS)[number];
+export const NoEvidenceDto = z.object({ status: z.literal("no_evidence"), reason: z.enum(EVIDENCE_REASONS) });
+export const ItemEvidenceDto = z.object({
+  status: z.literal("evidence"),
+  ref: z.string(),
+  itemId: z.uuid(),
+  version: z.number().int(),
+  kind: z.enum(["product", "service"]),
+  sku: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  unit: z.string().nullable(),
+  category: z.object({ id: z.uuid(), name: z.string() }).nullable(),
+  features: z.array(FeatureDto),
+  approvedAt: z.iso.datetime().nullable(),
+});
+export type ItemEvidenceDto = z.infer<typeof ItemEvidenceDto>;
+export const PriceEvidenceDto = z.object({
+  status: z.literal("evidence"),
+  ref: z.string(),
+  priceListId: z.uuid(),
+  entryId: z.uuid(),
+  itemId: z.uuid(),
+  unitPrice: MoneyString,
+  currency: z.string(),
+  validFrom: z.string().nullable(),
+  validUntil: z.string().nullable(),
+});
+export type PriceEvidenceDto = z.infer<typeof PriceEvidenceDto>;
+/** `price` is present only when a priceListId was asked for. Drafts, unapproved lists and archived items never produce evidence. */
+export const EvidenceDto = z.object({
+  sku: z.string(),
+  item: z.union([ItemEvidenceDto, NoEvidenceDto]),
+  price: z.union([PriceEvidenceDto, NoEvidenceDto]).optional(),
+});
+export type EvidenceDto = z.infer<typeof EvidenceDto>;
+export const ResolvedRefDto = z.object({
+  ref: z.string(),
+  status: z.enum(["current", "superseded", "archived", "no_evidence"]),
+  reason: z.enum(EVIDENCE_REASONS).optional(),
+  currentRef: z.string().optional(),
+  evidence: z.union([ItemEvidenceDto, PriceEvidenceDto]).optional(),
+});
+export type ResolvedRefDto = z.infer<typeof ResolvedRefDto>;
+export const ResolveRefsDto = z.object({ results: z.array(ResolvedRefDto) });
+export type ResolveRefsDto = z.infer<typeof ResolveRefsDto>;
 
 /** Uniform error envelope for every non-2xx response. `details` is null unless the error carries structured data. */
 export const ProblemDto = z.object({ code: z.string(), message: z.string(), details: z.unknown().nullable(), request_id: z.uuid() });

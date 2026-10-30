@@ -1,6 +1,6 @@
 # Fase 3 — perfil de empresa y catálogo
 
-Estado: **IN_PROGRESS** (inicio 2026-10-30). Se inicia con Fase 2 en `IN_REVIEW` por indicación expresa del usuario; Fase 2 no se da por aceptada (CI remoto, `saas_admin`, revisión independiente pendientes). Fuente: `docs/modules/COMPANY_MANAGEMENT.md` y `docs/modules/PRODUCT_CATALOG.md`.
+Estado: **IN_REVIEW** (inicio 2026-10-30; P3-01…P3-04 y P3-06 completos, P3-05 BLOCKED). Se inicia con Fase 2 en `IN_REVIEW` por indicación expresa del usuario; Fase 2 no se da por aceptada (CI remoto, `saas_admin`, revisión independiente pendientes). Fuente: `docs/modules/COMPANY_MANAGEMENT.md` y `docs/modules/PRODUCT_CATALOG.md`.
 
 Reglas del módulo: precio, condiciones y disponibilidad sólo desde registros **aprobados**; catálogo versionado; importación idempotente con errores por fila; la IA citará IDs y responderá "sin evidencia" si faltan datos. No se inventan productos, precios ni datos comerciales: el catálogo nace vacío.
 
@@ -11,7 +11,7 @@ Reglas del módulo: precio, condiciones y disponibilidad sólo desde registros *
 | P3-03 | Listas de precios y precios (decimal exacto, moneda ISO 4217) sólo consumibles si el ítem y la lista están aprobados | COMPLETED | migración `price_lists` (RLS, FK compuestas por tenant, triggers de inmutabilidad y de aprobación); `pricing.int.spec.ts` 40 pruebas: vista de consumo, inmutabilidad API+BD (incl. dueño), aprobación bloqueada con ítems no aprobados (API y SQL), carrera aprobar vs. editar, clon, validación decimal estricta, matriz de 6 roles, aislamiento API+RLS+FK, paginación, auditoría sin importes. Suite 193/193. Contrato: `docs/api/CATALOG_API.md` |
 | P3-04 | Importación CSV validada: dry-run, errores por fila, idempotente | COMPLETED | migración `import_jobs`; parser RFC 4180 propio (`csv.spec.ts` 6 pruebas) e `import.int.spec.ts` 29 pruebas: dry-run sin efectos, apply sólo borradores, idempotencia por contenido e `Idempotency-Key`, actualización vía borradores, columnas gestionadas, todo-o-nada, 300 filas < 60 s, carrera de importaciones, errores por fila sin eco, rechazo de archivo (10 casos), límites/413, RBAC de 6 roles, aislamiento. Suite 222/222 + 7 unitarias. XLSX diferido |
 | P3-05 | Documentos adjuntos (escaneados) | **BLOCKED** | Requiere decisión humana: almacenamiento de objetos y escáner antivirus (sin proveedor definido) |
-| P3-06 | Recuperación de evidencia para IA (IDs citables / "sin evidencia") | NOT_STARTED | Depende de Fase 6; sólo se deja el contrato de lectura aprobada |
+| P3-06 | Contrato de evidencia para IA (refs citables / "sin evidencia") | COMPLETED | `GET /catalog/evidence`, `POST /catalog/evidence/resolve`; `evidence.int.spec.ts` 23 pruebas: nada se adivina, borradores nunca expuestos, versiones/archivado/restauración, precios (lista borrador/archivada/ajena/sin precio), citas current/superseded/archived/no_evidence, refs inventadas como respuesta, límites, 6 roles, aislamiento. Suite 245/245. El consumo real llega en Fase 6/10 |
 
 ## Decisiones tomadas en P3-01
 

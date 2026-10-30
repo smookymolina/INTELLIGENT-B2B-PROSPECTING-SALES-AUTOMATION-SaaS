@@ -26,3 +26,5 @@
 | 2026-10-30 | 3 | P3-03 listas de precios | migración `price_lists`; `pricing.int.spec.ts` 40 pruebas; mutación: trigger de entradas desactivado → falla la prueba de inmutabilidad BD, restaurado → verde; `test:int` 193/193 | COMPLETED |
 | 2026-10-30 | 3 | Commit local | `b6f51e8` P3-03; sin push | COMPLETED |
 | 2026-10-30 | 3 | P3-04 importación CSV | refactor `…Tx` del catálogo (193/193 sin regresión); migración `import_jobs`; `csv.spec.ts` 6 + `import.int.spec.ts` 29; `test:int` 222/222 | COMPLETED |
+| 2026-10-30 | 3 | Commit local | `99d9c41` P3-04; sin push | COMPLETED |
+| 2026-10-30 | 3 | P3-06 evidencia | `evidence.service/controller` (sólo lectura, sin migración); `evidence.int.spec.ts` 23 pruebas; `test:int` 245/245; Fase 3 → IN_REVIEW (P3-05 BLOCKED) | COMPLETED |
