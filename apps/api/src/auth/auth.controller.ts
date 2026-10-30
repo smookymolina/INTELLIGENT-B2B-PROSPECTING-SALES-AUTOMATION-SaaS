@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Headers, HttpCode, Inject, Post, Res } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, HttpCode, Inject, Param, ParseUUIDPipe, Post, Res } from "@nestjs/common";
 import type { Response } from "express";
-import { IdempotencyKeyHeader, LoginRequest, RegisterRequest, SwitchOrganizationRequest, type MeDto, type MyOrganizationsDto, type SessionDto } from "@prospecting/contracts";
+import { ChangePasswordRequest, IdempotencyKeyHeader, LoginRequest, RegisterRequest, SwitchOrganizationRequest, type ChangedPasswordDto, type MeDto, type MyOrganizationsDto, type SessionDto, type SessionInfoListDto } from "@prospecting/contracts";
 import { IdempotencyService } from "../http/idempotency.service.js";
 import { AuthService } from "./auth.service.js";
 import type { AuthContext } from "./auth.types.js";
@@ -48,6 +48,23 @@ export class AuthController {
   @HttpCode(204)
   logout(@Auth() auth: AuthContext): Promise<void> {
     return this.auth.logout(auth);
+  }
+
+  @Post("auth/change-password")
+  @HttpCode(200)
+  changePassword(@Auth() auth: AuthContext, @Body(new ZodPipe(ChangePasswordRequest)) body: ChangePasswordRequest, @ClientIp() ip: string): Promise<ChangedPasswordDto> {
+    return this.auth.changePassword(auth, body, ip);
+  }
+
+  @Get("auth/sessions")
+  sessions(@Auth() auth: AuthContext): Promise<SessionInfoListDto> {
+    return this.auth.mySessions(auth);
+  }
+
+  @Delete("auth/sessions/:id")
+  @HttpCode(204)
+  revokeSession(@Auth() auth: AuthContext, @Param("id", new ParseUUIDPipe()) id: string): Promise<void> {
+    return this.auth.revokeMySession(auth, id);
   }
 
   @Get("me/organizations")

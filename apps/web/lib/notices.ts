@@ -37,6 +37,8 @@ export const OK: Record<string, string> = {
   accepted: "Cotización aceptada: se registró la venta y la oportunidad se ganó.",
   rejected: "Cotización rechazada.",
   cancelled: "Cotización cancelada.",
+  passwordchanged: "Contraseña cambiada. Se cerraron tus demás sesiones.",
+  sessionrevoked: "Sesión cerrada.",
   branch: "Sede creada.",
   branchupdated: "Sede actualizada.",
   memberremoved: "Miembro quitado de la organización.",
@@ -47,6 +49,8 @@ export const OK: Record<string, string> = {
 };
 export const ERR: Record<string, string> = {
   input: "Revisa los datos ingresados.",
+  mismatch: "La confirmación no coincide con la contraseña nueva.",
+  wrongpassword: "La contraseña actual no es correcta.",
   forbidden: "Tu rol no permite esta acción.",
   notfound: "No se encontró el elemento.",
   conflict: "El estado actual no permite esta acción (por ejemplo, no hay borrador abierto o el SKU ya existe).",

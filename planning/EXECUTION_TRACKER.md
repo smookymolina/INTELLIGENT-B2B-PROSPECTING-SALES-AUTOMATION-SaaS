@@ -31,3 +31,4 @@
 ## Bloqueos/decisiones humanas
 
 No bloquean la Fase 1: ICP/vertical inicial, proveedor cloud/IdP/pagos, política de retención, jurisdicciones, aviso de privacidad y cuentas de proveedor. No existe aún revisión independiente de Codex: la tarea está en `planning/CODEX_AUDIT_TASK.md`.
+- Fase 12 (parte interna): P12-01 y P12-02 COMPLETED (`planning/PHASE_12_EXECUTION.md`). Progreso global ≈63 %.

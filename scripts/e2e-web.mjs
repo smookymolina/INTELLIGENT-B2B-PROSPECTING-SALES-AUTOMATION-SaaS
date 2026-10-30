@@ -623,6 +623,35 @@ try {
     assert.ok(cspOf(priv).includes("'nonce-"), "authenticated pages get the CSP too");
   });
 
+  await step("P12-01: my account lists sessions, revokes another one and changes the password (other sessions die, this one lives)", async () => {
+    const me2 = await inviteAndLogin("analyst"); // a throwaway user, so the shared admin session is untouched
+    const slug = (await api("GET", "/me", session.token)).body.organization.slug;
+    const meEmail = (await api("GET", "/memberships", session.token)).body.find((x) => x.user.id === me2.userId).user.email;
+    const second = cookieOf(await fetch(`${WEB}/session/login`, form({ email: meEmail, password, organizationSlug: slug }))).pair;
+
+    const page = await html(await get("/account", me2.cookie));
+    assert.ok(page.includes("Mi cuenta") && page.includes("(esta sesión)") && page.includes("Cambiar contraseña"));
+    assert.ok(!page.includes(password), "no password in the page");
+    const sessionId = /action="\/actions\/account\/session\/([0-9a-f-]{36})"/.exec(page)?.[1];
+    assert.ok(sessionId, "another session can be closed");
+    assert.equal(where(await post(`/actions/account/session/${sessionId}`, {}, me2.cookie)), "/account?ok=sessionrevoked");
+    assert.match(where(await get("/", second)) ?? "", /\/login\?error=expired$/, "the closed session no longer works");
+    assert.equal(where(await post("/actions/account/session/not-a-uuid", {}, me2.cookie)), "/account?error=notfound");
+
+    const again = cookieOf(await fetch(`${WEB}/session/login`, form({ email: meEmail, password, organizationSlug: slug }))).pair;
+    const next = "a brand new passphrase 77";
+    assert.equal(where(await post("/actions/account/password", { currentPassword: password, newPassword: next, confirmPassword: "different one 12345" }, me2.cookie)), "/account?error=mismatch");
+    assert.equal(where(await post("/actions/account/password", { currentPassword: "wrong wrong wrong", newPassword: next, confirmPassword: next }, me2.cookie)), "/account?error=wrongpassword");
+    assert.equal(where(await post("/actions/account/password", { currentPassword: password, newPassword: "short", confirmPassword: "short" }, me2.cookie)), "/account?error=input");
+    const ok = await post("/actions/account/password", { currentPassword: password, newPassword: next, confirmPassword: next }, me2.cookie);
+    assert.equal(where(ok), "/account?ok=passwordchanged");
+    assert.ok(!(ok.headers.get("location") ?? "").includes("passphrase"), "no secret in the redirect");
+    assert.equal((await get("/account", me2.cookie)).status, 200, "the session that changed the password stays valid");
+    assert.match(where(await get("/", again)) ?? "", /\/login\?error=expired$/, "every other session was revoked");
+    assert.equal(where(await fetch(`${WEB}/session/login`, form({ email: meEmail, password, organizationSlug: slug }))), "/login?error=invalid");
+    assert.equal(cookieOf(await fetch(`${WEB}/session/login`, form({ email: meEmail, password: next, organizationSlug: slug })))?.raw.includes("HttpOnly"), true);
+  });
+
   await step("wrong passwords show a generic error and the account throttle kicks in", async () => {
     const wrong = await fetch(`${WEB}/session/login`, form({ email, password: "definitely wrong password" }));
     assert.equal(wrong.headers.get("location"), "/login?error=invalid");

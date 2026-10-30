@@ -931,6 +931,15 @@ export type AnalyticsEventDto = z.infer<typeof AnalyticsEventDto>;
 export const AnalyticsEventPageDto = z.object({ items: z.array(AnalyticsEventDto), nextCursor: z.uuid().nullable() });
 export type AnalyticsEventPageDto = z.infer<typeof AnalyticsEventPageDto>;
 
+export const ChangePasswordRequest = z.strictObject({ currentPassword: z.string().min(1).max(128), newPassword: password });
+export type ChangePasswordRequest = z.infer<typeof ChangePasswordRequest>;
+export const ChangedPasswordDto = z.object({ revokedSessions: z.number().int().nonnegative() });
+export type ChangedPasswordDto = z.infer<typeof ChangedPasswordDto>;
+export const SessionInfoDto = z.object({ id: z.uuid(), createdAt: z.iso.datetime(), expiresAt: z.iso.datetime(), current: z.boolean() });
+export type SessionInfoDto = z.infer<typeof SessionInfoDto>;
+export const SessionInfoListDto = z.object({ items: z.array(SessionInfoDto) });
+export type SessionInfoListDto = z.infer<typeof SessionInfoListDto>;
+
 export const MyOrganizationDto = z.object({ id: z.uuid(), name: z.string(), slug: z.string(), role: roleSchema, current: z.boolean() });
 export type MyOrganizationDto = z.infer<typeof MyOrganizationDto>;
 export const MyOrganizationsDto = z.object({ items: z.array(MyOrganizationDto) });
@@ -950,6 +959,7 @@ export const ERROR_CODES = [
   "IDEMPOTENCY_KEY_REUSED",
   "IDEMPOTENCY_IN_PROGRESS",
   "RATE_LIMITED",
+  "UNAVAILABLE",
   "INTERNAL_ERROR",
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];

@@ -22,9 +22,9 @@ Sólo suma lo entregado **con pruebas ejecutadas** (y documentado). Lo que depen
 | F9 CRM y routing | 6 | 85 % | 5,1 | P9-01: oportunidades, etapas, historial, asignación reproducible, SLA, visibilidad por RLS. Faltan tareas y notificaciones (canales) |
 | F10 Cotización y ventas | 6 | 75 % | 4,5 | P10-01: cotizaciones desde evidencia, totales exactos, descuentos, snapshot, venta. Faltan (bloqueado): PDF, fiscalidad, firma, pagos |
 | F11 Analítica | 4 | 85 % | 3,4 | P11-01 (API y pantalla). Falta (F7/otros): atribución por campaña, cohortes, paneles configurables, exportación |
-| F12 SaaS, hardening y producción | 10 | 0 % | 0 | |
+| F12 SaaS, hardening y producción | 10 | 18 % | 1,8 | P12-01 sesiones/contraseña, P12-02 readiness y métricas. Falta: retención/derechos del titular, respaldo, Dockerfiles verificados; BLOCKED: nube, IdP, jurisdicciones |
 | Interfaz web (transversal) | 20 | 90 % | 18,0 | W-01…W-06 y la CSP con nonces de W-07 (0,5 de 2,5); falta auditoría a11y en navegador real y pruebas Playwright |
-| **Total** | **98** | | **59,5** | **≈ 61 %** (hitos de commit alcanzados: 20, 30, 40, 50 y 60 %; siguiente: 70 %) |
+| **Total** | **98** | | **61,3** | **≈ 63 %** (hitos de commit alcanzados: 20, 30, 40, 50 y 60 %; siguiente: 70 %) |
 
 ## Qué puede frenar el avance (decisiones humanas, no técnicas)
 

@@ -34,7 +34,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <Link href="/company">Empresa</Link>
           {me.permissions.includes("members:read") ? <Link href="/team">Equipo</Link> : null}
         </nav>
-        <span className="who">{me.user.displayName} · {label(ROLE_LABELS, me.role)}</span>
+        <span className="who"><Link href="/account">{me.user.displayName}</Link> · {label(ROLE_LABELS, me.role)}</span>
         <form method="post" action="/session/logout"><button type="submit" className="link">Salir</button></form>
       </header>
       <main id="content">{children}</main>

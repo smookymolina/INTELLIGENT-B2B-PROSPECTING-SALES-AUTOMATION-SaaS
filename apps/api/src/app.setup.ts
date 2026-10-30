@@ -1,5 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import { ProblemFilter } from "./http/problem.filter.js";
+import { metricsMiddleware } from "./http/metrics.js";
 import { requestId } from "./http/request-id.js";
 
 /** Shared by main.ts and integration tests so both run the same HTTP configuration. */
@@ -7,6 +8,7 @@ export function configureApp(app: INestApplication): void {
   app.setGlobalPrefix("v1");
   (app as unknown as { useBodyParser(type: string, options: { limit: string }): void }).useBodyParser("json", { limit: "1500kb" });
   app.use(requestId);
+  app.use(metricsMiddleware);
   app.useGlobalFilters(new ProblemFilter());
   const hops = Number.parseInt(process.env.TRUST_PROXY ?? "0", 10);
   // Only trust X-Forwarded-For behind a known number of proxies; otherwise clients could spoof the IP used for throttling.

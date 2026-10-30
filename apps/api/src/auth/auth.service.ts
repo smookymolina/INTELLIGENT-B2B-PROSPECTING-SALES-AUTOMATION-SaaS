@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { ConflictException, ForbiddenException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
-import type { LoginRequest, MeDto, MembershipRole, MyOrganizationsDto, RegisterRequest, SessionDto } from "@prospecting/contracts";
+import type { ChangePasswordRequest, ChangedPasswordDto, LoginRequest, MeDto, SessionInfoListDto, MembershipRole, MyOrganizationsDto, RegisterRequest, SessionDto } from "@prospecting/contracts";
 import { ROLE_PERMISSIONS } from "@prospecting/contracts";
 import { AuditService } from "../audit/audit.service.js";
 import { PrismaService, type Tx } from "../db/prisma.service.js";
@@ -114,6 +114,47 @@ export class AuthService {
     await this.db.withTenant(auth, async (tx) => {
       await tx.session.updateMany({ where: { id: auth.sessionId, organization_id: auth.organizationId }, data: { revoked_at: new Date() } });
       await this.audit.record(tx, auth, { action: "auth.logout", resourceType: "session", resourceId: auth.sessionId });
+    });
+  }
+
+  /**
+   * Verifies the current password (hash read only through the SECURITY DEFINER lookup), shares the login throttle so a stolen session
+   * cannot be used to guess the password, then rotates the hash and revokes every other session of the user in all organizations.
+   */
+  async changePassword(auth: AuthContext, input: ChangePasswordRequest, clientIp: string): Promise<ChangedPasswordDto> {
+    const email = await this.db.withTenant(auth, async (tx) => (await tx.user.findFirstOrThrow({ where: { id: auth.userId }, select: { email: true } })).email);
+    const attempt = await this.throttle.begin(clientIp, email);
+    const user = await this.db.withoutTenant(async (tx) => (await tx.$queryRaw<UserRow[]>`SELECT * FROM auth_lookup_user(${email})`)[0]);
+    const ok = await verifyPassword(input.currentPassword, user?.password_hash ?? DUMMY_HASH);
+    if (!user || !ok) throw new ApiException(403, "FORBIDDEN", "The current password is not correct");
+    const newHash = await hashPassword(input.newPassword);
+    const revoked = await this.db.withTenant(auth, async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ n: number }>>`SELECT auth_change_password(${auth.userId}::uuid, ${newHash}, ${auth.sessionId}::uuid) AS n`;
+      const n = Number(rows[0]?.n ?? 0);
+      await this.audit.record(tx, auth, { action: "auth.password_changed", resourceType: "user", resourceId: auth.userId, metadata: { revokedSessions: n } });
+      return n;
+    });
+    await this.throttle.succeeded(attempt.attemptId, attempt.accountHash);
+    return { revokedSessions: revoked };
+  }
+
+  async mySessions(auth: AuthContext): Promise<SessionInfoListDto> {
+    const rows = await this.db.withTenant(auth, (tx) =>
+      tx.session.findMany({
+        where: { organization_id: auth.organizationId, user_id: auth.userId, revoked_at: null, expires_at: { gt: new Date() } },
+        orderBy: { created_at: "desc" },
+        select: { id: true, created_at: true, expires_at: true },
+      }),
+    );
+    return { items: rows.map((r) => ({ id: r.id, createdAt: r.created_at.toISOString(), expiresAt: r.expires_at.toISOString(), current: r.id === auth.sessionId })) };
+  }
+
+  async revokeMySession(auth: AuthContext, sessionId: string): Promise<void> {
+    if (sessionId === auth.sessionId) throw new ApiException(409, "CONFLICT", "Use logout to end the current session");
+    await this.db.withTenant(auth, async (tx) => {
+      const res = await tx.session.updateMany({ where: { id: sessionId, organization_id: auth.organizationId, user_id: auth.userId, revoked_at: null }, data: { revoked_at: new Date() } });
+      if (res.count === 0) throw new ApiException(404, "NOT_FOUND", "Session not found");
+      await this.audit.record(tx, auth, { action: "auth.session_revoked", resourceType: "session", resourceId: sessionId });
     });
   }
 

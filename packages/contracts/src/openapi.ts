@@ -35,10 +35,13 @@ const ERR_DESC: Record<number, string> = {
   413: "Request body too large",
   422: "Idempotency-Key reused with a different request (IDEMPOTENCY_KEY_REUSED)",
   429: "Too many attempts (RATE_LIMITED); see Retry-After",
+  503: "Service unavailable (UNAVAILABLE); no detail is disclosed",
 };
 
 export const OPERATIONS: readonly Operation[] = [
   { method: "get", path: "/health", id: "getHealth", summary: "Liveness probe", tag: "Health", public: true, success: { status: 200, description: "Service is up" }, errors: [] },
+  { method: "get", path: "/health/ready", id: "getReadiness", summary: "Readiness probe (the database answers); 503 without detail otherwise", tag: "Health", public: true, success: { status: 200, description: "Ready" }, errors: [503] },
+  { method: "get", path: "/health/metrics", id: "getMetrics", summary: "Prometheus metrics (text/plain). 404 unless METRICS_TOKEN is configured and sent as a Bearer token; no tenant data", tag: "Health", public: true, success: { status: 200, description: "Metrics in Prometheus text format" }, errors: [404] },
   {
     method: "post", path: "/auth/register", id: "register", summary: "Create user, organization and first org_admin session", tag: "Auth", public: true,
     body: C.RegisterRequest, idempotent: true, success: { status: 201, schema: C.SessionDto, description: "Session opened" }, errors: [400, 409, 422],
@@ -51,6 +54,18 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: "post", path: "/auth/switch-organization", id: "switchOrganization", summary: "Open a session in another organization where the caller has an active membership (current session is revoked)", tag: "Auth",
     body: C.SwitchOrganizationRequest, success: { status: 200, schema: C.SessionDto, description: "New session" }, errors: [400, 401, 404],
+  },
+  {
+    method: "post", path: "/auth/change-password", id: "changePassword", summary: "Change the caller's password (verifies the current one, throttled) and revoke every other session in all organizations", tag: "Auth",
+    body: C.ChangePasswordRequest, success: { status: 200, schema: C.ChangedPasswordDto, description: "Password changed" }, errors: [400, 401, 403, 429],
+  },
+  {
+    method: "get", path: "/auth/sessions", id: "listMySessions", summary: "Active sessions of the caller in the current organization (current one flagged)", tag: "Auth",
+    success: { status: 200, schema: C.SessionInfoListDto, description: "Sessions" }, errors: [401],
+  },
+  {
+    method: "delete", path: "/auth/sessions/{id}", id: "revokeMySession", summary: "Revoke another of the caller's own sessions in the current organization", tag: "Auth",
+    pathParams: ["id"], success: { status: 204, description: "Revoked" }, errors: [400, 401, 404, 409],
   },
   {
     method: "get", path: "/me/organizations", id: "listMyOrganizations", summary: "Organizations where the caller has an active membership (for the switcher); the current one is flagged", tag: "Auth",

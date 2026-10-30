@@ -37,3 +37,13 @@ Matriz: `org_admin` todo; `campaign_manager`/`sales_manager` leen organización 
 - Errores: `{code, message, details, request_id}`. Códigos: `BAD_REQUEST`, `VALIDATION_FAILED` (`details.issues[{path,code}]`, sin valores enviados), `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `IDEMPOTENCY_KEY_REUSED` (422), `IDEMPOTENCY_IN_PROGRESS` (409), `RATE_LIMITED` (429 + `Retry-After`), `INTERNAL_ERROR`.
 - `X-Request-Id`: generado por el servidor en toda respuesta; es el `request_id` de los errores y de la auditoría. Los valores enviados por el cliente se ignoran.
 - `Idempotency-Key` (8–128 de `[A-Za-z0-9_.:-]`, opcional): soportado en `POST /auth/register`. Misma clave y misma petición durante 24 h → misma respuesta con `Idempotent-Replayed: true`; misma clave con otra petición → 422; petición simultánea → 409.
+
+## Cuenta y operación (P12-01, P12-02)
+
+| Endpoint | Permiso | Notas |
+|---|---|---|
+| `GET /auth/sessions` | sesión | sesiones activas propias en la organización actual `{id,createdAt,expiresAt,current}` |
+| `DELETE /auth/sessions/:id` | sesión | 204; sólo sesiones propias de esta organización; 404 si no existe o es ajena; 409 si es la actual (usar logout) |
+| `POST /auth/change-password` | sesión | `{currentPassword,newPassword}`; 403 si la actual no coincide; throttle compartido con login (429); revoca todas las demás sesiones del usuario en todas las organizaciones; devuelve `{revokedSessions}` |
+| `GET /health/ready` | pública | 200 `{status:"ready"}` o 503 `UNAVAILABLE` sin detalle |
+| `GET /health/metrics` | Bearer `METRICS_TOKEN` | texto Prometheus; 404 si no está configurado o el token no coincide |
