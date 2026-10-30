@@ -506,6 +506,104 @@ try {
     assert.ok(!sales.includes('action="/actions/quotes/settings"'));
   });
 
+  await step("F11: analytics shows the funnel, the exact sales total, reconciliation and drill-down; sellers are kept out", async () => {
+    const page = await html(await get("/analytics", session.pair));
+    for (const t of ["Embudo", "Definiciones de las métricas", "Conciliación con cotizaciones aceptadas", "251.6040", "Coincide (251.6040)", "Tasa de cierre"]) assert.ok(page.includes(t), `missing ${t}`);
+    const drill = await html(await get("/analytics/events?metric=sales_closed", session.pair));
+    assert.ok(drill.includes("Q-0001") && drill.includes("251.6040 MXN"), "drill-down lists the sale");
+    assert.ok((await html(await get("/analytics/events?metric=bogus", session.pair))).includes("Métrica desconocida"));
+    const bad = await html(await get("/analytics?from=2026-12-31&to=2026-01-01", session.pair));
+    assert.ok(bad.includes("no es válida") && bad.includes("Embudo"), "an invalid window falls back to the default");
+    assert.ok((await html(await get("/analytics?from=%3Cscript%3E&to=x", session.pair))).includes("Embudo")); // junk parameters are ignored, not forwarded
+    const analyst = await inviteAndLogin("analyst");
+    assert.ok((await html(await get("/analytics", analyst.cookie))).includes("Embudo"));
+    assert.match(await html(await get("/analytics", session.seller.cookie)), /no tiene acceso a la analítica/);
+    assert.ok(!(await html(await get("/pipeline", session.seller.cookie))).includes('href="/analytics"'), "no navigation entry for sellers");
+  });
+
+  await step("W-05: an admin edits the company profile and branches through the forms; hostile input is refused", async () => {
+    assert.equal(where(await post("/actions/company/profile", { legalName: "X", website: "javascript:alert(1)" }, session.pair)), "/company?error=input");
+    assert.equal(where(await post("/actions/company/profile", { legalName: "Acme E2E SA", tradeName: "Acme <b>", website: "https://acme.example", country: "mx", timezone: "America/Mexico_City", defaultCurrency: "mxn" }, session.pair)), "/company?ok=saved");
+    const page = await html(await get("/company", session.pair));
+    assert.ok(page.includes('value="Acme E2E SA"') && page.includes("Guardar perfil"));
+    assert.ok(!page.includes("<b>"), "hostile markup is escaped");
+    assert.equal(where(await post("/actions/company/branch/new", { name: "Matriz", city: "CDMX", country: "mx" }, session.pair)), "/company?ok=branch");
+    assert.equal(where(await post("/actions/company/branch/new", { name: "matriz" }, session.pair)), "/company?error=conflict"); // names are unique, case-insensitive
+    const branch = (await api("GET", "/branches", session.token)).body.find((b) => b.name === "Matriz");
+    assert.equal(where(await post(`/actions/company/branch/${branch.id}`, { op: "save", name: "Matriz Norte", city: "Monterrey", country: "mx" }, session.pair)), "/company?ok=branchupdated");
+    assert.equal(where(await post(`/actions/company/branch/${branch.id}`, { op: "disable" }, session.pair)), "/company?ok=branchupdated");
+    assert.equal((await api("GET", "/branches", session.token)).body.find((b) => b.id === branch.id).status, "disabled");
+    assert.equal(where(await post(`/actions/company/branch/${branch.id}`, { op: "bogus" }, session.pair)), "/company?error=input");
+    assert.equal(where(await post("/actions/company/branch/not-a-uuid", { op: "disable" }, session.pair)), "/company?error=notfound");
+  });
+
+  await step("W-06: invitations show their one-time code only in the response, acceptance and organization switch work through the forms", async () => {
+    const adminMe = (await api("GET", "/me", session.token)).body;
+    const team = await html(await get("/team", session.pair));
+    assert.ok(team.includes("Miembros") && team.includes("Crear invitación"));
+
+    const inviteeEmail = `invitee-${randomUUID().slice(0, 8)}@example.test`;
+    const created = await post("/actions/team/invite", { email: inviteeEmail, role: "analyst" }, session.pair);
+    assert.equal(created.status, 201);
+    assert.equal(created.headers.get("location"), null, "the code is never put in a redirect or URL");
+    assert.match(created.headers.get("cache-control") ?? "", /no-store/);
+    const token = /id="invitation-token"[^>]*>([A-Za-z0-9_-]{43})</.exec(await created.text())?.[1];
+    assert.ok(token, "the one-time code is rendered");
+    const after = await html(await get("/team", session.pair));
+    assert.ok(after.includes(inviteeEmail) && !after.includes(token), "the pending list never shows the code again");
+    assert.equal(where(await post("/actions/team/invite", { email: "bad", role: "analyst" }, session.pair)), "/team?error=input");
+    assert.equal(where(await post("/actions/team/invite", { email: inviteeEmail, role: "root" }, session.pair)), "/team?error=input");
+
+    // The invitee has their own account and organization; only the matching email can accept.
+    const reg = await (await fetch(`${API}/auth/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: inviteeEmail, password, displayName: "Invitee", organizationName: `Invitee Home ${randomUUID().slice(0, 4)}` }) })).json();
+    const own = cookieOf(await fetch(`${WEB}/session/login`, form({ email: inviteeEmail, password, organizationSlug: reg.organization.slug }))).pair;
+    assert.equal(where(await post("/actions/team/accept", { token: "A".repeat(43) }, own)), "/team/accept?error=notfound");
+    assert.equal(where(await post("/actions/team/accept", { token }, own)), "/team/accept?ok=inviteaccepted");
+    assert.ok((await html(await get("/team/accept?ok=inviteaccepted", own))).includes("Invitación aceptada"));
+
+    const home = await html(await get("/", own));
+    assert.ok(home.includes('id="org-switch"') && home.includes(orgName), "the switcher lists the other organization");
+    const switched = await post("/actions/team/switch", { organizationSlug: adminMe.organization.slug }, own);
+    assert.equal(where(switched), "/?ok=switched");
+    const fresh = cookieOf(switched);
+    assert.ok(fresh && fresh.pair !== own && /HttpOnly/i.test(fresh.raw), "a new hardened session cookie replaces the old one");
+    assert.ok((await html(await get("/", fresh.pair))).includes(`<strong>${orgName}</strong>`));
+    assert.match(where(await get("/", own)) ?? "", /\/login\?error=expired$/, "the previous session was revoked");
+    assert.equal(where(await post("/actions/team/switch", { organizationSlug: `ghost-${randomUUID().slice(0, 6)}` }, fresh.pair)), "/?error=notfound");
+
+    // Role change, removal and revocation by the admin.
+    const members = (await api("GET", "/memberships", session.token)).body;
+    const m = members.find((x) => x.user.email === inviteeEmail);
+    assert.equal(m.role, "analyst");
+    assert.equal(where(await post(`/actions/team/member/${m.id}`, { op: "role", role: "viewer" }, session.pair)), "/team?ok=rolechanged");
+    assert.equal((await api("GET", "/memberships", session.token)).body.find((x) => x.id === m.id).role, "viewer");
+    assert.equal(where(await post(`/actions/team/member/${m.id}`, { op: "role", role: "root" }, session.pair)), "/team?error=input");
+    assert.equal(where(await post(`/actions/team/member/${m.id}`, { op: "remove" }, session.pair)), "/team?ok=memberremoved");
+    assert.ok(!(await api("GET", "/memberships", session.token)).body.some((x) => x.id === m.id));
+
+    const second = await api("POST", "/invitations", session.token, { email: `later-${randomUUID().slice(0, 6)}@example.test`, role: "viewer" });
+    assert.equal(where(await post(`/actions/team/invitation/${second.body.id}`, {}, session.pair)), "/team?ok=revoked");
+    assert.ok(!(await api("GET", "/invitations", session.token)).body.some((x) => x.id === second.body.id));
+  });
+
+  await step("W-05/W-06: a viewer sees no edit controls and forced requests are refused", async () => {
+    const viewer = await inviteAndLogin("viewer");
+    const co = await html(await get("/company", viewer.cookie));
+    assert.ok(!co.includes("Guardar perfil") && !co.includes("Crear sede"));
+    assert.match(await html(await get("/team", viewer.cookie)), /no tiene acceso al equipo/); // viewers have no members:read
+    assert.ok(!(await html(await get("/", viewer.cookie))).includes('href="/team"'), "no navigation entry for viewers");
+    const mgr = await inviteAndLogin("sales_manager");
+    const tm = await html(await get("/team", mgr.cookie));
+    assert.ok(tm.includes("Miembros") && !tm.includes("Crear invitación") && !tm.includes("Cambiar rol"), "read-only team view");
+    assert.equal(where(await post("/actions/team/invite", { email: "x@example.test", role: "viewer" }, mgr.cookie)), "/team?error=forbidden");
+    assert.equal(where(await post("/actions/company/profile", { legalName: "Hacked" }, viewer.cookie)), "/company?error=forbidden");
+    assert.equal(where(await post("/actions/company/branch/new", { name: "Evil" }, viewer.cookie)), "/company?error=forbidden");
+    assert.equal(where(await post("/actions/team/invite", { email: "x@example.test", role: "org_admin" }, viewer.cookie)), "/team?error=forbidden");
+    assert.equal(where(await post(`/actions/team/member/${viewer.userId}`, { op: "role", role: "org_admin" }, viewer.cookie)), "/team?error=forbidden");
+    assert.equal((await api("GET", "/organization/profile", session.token)).body.legalName, "Acme E2E SA");
+    assert.equal(where(await post("/actions/team/invite", { email: "x@example.test", role: "viewer" }, undefined)), "/login?error=expired");
+  });
+
   await step("wrong passwords show a generic error and the account throttle kicks in", async () => {
     const wrong = await fetch(`${WEB}/session/login`, form({ email, password: "definitely wrong password" }));
     assert.equal(wrong.headers.get("location"), "/login?error=invalid");

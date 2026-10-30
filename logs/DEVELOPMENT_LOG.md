@@ -38,3 +38,5 @@
 | 2026-10-30 | 9 | P9-01 CRM | migración `crm` (RLS por propietario, máquina de etapas, historial por trigger); `crm.int.spec.ts`; la tabla de transiciones del contrato = función de PostgreSQL (81 pares) | COMPLETED |
 | 2026-10-30 | 10 | P10-01 cotizaciones | migración `quotes`; BigInt half-up cruzado con PostgreSQL; hallazgos propios corregidos en pruebas (etapas, parámetros SQL); `test:int` 333/333 | COMPLETED |
 | 2026-10-30 | Web | W-F9, W-F10 | pipeline, enrutamiento, cotizaciones y ventas en la web; `test:e2e` 20 pasos; hito 50 % (≈54 %) | COMPLETED |
+| 2026-10-30 | 11 | P11-01 analítica | servicio de lectura sin migraciones; `analytics.spec.ts` + `analytics.int.spec.ts`; `test:int` 345/345; web `/analytics` con E2E de 21 pasos | COMPLETED |
+| 2026-10-30 | Web | W-05, W-06 | migración `my_organizations` + `GET /me/organizations` (prueba de integración); empresa editable, `/team`, aceptación de invitaciones y selector de organización; el código de invitación sólo viaja en la respuesta `no-store`; `test:int` 346/346, unitarias 20+16, `test:e2e` 24 pasos; hito 60 % (≈60 %) | COMPLETED |

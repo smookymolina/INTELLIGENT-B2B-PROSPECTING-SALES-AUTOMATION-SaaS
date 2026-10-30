@@ -12,6 +12,12 @@
 
 Pendientes: proveedor cloud, pagos, proveedor de identidad, retención, DPA/aviso de privacidad, jurisdicciones y SLAs.
 
+## Fase 11
+
+| ID | Decisión | Estado | Motivo |
+|---|---|---|---|
+| ADR-027 | Analítica de sólo lectura sobre registros de negocio bajo RLS, definiciones en la respuesta, drill-down y conciliación; ventana UTC explícita; `analytics:read` sin `seller`; sin SLA configurado no se mide | Aprobada | métricas atribuibles y sin inferencias de UI (M14) |
+
 ## Fases 9 y 10
 
 | ID | Decisión | Estado | Motivo |

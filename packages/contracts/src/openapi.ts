@@ -52,6 +52,10 @@ export const OPERATIONS: readonly Operation[] = [
     method: "post", path: "/auth/switch-organization", id: "switchOrganization", summary: "Open a session in another organization where the caller has an active membership (current session is revoked)", tag: "Auth",
     body: C.SwitchOrganizationRequest, success: { status: 200, schema: C.SessionDto, description: "New session" }, errors: [400, 401, 404],
   },
+  {
+    method: "get", path: "/me/organizations", id: "listMyOrganizations", summary: "Organizations where the caller has an active membership (for the switcher); the current one is flagged", tag: "Auth",
+    success: { status: 200, schema: C.MyOrganizationsDto, description: "Organizations" }, errors: [401],
+  },
   { method: "get", path: "/me", id: "getMe", summary: "Current identity, organization, role and permissions", tag: "Auth", success: { status: 200, schema: C.MeDto, description: "Identity" }, errors: [401] },
   {
     method: "get", path: "/organization", id: "getOrganization", summary: "The caller's organization", tag: "Organization", permission: "organization:read",
@@ -408,6 +412,14 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: "get", path: "/sales", id: "listSales", summary: "Sales (accepted quotes), linking lead, opportunity and quote", tag: "Quotes", permission: "quotes:read",
     query: C.PageQuery, success: { status: 200, schema: C.SalePageDto, description: "Page" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/analytics/overview", id: "getAnalyticsOverview", summary: "Funnel, pipeline, SLA, outcomes, sales and their reconciliation for a UTC window, with every definition", tag: "Analytics", permission: "analytics:read",
+    query: C.AnalyticsQuery, success: { status: 200, schema: C.AnalyticsOverviewDto, description: "Metrics" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/analytics/events", id: "listAnalyticsEvents", summary: "Drill-down: the business records behind a metric (keyset by id)", tag: "Analytics", permission: "analytics:read",
+    query: C.AnalyticsEventsQuery, success: { status: 200, schema: C.AnalyticsEventPageDto, description: "Page of events" }, errors: [400, 401, 403],
   },
   {
     method: "get", path: "/memberships", id: "listMemberships", summary: "Members of the caller's organization", tag: "Memberships", permission: "members:read",

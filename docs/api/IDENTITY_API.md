@@ -9,6 +9,7 @@ Base `/v1`. Autenticación: `Authorization: Bearer <token>` (token opaco; sólo 
 | `POST /auth/login` | público | `organizationSlug` opcional, verificado contra las membresías del usuario; credenciales inválidas → 401 idéntico exista o no el email |
 | `POST /auth/switch-organization` | sesión | `{organizationSlug}` verificado contra las membresías activas; devuelve sesión nueva y revoca la actual; ajena/inexistente → 404 idéntico |
 | `POST /auth/logout` | sesión | revoca el token (204) |
+| `GET /me/organizations` | sesión | organizaciones con membresía activa del usuario `{id,name,slug,role,current}`; vía `auth_list_my_organizations` (SECURITY DEFINER, sólo membresías propias) |
 | `GET /me` | sesión | usuario, organización, rol y permisos |
 | `GET /organization` | `organization:read` | siempre la organización de la sesión |
 | `PATCH /organization` | `organization:update` | `{name}`; audita nombre previo |

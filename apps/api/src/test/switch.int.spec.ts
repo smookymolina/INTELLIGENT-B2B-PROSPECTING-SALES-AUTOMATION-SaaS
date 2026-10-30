@@ -78,3 +78,22 @@ describe("switch organization", () => {
     expect((await owner.query("SELECT 1 FROM audit_events WHERE organization_id = $1 AND action = 'auth.logout'", [home.id])).rowCount).toBe(1);
   });
 });
+
+describe("my organizations", () => {
+  it("lists only the caller's active memberships, flags the current one and requires a session", async () => {
+    const a = await register("mo-a");
+    const other = await register("mo-other");
+    const second = await seedOrganization("mo-second");
+    const guest = await seedMember(a.orgId, "analyst");
+    await owner.query("INSERT INTO memberships (id, organization_id, user_id, role, updated_at) VALUES ($1,$2,$3,'seller', now())", [randomUUID(), second.id, guest.userId]);
+    const login = await api.call("POST", "/auth/login", { body: { email: guest.email, password: PASSWORD, organizationSlug: a.slug } });
+    const res = await api.call("GET", "/me/organizations", { token: login.body.token });
+    expect(res.status).toBe(200);
+    const items = res.body.items as Array<{ id: string; role: string; current: boolean }>;
+    expect(items.map((i) => i.id).sort()).toEqual([a.orgId, second.id].sort());
+    expect(items.find((i) => i.id === a.orgId)).toMatchObject({ role: "analyst", current: true });
+    expect(items.find((i) => i.id === second.id)).toMatchObject({ role: "seller", current: false });
+    expect(items.some((i) => i.id === other.orgId)).toBe(false);
+    expect((await api.call("GET", "/me/organizations")).status).toBe(401);
+  });
+});

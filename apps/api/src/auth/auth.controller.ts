@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Headers, HttpCode, Inject, Post, Res } from "@nestjs/common";
 import type { Response } from "express";
-import { IdempotencyKeyHeader, LoginRequest, RegisterRequest, SwitchOrganizationRequest, type MeDto, type SessionDto } from "@prospecting/contracts";
+import { IdempotencyKeyHeader, LoginRequest, RegisterRequest, SwitchOrganizationRequest, type MeDto, type MyOrganizationsDto, type SessionDto } from "@prospecting/contracts";
 import { IdempotencyService } from "../http/idempotency.service.js";
 import { AuthService } from "./auth.service.js";
 import type { AuthContext } from "./auth.types.js";
@@ -48,6 +48,11 @@ export class AuthController {
   @HttpCode(204)
   logout(@Auth() auth: AuthContext): Promise<void> {
     return this.auth.logout(auth);
+  }
+
+  @Get("me/organizations")
+  myOrganizations(@Auth() auth: AuthContext): Promise<MyOrganizationsDto> {
+    return this.auth.myOrganizations(auth);
   }
 
   @Get("me")

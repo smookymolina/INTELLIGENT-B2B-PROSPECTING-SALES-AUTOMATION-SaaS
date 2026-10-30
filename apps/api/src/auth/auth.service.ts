@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { ConflictException, ForbiddenException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
-import type { LoginRequest, MeDto, MembershipRole, RegisterRequest, SessionDto } from "@prospecting/contracts";
+import type { LoginRequest, MeDto, MembershipRole, MyOrganizationsDto, RegisterRequest, SessionDto } from "@prospecting/contracts";
 import { ROLE_PERMISSIONS } from "@prospecting/contracts";
 import { AuditService } from "../audit/audit.service.js";
 import { PrismaService, type Tx } from "../db/prisma.service.js";
@@ -115,6 +115,11 @@ export class AuthService {
       await tx.session.updateMany({ where: { id: auth.sessionId, organization_id: auth.organizationId }, data: { revoked_at: new Date() } });
       await this.audit.record(tx, auth, { action: "auth.logout", resourceType: "session", resourceId: auth.sessionId });
     });
+  }
+
+  async myOrganizations(auth: AuthContext): Promise<MyOrganizationsDto> {
+    const rows = await this.db.withoutTenant((tx) => tx.$queryRaw<Array<{ organization_id: string; name: string; slug: string; role: MembershipRole }>>`SELECT * FROM auth_list_my_organizations(${auth.userId}::uuid)`);
+    return { items: rows.map((r) => ({ id: r.organization_id, name: r.name, slug: r.slug, role: r.role, current: r.organization_id === auth.organizationId })) };
   }
 
   me(auth: AuthContext): Promise<MeDto> {

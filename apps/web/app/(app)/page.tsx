@@ -16,6 +16,7 @@ export default async function HomePage() {
         {me.permissions.includes("leads:read") ? <li><Link href="/leads">Leads</Link><span>Creados por regla o intención; los revisa una persona.</span></li> : null}
         {me.permissions.includes("crm:read") ? <li><Link href="/pipeline">Pipeline</Link><span>Oportunidades, etapas, asignación y SLA.</span></li> : null}
         {me.permissions.includes("quotes:read") ? <li><Link href="/sales">Ventas</Link><span>Cotizaciones con evidencia aprobada y ventas.</span></li> : null}
+        {me.permissions.includes("analytics:read") ? <li><Link href="/analytics">Analítica</Link><span>Embudo, SLA, ventas y conciliación con definiciones.</span></li> : null}
         <li><Link href="/company">Empresa</Link><span>Perfil y sedes de tu organización.</span></li>
       </ul>
       <details>

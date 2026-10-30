@@ -11,17 +11,17 @@ export type HealthStatus = Readonly<{
 export const MEMBERSHIP_ROLES = ["org_admin", "campaign_manager", "sales_manager", "seller", "analyst", "viewer"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
-export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove", "scoring:manage", "scoring:approve", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "quotes:approve"] as const;
+export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove", "scoring:manage", "scoring:approve", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "quotes:approve", "analytics:read"] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 /** Single source of truth for role -> permission. `saas_admin` is platform-level and intentionally absent (ADR-011). */
 export const ROLE_PERMISSIONS: Readonly<Record<MembershipRole, readonly Permission[]>> = {
   org_admin: PERMISSIONS,
-  campaign_manager: ["organization:read", "members:read", "catalog:read", "prospects:read", "prospects:manage", "suppressions:manage", "leads:read", "crm:read"],
-  sales_manager: ["organization:read", "members:read", "catalog:read", "catalog:manage", "prospects:read", "prospects:manage", "suppressions:manage", "scoring:manage", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage"],
+  campaign_manager: ["organization:read", "members:read", "catalog:read", "prospects:read", "prospects:manage", "suppressions:manage", "leads:read", "crm:read", "analytics:read"],
+  sales_manager: ["organization:read", "members:read", "catalog:read", "catalog:manage", "prospects:read", "prospects:manage", "suppressions:manage", "scoring:manage", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "analytics:read"],
   seller: ["organization:read", "catalog:read", "prospects:read", "crm:read", "crm:work", "quotes:read", "quotes:manage"],
-  analyst: ["organization:read", "catalog:read", "prospects:read", "leads:read", "crm:read", "quotes:read"],
-  viewer: ["organization:read", "catalog:read", "prospects:read", "leads:read", "crm:read", "quotes:read"],
+  analyst: ["organization:read", "catalog:read", "prospects:read", "leads:read", "crm:read", "quotes:read", "analytics:read"],
+  viewer: ["organization:read", "catalog:read", "prospects:read", "leads:read", "crm:read", "quotes:read", "analytics:read"],
 };
 
 export function hasPermission(role: MembershipRole, permission: Permission): boolean {
@@ -429,6 +429,23 @@ export const QuoteListQuery = z.strictObject({
   cursor: z.uuid().optional(),
 });
 export type QuoteListQuery = z.infer<typeof QuoteListQuery>;
+
+/* ---------- Analytics (P11-01) ---------- */
+
+/** Windows are UTC calendar days, inclusive on both ends, at most 366 days. Defaults (applied by the server): the last 30 days. */
+const windowShape = { from: z.iso.date().optional(), to: z.iso.date().optional() };
+const validWindow = (v: { from?: string | undefined; to?: string | undefined }) => {
+  if (!v.from || !v.to) return true;
+  const days = (Date.parse(v.to) - Date.parse(v.from)) / 86_400_000;
+  return days >= 0 && days <= 365;
+};
+export const AnalyticsQuery = z.strictObject(windowShape).refine(validWindow, { message: "from must not be after to, and the window is at most 366 days", path: ["to"] });
+export type AnalyticsQuery = z.infer<typeof AnalyticsQuery>;
+export const ANALYTICS_EVENT_METRICS = ["prospects_created", "leads_created", "opportunities_created", "quotes_sent", "sales_closed", "opportunities_lost"] as const;
+export const AnalyticsEventsQuery = z
+  .strictObject({ ...windowShape, metric: z.enum(ANALYTICS_EVENT_METRICS), limit: z.coerce.number().int().min(1).max(100).default(50), cursor: z.uuid().optional() })
+  .refine(validWindow, { message: "from must not be after to, and the window is at most 366 days", path: ["to"] });
+export type AnalyticsEventsQuery = z.infer<typeof AnalyticsEventsQuery>;
 
 export const UuidParam = z.uuid();
 
@@ -893,6 +910,31 @@ export const SaleDto = z.object({
 export type SaleDto = z.infer<typeof SaleDto>;
 export const SalePageDto = z.object({ items: z.array(SaleDto), nextCursor: z.uuid().nullable() });
 export type SalePageDto = z.infer<typeof SalePageDto>;
+
+export const AnalyticsOverviewDto = z.object({
+  window: z.object({ from: z.string(), to: z.string(), timezone: z.literal("UTC") }),
+  /** Every metric is defined here, in plain words, next to its number. */
+  definitions: z.array(z.object({ id: z.string(), label: z.string(), definition: z.string() })),
+  funnel: z.array(z.object({ id: z.string(), label: z.string(), count: z.number().int(), conversionFromPrevious: z.number().nullable() })),
+  leads: z.object({ byOrigin: z.record(z.string(), z.number().int()), byState: z.record(z.string(), z.number().int()) }),
+  pipeline: z.object({ stages: z.record(z.string(), z.number().int()), open: z.number().int() }),
+  transitions: z.array(z.object({ from: z.string().nullable(), to: z.string(), count: z.number().int() })),
+  sla: z.object({ measured: z.number().int(), breached: z.number().int(), breachRate: z.number().nullable(), avgFirstResponseMinutes: z.number().nullable() }),
+  outcomes: z.object({ won: z.number().int(), lost: z.number().int(), winRate: z.number().nullable(), lostReasons: z.array(z.object({ reason: z.string(), count: z.number().int() })) }),
+  sales: z.array(z.object({ currency: z.string(), count: z.number().int(), total: z.string(), average: z.string() })),
+  /** Sales are reconciled against the totals of the accepted quotes that produced them. */
+  reconciliation: z.array(z.object({ currency: z.string(), salesTotal: z.string(), quotesTotal: z.string(), matches: z.boolean() })),
+});
+export type AnalyticsOverviewDto = z.infer<typeof AnalyticsOverviewDto>;
+export const AnalyticsEventDto = z.object({ id: z.uuid(), type: z.string(), at: z.iso.datetime(), title: z.string(), path: z.string().nullable() });
+export type AnalyticsEventDto = z.infer<typeof AnalyticsEventDto>;
+export const AnalyticsEventPageDto = z.object({ items: z.array(AnalyticsEventDto), nextCursor: z.uuid().nullable() });
+export type AnalyticsEventPageDto = z.infer<typeof AnalyticsEventPageDto>;
+
+export const MyOrganizationDto = z.object({ id: z.uuid(), name: z.string(), slug: z.string(), role: roleSchema, current: z.boolean() });
+export type MyOrganizationDto = z.infer<typeof MyOrganizationDto>;
+export const MyOrganizationsDto = z.object({ items: z.array(MyOrganizationDto) });
+export type MyOrganizationsDto = z.infer<typeof MyOrganizationsDto>;
 
 /** Uniform error envelope for every non-2xx response. `details` is null unless the error carries structured data. */
 export const ProblemDto = z.object({ code: z.string(), message: z.string(), details: z.unknown().nullable(), request_id: z.uuid() });

@@ -37,6 +37,13 @@ export const OK: Record<string, string> = {
   accepted: "Cotización aceptada: se registró la venta y la oportunidad se ganó.",
   rejected: "Cotización rechazada.",
   cancelled: "Cotización cancelada.",
+  branch: "Sede creada.",
+  branchupdated: "Sede actualizada.",
+  memberremoved: "Miembro quitado de la organización.",
+  rolechanged: "Rol actualizado.",
+  revoked: "Invitación revocada.",
+  inviteaccepted: "Invitación aceptada: ya perteneces a esa organización y puedes cambiar a ella desde el encabezado.",
+  switched: "Cambiaste de organización.",
 };
 export const ERR: Record<string, string> = {
   input: "Revisa los datos ingresados.",
