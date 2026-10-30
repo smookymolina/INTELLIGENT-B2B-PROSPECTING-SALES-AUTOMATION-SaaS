@@ -6,12 +6,15 @@
     "dev": "node \"../../node_modules/next/dist/bin/next\" dev",
     "build": "node \"../../node_modules/next/dist/bin/next\" build",
     "typecheck": "node \"../../node_modules/typescript/bin/tsc\" --noEmit -p tsconfig.json",
-    "lint": "node \"../../node_modules/eslint/bin/eslint.js\" app --max-warnings=0"
+    "lint": "node \"../../node_modules/eslint/bin/eslint.js\" app lib --max-warnings=0",
+    "test": "node \"../../node_modules/vitest/vitest.mjs\" run",
+    "start": "node \"../../node_modules/next/dist/bin/next\" start"
   },
   "dependencies": {
     "next": "16.4.3",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "@prospecting/contracts": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
@@ -19,6 +22,7 @@
     "@types/react-dom": "19.3.0",
     "eslint": "10.14.0",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.72.1"
+    "typescript-eslint": "8.72.1",
+    "vitest": "4.1.12"
   }
 }

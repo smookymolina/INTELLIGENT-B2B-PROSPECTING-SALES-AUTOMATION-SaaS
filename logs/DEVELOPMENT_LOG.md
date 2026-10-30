@@ -28,3 +28,5 @@
 | 2026-10-30 | 3 | P3-04 importación CSV | refactor `…Tx` del catálogo (193/193 sin regresión); migración `import_jobs`; `csv.spec.ts` 6 + `import.int.spec.ts` 29; `test:int` 222/222 | COMPLETED |
 | 2026-10-30 | 3 | Commit local | `99d9c41` P3-04; sin push | COMPLETED |
 | 2026-10-30 | 3 | P3-06 evidencia | `evidence.service/controller` (sólo lectura, sin migración); `evidence.int.spec.ts` 23 pruebas; `test:int` 245/245; Fase 3 → IN_REVIEW (P3-05 BLOCKED) | COMPLETED |
+| 2026-10-30 | 3 | Commit local | `9841477` P3-06; sin push | COMPLETED |
+| 2026-10-30 | Web | W-01 cimientos | BFF Next.js (cookie httpOnly, Origin check, cabeceras), login/registro/salida, vistas de lectura; 9 unitarias; `npm run test:e2e` 10 pasos sobre API compilada + `next start`; CI ampliado | COMPLETED |

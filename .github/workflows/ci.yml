@@ -32,3 +32,5 @@ jobs:
       - run: npm run check
       - name: Migrations + tenant isolation tests (real PostgreSQL)
         run: npm run db:test:setup && npm run test:int
+      - name: End-to-end (compiled API + Next.js production server)
+        run: npm run test:e2e

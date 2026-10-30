@@ -12,6 +12,12 @@
 
 Pendientes: proveedor cloud, pagos, proveedor de identidad, retención, DPA/aviso de privacidad, jurisdicciones y SLAs.
 
+## Web
+
+| ID | Decisión | Estado | Motivo |
+|---|---|---|---|
+| ADR-022 | La web es un BFF Next.js: token de API sólo en cookie httpOnly (`__Host-session`, Secure, Lax), lectura en componentes de servidor, escrituras por formularios HTML a route handlers con verificación de Origin; sin JS de cliente para autenticación; `API_URL` privada; la IP real se reenvía por X-Forwarded-For (requisito de despliegue); clave de idempotencia generada al renderizar el registro | Aprobada | evita robo de token por XSS y CSRF sin dependencias; reutiliza throttle e idempotencia de la API |
+
 ## Fase 3
 
 | ADR-021 | Evidencia: lectura única de hechos comerciales con referencias citables (`item:<id>:v<n>`, `price:<entryId>`), sólo contenido aprobado y vigente; ausencia = `no_evidence` + razón (nunca valores por defecto); validación de citas por lote que trata refs inventadas como respuesta; sin caché en consumidores; permiso `catalog:read` | Aprobada | requisito "ninguna alucinación comercial aceptada" del módulo M02 |

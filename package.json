@@ -23,6 +23,7 @@
     "db:test:setup": "node scripts/db-test-setup.mjs",
     "test:int": "npm run build --workspace=@prospecting/contracts && npm run test:int --workspace=@prospecting/api",
     "openapi:generate": "npm run build --workspace=@prospecting/contracts && node scripts/openapi.mjs",
-    "openapi:check": "npm run build --workspace=@prospecting/contracts && node scripts/openapi.mjs --check"
+    "openapi:check": "npm run build --workspace=@prospecting/contracts && node scripts/openapi.mjs --check",
+    "test:e2e": "node scripts/e2e-web.mjs"
   }
 }
