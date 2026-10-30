@@ -11,7 +11,7 @@
 - Fase 1: COMPLETED (re-verificada con `npm run check`).
 - Fase 2 (núcleo): esquema, migraciones, RLS, auth, RBAC, auditoría y contratos, throttle, idempotencia, OpenAPI, invitaciones y cambio de organización con 101/101 pruebas de integración.
 
-- Fase 3: IN_REVIEW. P3-01…P3-04 y P3-06 COMPLETED (245 integración + 7 unitarias); P3-05 BLOCKED. Interfaz web W-01 COMPLETED (BFF seguro + vistas de lectura, E2E 10 pasos). Progreso global ≈19 % (`planning/PROGRESS.md`). Detalle: `planning/PHASE_3_EXECUTION.md`.
+- Fase 3: IN_REVIEW. P3-01…P3-04 y P3-06 COMPLETED (245 integración + 7 unitarias); P3-05 BLOCKED. Interfaz web W-01 COMPLETED (BFF seguro + vistas de lectura, E2E 10 pasos). W-02 catálogo con escritura COMPLETED (E2E 12 pasos). Progreso global ≈22 % (`planning/PROGRESS.md`). Detalle: `planning/PHASE_3_EXECUTION.md`.
 
 ## En curso
 
@@ -19,7 +19,7 @@
 
 ## Siguiente, en orden
 
-1. Interfaz web W-02: catálogo con escritura (crear/editar/aprobar) — ver `planning/WEB_EXECUTION.md`. Alternativa sin proveedores: modelo interno de prospectos (Fase 4).
+1. Objetivo del usuario: llegar a ≈50 % con commit en cada 10 %: W-03/W-04 (precios, importación en la web) → Fase 4 prospectos internos → scoring → leads → CRM → cotizaciones, cada uno con UI y pruebas.
 2. Cerrar Fase 2: obtener evidencia de CI remoto (requiere push autorizado), decisión sobre `saas_admin` y revisión independiente; entonces COMPLETED y arrancar Fase 3 (empresa/catálogo).
 3. Fase 3: perfil de empresa y catálogo con importación validada.
 4. Fases 4–12 conforme a `planning/MASTER_ROADMAP.md`; no se activan proveedores externos sin credenciales, aprobación y cumplimiento.

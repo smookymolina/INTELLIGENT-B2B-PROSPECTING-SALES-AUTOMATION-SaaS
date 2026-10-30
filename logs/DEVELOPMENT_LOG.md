@@ -30,3 +30,4 @@
 | 2026-10-30 | 3 | P3-06 evidencia | `evidence.service/controller` (sólo lectura, sin migración); `evidence.int.spec.ts` 23 pruebas; `test:int` 245/245; Fase 3 → IN_REVIEW (P3-05 BLOCKED) | COMPLETED |
 | 2026-10-30 | 3 | Commit local | `9841477` P3-06; sin push | COMPLETED |
 | 2026-10-30 | Web | W-01 cimientos | BFF Next.js (cookie httpOnly, Origin check, cabeceras), login/registro/salida, vistas de lectura; 9 unitarias; `npm run test:e2e` 10 pasos sobre API compilada + `next start`; CI ampliado | COMPLETED |
+| 2026-10-30 | Web | W-02 catálogo con escritura | acciones por formularios con lista cerrada de operaciones y Origin check; 13 unitarias; E2E 12 pasos (admin completo + lector forzado → 403); hito 20 % (≈22 %) | COMPLETED |

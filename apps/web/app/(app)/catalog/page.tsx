@@ -9,7 +9,7 @@ const KINDS = ["product", "service"] as const;
 type Search = { status?: string; kind?: string; cursor?: string };
 
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<Search> }) {
-  const { token } = await requireSession();
+  const { token, me } = await requireSession();
   const raw = await searchParams;
   const status = pick(raw.status, STATUSES) ?? "all";
   const kind = pick(raw.kind, KINDS);
@@ -27,6 +27,10 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <h1>Catálogo</h1>
+      <p className="toolbar">
+        {me.permissions.includes("catalog:manage") ? <Link href="/catalog/new">+ Nuevo elemento</Link> : null}
+        <Link href="/catalog/categories">Categorías</Link>
+      </p>
       <form method="get" className="filters" aria-label="Filtros">
         <label>Estado
           <select name="status" defaultValue={status}>{STATUSES.map((s) => <option key={s} value={s}>{s === "all" ? "Todos" : label(STATUS_LABELS, s)}</option>)}</select>

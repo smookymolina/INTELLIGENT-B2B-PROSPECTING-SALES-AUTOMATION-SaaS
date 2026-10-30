@@ -40,3 +40,11 @@ tbody tr:last-child td { border-bottom: 0; }
 dl { margin: 0; } dt { font-weight: 600; margin-top: .5rem; } dd { margin: 0; overflow-wrap: anywhere; }
 .row { display: grid; grid-template-columns: 12rem 1fr; gap: .5rem; padding: .35rem 0; border-bottom: 1px solid var(--line); } .row dt, .row dd { margin: 0; }
 @media (max-width: 40rem) { .row { grid-template-columns: 1fr; } main { padding: 1rem; } }
+textarea { display: block; width: 100%; margin-top: .25rem; padding: .55rem .6rem; border: 1px solid #8a94a8; border-radius: .35rem; font: inherit; background: #fff; color: inherit; }
+.notice.ok { background: #e8f6ee; color: var(--ok); padding: .6rem .8rem; border-radius: .35rem; }
+.actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
+.inline-form { margin: 0; } .inline-form button { margin: 0; }
+form.inline { display: flex; gap: .75rem; align-items: end; flex-wrap: wrap; margin-top: 1rem; } form.inline label { margin: 0; }
+button.secondary { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
+.toolbar { display: flex; gap: 1.25rem; }
+section form { max-width: 40rem; }

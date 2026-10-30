@@ -165,6 +165,78 @@ try {
     assert.match(await html(company), /aún no se ha completado/);
   });
 
+  const post = (path, fields, cookie, headers = {}) =>
+    fetch(`${WEB}${path}`, { ...form(fields), headers: { ...form(fields).headers, ...(cookie ? { cookie } : {}), ...headers } });
+  const where = (res) => res.headers.get("location");
+
+  await step("W-02: an admin manages the catalog through the forms (create, edit, approve, version, archive, restore)", async () => {
+    assert.equal(where(await post("/actions/catalog/categories", { name: "Hardware" }, session.pair)), "/catalog/categories?ok=category");
+    assert.ok((await html(await get("/catalog/categories", session.pair))).includes("Hardware"));
+    const categoryId = (await api("GET", "/catalog/categories", session.token)).body[0].id;
+    assert.match(await html(await get("/catalog/new", session.pair)), /Crear borrador/);
+
+    const sku = `W02-${randomUUID().slice(0, 6)}`;
+    const created = await post("/actions/catalog/create", { kind: "product", sku, name: "Bomba", description: "Bomba centrífuga", unit: "pza", categoryId, features: "Color: Rojo\nPeso: 2 kg" }, session.pair);
+    const id = /^\/catalog\/([0-9a-f-]{36})\?ok=created$/.exec(where(created))?.[1];
+    assert.ok(id, `unexpected redirect ${where(created)}`);
+    let page = await html(await get(`/catalog/${id}`, session.pair));
+    for (const text of ["Aprobar borrador", "Archivar", "Editar borrador", "Hardware", "Color:"]) assert.ok(page.includes(text), `missing ${text}`);
+    assert.ok(!page.includes("Restaurar"));
+
+    assert.equal(where(await post(`/actions/catalog/${id}/update`, { name: "Bomba v1", description: "", unit: "pza", categoryId, features: "Color: Azul" }, session.pair)), `/catalog/${id}?ok=updated`);
+    assert.equal(where(await post(`/actions/catalog/${id}/update`, { name: "x", features: "sin separador" }, session.pair)), `/catalog/${id}?error=input`);
+    assert.ok((await html(await get(`/catalog/${id}`, session.pair))).includes("Bomba v1"));
+
+    assert.equal(where(await post(`/actions/catalog/${id}/approve`, {}, session.pair)), `/catalog/${id}?ok=approve`);
+    page = await html(await get(`/catalog/${id}`, session.pair));
+    assert.ok(page.includes("Nueva versión (borrador)") && !page.includes("Aprobar borrador") && !page.includes("Editar borrador"));
+    assert.equal(where(await post(`/actions/catalog/${id}/approve`, {}, session.pair)), `/catalog/${id}?error=conflict`);
+    assert.equal(where(await post(`/actions/catalog/${id}/draft`, {}, session.pair)), `/catalog/${id}?ok=draft`);
+    assert.equal(where(await post(`/actions/catalog/${id}/update`, { name: "Bomba v2", features: "" }, session.pair)), `/catalog/${id}?ok=updated`);
+    assert.equal(where(await post(`/actions/catalog/${id}/approve`, {}, session.pair)), `/catalog/${id}?ok=approve`);
+    assert.equal((await api("GET", `/catalog/items/${id}`, session.token)).body.approved.name, "Bomba v2");
+
+    assert.equal(where(await post(`/actions/catalog/${id}/archive`, {}, session.pair)), `/catalog/${id}?ok=archive`);
+    page = await html(await get(`/catalog/${id}`, session.pair));
+    assert.ok(page.includes("Restaurar") && !page.includes("Archivar"));
+    assert.equal(where(await post(`/actions/catalog/${id}/draft`, {}, session.pair)), `/catalog/${id}?error=conflict`);
+    assert.equal(where(await post(`/actions/catalog/${id}/restore`, {}, session.pair)), `/catalog/${id}?ok=restore`);
+
+    assert.equal((await post(`/actions/catalog/${id}/delete`, {}, session.pair)).status, 404); // unknown operations cannot reach the API
+    assert.equal((await post("/actions/catalog/not-an-id/approve", {}, session.pair)).status, 404);
+    assert.equal((await post(`/actions/catalog/${id}/archive`, {}, session.pair, { origin: "https://evil.example.test" })).status, 403);
+    assert.equal((await api("GET", `/catalog/items/${id}`, session.token)).body.status, "approved"); // the forged request changed nothing
+    assert.equal(where(await post("/actions/catalog/create", { kind: "product", sku, name: "dup" }, session.pair)), "/catalog/new?error=conflict");
+    assert.equal(where(await post("/actions/catalog/create", { kind: "product", sku: "bad sku", name: "x" }, session.pair)), "/catalog/new?error=input");
+    session.itemId = id;
+  });
+
+  await step("W-02: a viewer sees no write controls and forced requests are refused by the API", async () => {
+    const admin = await api("GET", "/me", session.token);
+    const viewerEmail = `viewer-${randomUUID().slice(0, 8)}@example.test`;
+    const invite = await api("POST", "/invitations", session.token, { email: viewerEmail, role: "viewer" });
+    assert.equal(invite.status, 201);
+    const reg = await fetch(`${API}/auth/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: viewerEmail, password, displayName: "Viewer", organizationName: `Viewer Home ${randomUUID().slice(0, 4)}` }) });
+    const viewerToken = (await reg.json()).token;
+    const accepted = await api("POST", "/invitations/accept", viewerToken, { token: invite.body.token });
+    assert.equal(accepted.status, 200);
+
+    const login = await fetch(`${WEB}/session/login`, form({ email: viewerEmail, password, organizationSlug: admin.body.organization.slug }));
+    assert.equal(where(login), "/");
+    const vc = cookieOf(login).pair;
+    const id = session.itemId;
+    const page = await html(await get(`/catalog/${id}`, vc));
+    assert.ok(page.includes("Bomba v2"));
+    for (const text of ["Archivar", "Aprobar borrador", "Nueva versión", "Editar borrador", "Restaurar"]) assert.ok(!page.includes(text), `viewer sees ${text}`);
+    assert.match(await html(await get("/catalog/new", vc)), /no permite crear/);
+    assert.ok(!(await html(await get("/catalog/categories", vc))).includes("Nueva categoría"));
+    assert.ok(!(await html(await get("/catalog", vc))).includes("+ Nuevo elemento"));
+
+    assert.equal(where(await post(`/actions/catalog/${id}/archive`, {}, vc)), `/catalog/${id}?error=forbidden`);
+    assert.equal(where(await post("/actions/catalog/categories", { name: "Nope" }, vc)), "/catalog/categories?error=forbidden");
+    assert.equal((await api("GET", `/catalog/items/${id}`, session.token)).body.status, "approved");
+  });
+
   await step("wrong passwords show a generic error and the account throttle kicks in", async () => {
     const wrong = await fetch(`${WEB}/session/login`, form({ email, password: "definitely wrong password" }));
     assert.equal(wrong.headers.get("location"), "/login?error=invalid");
