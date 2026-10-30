@@ -1,7 +1,4 @@
-// Security headers for every response. The CSP is deliberately limited to directives that do not need per-request nonces;
-// script-src hardening (nonces) is tracked separately.
-const csp = ["base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'", "object-src 'none'"].join("; ");
-
+// Static security headers for every response. The Content-Security-Policy (with a per-request nonce) is set in proxy.ts.
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
@@ -11,7 +8,6 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: [
-          { key: "Content-Security-Policy", value: csp },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "same-origin" },

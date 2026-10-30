@@ -11,7 +11,7 @@
 - Fase 1: COMPLETED (re-verificada con `npm run check`).
 - Fase 2 (núcleo): esquema, migraciones, RLS, auth, RBAC, auditoría y contratos, throttle, idempotencia, OpenAPI, invitaciones y cambio de organización con 101/101 pruebas de integración.
 
-- Fase 11: P11-01 analítica COMPLETED (345 integración; E2E 21 pasos). Web W-05 (empresa) y W-06 (equipo/organizaciones) COMPLETED (346 integración; E2E 24 pasos). Progreso global ≈60 % (`planning/PROGRESS.md`).
+- Fase 11: P11-01 analítica COMPLETED (345 integración; E2E 21 pasos). Web W-05 (empresa) y W-06 (equipo/organizaciones) COMPLETED (346 integración; E2E 24 pasos). W-07 parcial (CSP con nonces; E2E 25 pasos). Progreso global ≈61 % (`planning/PROGRESS.md`).
 - Fases 9/10: P9-01 CRM/asignación y P10-01 cotizaciones/ventas COMPLETED (333 integración + 21 unitarias API + 18 web; E2E 20 pasos). Web W-F9/W-F10 COMPLETED. Progreso global ≈54 % (`planning/PROGRESS.md`).
 - Fases 5/8 (internas): P5-01 scoring y P8-01 leads COMPLETED (296 integración + E2E 17 pasos); P5-02/P8-02 BLOCKED (proveedores/IA/canales). Progreso global ≈40 % (`planning/PROGRESS.md`).
 - Fase 4: P4-01 prospectos internos COMPLETED (267 integración); P4-02 conectores BLOCKED. Web W-03/W-04/W-F4 COMPLETED (E2E 15 pasos). Progreso global ≈31 % (`planning/PROGRESS.md`).

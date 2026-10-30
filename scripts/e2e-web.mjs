@@ -604,6 +604,25 @@ try {
     assert.equal(where(await post("/actions/team/invite", { email: "x@example.test", role: "viewer" }, undefined)), "/login?error=expired");
   });
 
+  await step("W-07: CSP with a fresh nonce per request; every script carries it and nothing allows inline scripts", async () => {
+    const one = await get("/login");
+    const two = await get("/login");
+    const cspOf = (r) => r.headers.get("content-security-policy") ?? "";
+    const nonceOf = (r) => /'nonce-([^']+)'/.exec(cspOf(r))?.[1];
+    assert.ok(nonceOf(one) && nonceOf(two) && nonceOf(one) !== nonceOf(two), "a new nonce for every request");
+    const csp = cspOf(one);
+    assert.match(csp, /script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
+    assert.ok(!/script-src[^;]*'unsafe-(inline|eval)'/.test(csp), "no unsafe-inline/eval for scripts in production");
+    assert.match(csp, /object-src 'none'/);
+    assert.match(csp, /frame-ancestors 'none'/);
+    assert.match(csp, /form-action 'self'/);
+    const page = await one.text();
+    const scripts = page.split("<script").slice(1).map((chunk) => "<script" + chunk.slice(0, chunk.indexOf(">") + 1));
+    assert.ok(scripts.length > 0 && scripts.every((t) => t.includes(`nonce="${nonceOf(one)}"`)), `all scripts are stamped with the request nonce: ${scripts.filter((t) => !t.includes(`nonce="${nonceOf(one)}"`)).join(" ")}`);
+    const priv = await get("/analytics", session.pair);
+    assert.ok(cspOf(priv).includes("'nonce-"), "authenticated pages get the CSP too");
+  });
+
   await step("wrong passwords show a generic error and the account throttle kicks in", async () => {
     const wrong = await fetch(`${WEB}/session/login`, form({ email, password: "definitely wrong password" }));
     assert.equal(wrong.headers.get("location"), "/login?error=invalid");

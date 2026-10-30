@@ -15,7 +15,7 @@ Estado: **IN_PROGRESS** (inicio 2026-10-30). Documento: `docs/modules/WEB_APP.md
 | W-F4 | Prospectos: lista/filtros, alta, detalle con procedencia y estados, lista de no contactar | COMPLETED | `/prospects/**`; E2E 15 pasos en total (dedupe lleva al registro existente, supresión descalifica al instante, lector sin controles) |
 | W-05 | Empresa: editar perfil y sedes | COMPLETED | Formularios `PUT /organization/profile`, alta/edición/habilitar-deshabilitar sedes; lectores ven sólo lectura; E2E paso «W-05» y «viewer» |
 | W-06 | Miembros e invitaciones; selector de organización | COMPLETED | `GET /me/organizations` (función SECURITY DEFINER `auth_list_my_organizations`), `/team` (rol, quitar, invitar, revocar), `/team/accept`, selector en el encabezado. El código de invitación sólo se muestra en la respuesta HTML `no-store` de la creación (nunca en URL/redirect). E2E 24 pasos |
-| W-07 | Endurecimiento: CSP con nonces, auditoría de accesibilidad WCAG, pruebas de navegador (Playwright) | NOT_STARTED | |
+| W-07 | Endurecimiento: CSP con nonces, auditoría de accesibilidad WCAG, pruebas de navegador (Playwright) | IN_PROGRESS | CSP con nonce por petición vía `proxy.ts` (scripts con nonce + strict-dynamic, sin unsafe-inline/eval en producción) verificada en E2E (25 pasos). Pendiente: auditoría a11y con herramienta/navegador real y Playwright (requiere descargar navegadores: decisión del usuario) |
 
 ## Límites conocidos
 

@@ -23,8 +23,8 @@ Sólo suma lo entregado **con pruebas ejecutadas** (y documentado). Lo que depen
 | F10 Cotización y ventas | 6 | 75 % | 4,5 | P10-01: cotizaciones desde evidencia, totales exactos, descuentos, snapshot, venta. Faltan (bloqueado): PDF, fiscalidad, firma, pagos |
 | F11 Analítica | 4 | 85 % | 3,4 | P11-01 (API y pantalla). Falta (F7/otros): atribución por campaña, cohortes, paneles configurables, exportación |
 | F12 SaaS, hardening y producción | 10 | 0 % | 0 | |
-| Interfaz web (transversal) | 20 | 87,5 % | 17,5 | W-01…W-06: catálogo, precios, prospectos, scoring/leads, pipeline, cotizaciones, analítica, empresa (edición), equipo/invitaciones y selector de organización; falta endurecimiento (W-07: CSP con nonces, auditoría a11y, pruebas en navegador real) |
-| **Total** | **98** | | **59,0** | **≈ 60 %** (hitos de commit alcanzados: 20, 30, 40, 50 y 60 %; siguiente: 70 %) |
+| Interfaz web (transversal) | 20 | 90 % | 18,0 | W-01…W-06 y la CSP con nonces de W-07 (0,5 de 2,5); falta auditoría a11y en navegador real y pruebas Playwright |
+| **Total** | **98** | | **59,5** | **≈ 61 %** (hitos de commit alcanzados: 20, 30, 40, 50 y 60 %; siguiente: 70 %) |
 
 ## Qué puede frenar el avance (decisiones humanas, no técnicas)
 
