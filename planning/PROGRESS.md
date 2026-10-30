@@ -1,6 +1,6 @@
 # Progreso hacia "software operable" (100 %)
 
-Fecha: 2026-10-30 (recalculado tras P5-01 + P8-01 + W-F5). **Estimación ponderada, no medida**: los pesos son esfuerzo relativo estimado por el Tech Lead (no historial de velocidad). "Operable" = un cliente real puede registrarse, cargar catálogo, prospectar, contactar por canales oficiales, gestionar leads/cotizaciones y operar en producción con la interfaz web.
+Fecha: 2026-10-30 (recalculado tras P9-01 + P10-01 + W-F9/W-F10). **Estimación ponderada, no medida**: los pesos son esfuerzo relativo estimado por el Tech Lead (no historial de velocidad). "Operable" = un cliente real puede registrarse, cargar catálogo, prospectar, contactar por canales oficiales, gestionar leads/cotizaciones y operar en producción con la interfaz web.
 
 ## Regla de conteo
 
@@ -19,12 +19,12 @@ Sólo suma lo entregado **con pruebas ejecutadas** (y documentado). Lo que depen
 | F6 IA | 6 | 0 % | 0 | requiere proveedor de modelos |
 | F7 Campañas y canales | 10 | 0 % | 0 | requiere proveedores/credenciales/consentimiento |
 | F8 Intención y leads | 5 | 80 % | 4,0 | P8-01: leads por regla/intención con revisión humana, clasificador por reglas. Falta (bloqueado): clasificación con IA y recepción por canales |
-| F9 CRM y routing | 6 | 0 % | 0 | |
-| F10 Cotización y ventas | 6 | 0 % | 0 | |
+| F9 CRM y routing | 6 | 85 % | 5,1 | P9-01: oportunidades, etapas, historial, asignación reproducible, SLA, visibilidad por RLS. Faltan tareas y notificaciones (canales) |
+| F10 Cotización y ventas | 6 | 75 % | 4,5 | P10-01: cotizaciones desde evidencia, totales exactos, descuentos, snapshot, venta. Faltan (bloqueado): PDF, fiscalidad, firma, pagos |
 | F11 Analítica | 4 | 0 % | 0 | |
 | F12 SaaS, hardening y producción | 10 | 0 % | 0 | |
-| Interfaz web (transversal) | 20 | 55 % | 11,0 | W-01…W-04, prospectos y scoring/leads; faltan empresa, miembros/org, endurecimiento y CRM/cotizaciones |
-| **Total** | **98** | | **39,5** | **≈ 40 %** |
+| Interfaz web (transversal) | 20 | 72,5 % | 14,5 | W-01…W-04, prospectos, scoring/leads, pipeline y cotizaciones; faltan empresa (W-05), miembros/org (W-06) y endurecimiento (W-07) |
+| **Total** | **98** | | **52,6** | **≈ 54 %** (hitos de commit alcanzados: 20, 30, 40 y 50 %) |
 
 ## Qué puede frenar el avance (decisiones humanas, no técnicas)
 

@@ -11,17 +11,17 @@ export type HealthStatus = Readonly<{
 export const MEMBERSHIP_ROLES = ["org_admin", "campaign_manager", "sales_manager", "seller", "analyst", "viewer"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
-export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove", "scoring:manage", "scoring:approve", "leads:read", "leads:review"] as const;
+export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove", "scoring:manage", "scoring:approve", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "quotes:approve"] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 /** Single source of truth for role -> permission. `saas_admin` is platform-level and intentionally absent (ADR-011). */
 export const ROLE_PERMISSIONS: Readonly<Record<MembershipRole, readonly Permission[]>> = {
   org_admin: PERMISSIONS,
-  campaign_manager: ["organization:read", "members:read", "catalog:read", "prospects:read", "prospects:manage", "suppressions:manage", "leads:read"],
-  sales_manager: ["organization:read", "members:read", "catalog:read", "catalog:manage", "prospects:read", "prospects:manage", "suppressions:manage", "scoring:manage", "leads:read", "leads:review"],
-  seller: ["organization:read", "catalog:read", "prospects:read"],
-  analyst: ["organization:read", "catalog:read", "prospects:read", "leads:read"],
-  viewer: ["organization:read", "catalog:read", "prospects:read", "leads:read"],
+  campaign_manager: ["organization:read", "members:read", "catalog:read", "prospects:read", "prospects:manage", "suppressions:manage", "leads:read", "crm:read"],
+  sales_manager: ["organization:read", "members:read", "catalog:read", "catalog:manage", "prospects:read", "prospects:manage", "suppressions:manage", "scoring:manage", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage"],
+  seller: ["organization:read", "catalog:read", "prospects:read", "crm:read", "crm:work", "quotes:read", "quotes:manage"],
+  analyst: ["organization:read", "catalog:read", "prospects:read", "leads:read", "crm:read", "quotes:read"],
+  viewer: ["organization:read", "catalog:read", "prospects:read", "leads:read", "crm:read", "quotes:read"],
 };
 
 export function hasPermission(role: MembershipRole, permission: Permission): boolean {
@@ -350,6 +350,85 @@ export const LeadDecisionRequest = z.strictObject({ decision: z.enum(["accept", 
 export type LeadDecisionRequest = z.infer<typeof LeadDecisionRequest>;
 export const AssessReplyRequest = z.strictObject({ text: z.string().trim().min(1).max(4000) });
 export type AssessReplyRequest = z.infer<typeof AssessReplyRequest>;
+
+/* ---------- CRM (P9-01) ---------- */
+
+export const OPPORTUNITY_STAGES = ["new", "contacted", "qualification", "quote_requested", "quote_sent", "negotiation", "won", "lost", "future"] as const;
+export type OpportunityStage = (typeof OPPORTUNITY_STAGES)[number];
+/** Valid stage moves. The database function crm_stage_allowed is the authority; an integration test proves both agree. */
+export const OPPORTUNITY_TRANSITIONS: Readonly<Record<OpportunityStage, readonly OpportunityStage[]>> = {
+  new: ["contacted", "lost", "future"],
+  contacted: ["qualification", "lost", "future"],
+  qualification: ["quote_requested", "quote_sent", "negotiation", "lost", "future"],
+  quote_requested: ["quote_sent", "lost", "future"],
+  quote_sent: ["negotiation", "won", "lost", "future"],
+  negotiation: ["quote_sent", "won", "lost", "future"],
+  future: ["contacted", "lost"],
+  won: [],
+  lost: [],
+};
+const currencyCode = z.string().regex(/^[A-Z]{3}$/).refine((v) => Intl.supportedValuesOf("currency").includes(v), "ISO 4217 currency code");
+
+/** An opportunity is created from exactly one ACCEPTED lead. */
+export const CreateOpportunityRequest = z
+  .strictObject({ leadId: z.uuid(), title: text(200), expectedValue: z.string().regex(/^\d{1,14}(\.\d{1,4})?$/).nullish(), currency: currencyCode.nullish() })
+  .refine((v) => (v.expectedValue == null) === (v.currency == null), { message: "expectedValue and currency go together", path: ["currency"] });
+export type CreateOpportunityRequest = z.infer<typeof CreateOpportunityRequest>;
+export const ChangeStageRequest = z
+  .strictObject({ stage: z.enum(OPPORTUNITY_STAGES), note: text(300).nullish(), lossReason: text(200).nullish() })
+  .refine((v) => (v.stage === "lost") === (v.lossReason != null), { message: "lossReason is required for lost and only for lost", path: ["lossReason"] });
+export type ChangeStageRequest = z.infer<typeof ChangeStageRequest>;
+export const AddNoteRequest = z.strictObject({ kind: z.enum(["note", "call", "email", "meeting"]), body: text(2000) });
+export type AddNoteRequest = z.infer<typeof AddNoteRequest>;
+/** userId null returns the opportunity to the unassigned queue. */
+export const AssignRequest = z.strictObject({ userId: z.uuid().nullable() });
+export type AssignRequest = z.infer<typeof AssignRequest>;
+export const RoutingSettingsRequest = z.strictObject({ strategy: z.enum(["manual", "round_robin"]), firstResponseSlaMinutes: z.number().int().min(1).max(10080).nullable() });
+export type RoutingSettingsRequest = z.infer<typeof RoutingSettingsRequest>;
+export const PoolMemberRequest = z.strictObject({ active: z.boolean(), maxOpen: z.number().int().min(1).max(500) });
+export type PoolMemberRequest = z.infer<typeof PoolMemberRequest>;
+export const OpportunityListQuery = z.strictObject({
+  stage: z.enum(["all", ...OPPORTUNITY_STAGES]).default("all"),
+  owner: z.union([z.enum(["me", "unassigned"]), z.uuid()]).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.uuid().optional(),
+});
+export type OpportunityListQuery = z.infer<typeof OpportunityListQuery>;
+
+/* ---------- Quotes and sales (P10-01) ---------- */
+
+export const QUOTE_STATUSES = ["draft", "sent", "accepted", "rejected", "cancelled"] as const;
+const quantity = z.string().regex(/^\d{1,10}(\.\d{1,4})?$/, "decimal, up to 4 fraction digits").refine((v) => Number(v) > 0, "greater than zero");
+const percent2 = z.string().regex(/^\d{1,3}(\.\d{1,2})?$/, "percentage with up to 2 decimals").refine((v) => Number(v) <= 100, "at most 100");
+const taxRate = z.string().regex(/^\d{1,3}(\.\d{1,4})?$/, "percentage with up to 4 decimals").refine((v) => Number(v) <= 100, "at most 100");
+
+export const CreateQuoteRequest = z.strictObject({
+  opportunityId: z.uuid(),
+  priceListId: z.uuid(),
+  validUntil: z.iso.date().nullish(),
+  /** Entered explicitly by the user (a percentage); there is no default tax. */
+  taxRate: taxRate.nullish(),
+  notes: text(1000).nullish(),
+});
+export type CreateQuoteRequest = z.infer<typeof CreateQuoteRequest>;
+export const UpdateQuoteRequest = z
+  .strictObject({ validUntil: z.iso.date().nullable().optional(), taxRate: taxRate.nullable().optional(), notes: text(1000).nullable().optional() })
+  .refine(nonEmpty, "at least one field is required");
+export type UpdateQuoteRequest = z.infer<typeof UpdateQuoteRequest>;
+/** A line is built from APPROVED evidence for the SKU in the quote's price list; the price is never typed in. */
+export const AddQuoteLineRequest = z.strictObject({ sku: z.string().regex(SKU, "letters, digits, . _ - (max 64)"), quantity, discountPercent: percent2.optional() });
+export type AddQuoteLineRequest = z.infer<typeof AddQuoteLineRequest>;
+export const QuoteDecisionRequest = z.strictObject({ decision: z.enum(["accept", "reject", "cancel"]), note: text(300).nullish() });
+export type QuoteDecisionRequest = z.infer<typeof QuoteDecisionRequest>;
+export const SetQuoteSettingsRequest = z.strictObject({ maxDiscountPercent: percent2 });
+export type SetQuoteSettingsRequest = z.infer<typeof SetQuoteSettingsRequest>;
+export const QuoteListQuery = z.strictObject({
+  opportunityId: z.uuid().optional(),
+  status: z.enum(["all", ...QUOTE_STATUSES]).default("all"),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.uuid().optional(),
+});
+export type QuoteListQuery = z.infer<typeof QuoteListQuery>;
 
 export const UuidParam = z.uuid();
 
@@ -713,6 +792,107 @@ export const IntentAssessmentDto = z.object({
 export type IntentAssessmentDto = z.infer<typeof IntentAssessmentDto>;
 export const IntentAssessmentListDto = z.object({ items: z.array(IntentAssessmentDto) });
 export type IntentAssessmentListDto = z.infer<typeof IntentAssessmentListDto>;
+
+export const OpportunityDto = z.object({
+  id: z.uuid(),
+  leadId: z.uuid(),
+  prospect: z.object({ id: z.uuid(), name: z.string(), domain: z.string().nullable() }),
+  title: z.string(),
+  stage: z.enum(OPPORTUNITY_STAGES),
+  ownerUserId: z.uuid().nullable(),
+  ownerName: z.string().nullable(),
+  assignedAt: z.iso.datetime().nullable(),
+  expectedValue: z.string().nullable(),
+  currency: z.string().nullable(),
+  lossReason: z.string().nullable(),
+  firstResponseDueAt: z.iso.datetime().nullable(),
+  firstContactedAt: z.iso.datetime().nullable(),
+  /** null when no SLA applies; true when first contact came after the deadline or the deadline passed without contact. */
+  slaBreached: z.boolean().nullable(),
+  closedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+});
+export type OpportunityDto = z.infer<typeof OpportunityDto>;
+export const TimelineItemDto = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("stage"), at: z.iso.datetime(), by: z.string().nullable(), from: z.string().nullable(), to: z.string(), note: z.string().nullable() }),
+  z.object({ kind: z.literal("note"), at: z.iso.datetime(), by: z.string().nullable(), noteKind: z.string(), body: z.string() }),
+  z.object({ kind: z.literal("assignment"), at: z.iso.datetime(), by: z.string().nullable(), assignedTo: z.string().nullable(), strategy: z.string() }),
+]);
+export type TimelineItemDto = z.infer<typeof TimelineItemDto>;
+export const OpportunityDetailDto = OpportunityDto.extend({ timeline: z.array(TimelineItemDto) });
+export type OpportunityDetailDto = z.infer<typeof OpportunityDetailDto>;
+export const OpportunityPageDto = z.object({ items: z.array(OpportunityDto), nextCursor: z.uuid().nullable() });
+export type OpportunityPageDto = z.infer<typeof OpportunityPageDto>;
+export const PipelineSummaryDto = z.object({ stages: z.record(z.string(), z.number().int()), total: z.number().int() });
+export type PipelineSummaryDto = z.infer<typeof PipelineSummaryDto>;
+export const RoutingSettingsDto = z.object({ strategy: z.enum(["manual", "round_robin"]), firstResponseSlaMinutes: z.number().int().nullable() });
+export type RoutingSettingsDto = z.infer<typeof RoutingSettingsDto>;
+export const PoolMemberDto = z.object({ userId: z.uuid(), displayName: z.string(), active: z.boolean(), maxOpen: z.number().int(), openCount: z.number().int(), lastAssignedAt: z.iso.datetime().nullable() });
+export type PoolMemberDto = z.infer<typeof PoolMemberDto>;
+export const PoolDto = z.object({ items: z.array(PoolMemberDto) });
+export type PoolDto = z.infer<typeof PoolDto>;
+
+export const QuoteLineDto = z.object({
+  id: z.uuid(),
+  position: z.number().int(),
+  sku: z.string(),
+  itemName: z.string(),
+  itemVersion: z.number().int(),
+  unit: z.string().nullable(),
+  quantity: z.string(),
+  unitPrice: z.string(),
+  discountPercent: z.string(),
+  gross: z.string(),
+  discountAmount: z.string(),
+  lineTotal: z.string(),
+  /** The evidence the line was built from (see /catalog/evidence/resolve). */
+  itemRef: z.string(),
+  priceRef: z.string(),
+});
+export type QuoteLineDto = z.infer<typeof QuoteLineDto>;
+export const QuoteDto = z.object({
+  id: z.uuid(),
+  number: z.number().int(),
+  label: z.string(),
+  opportunityId: z.uuid(),
+  status: z.enum(QUOTE_STATUSES),
+  priceListId: z.uuid(),
+  currency: z.string(),
+  validUntil: z.string().nullable(),
+  taxRate: z.string().nullable(),
+  notes: z.string().nullable(),
+  subtotal: z.string(),
+  discountTotal: z.string(),
+  taxTotal: z.string(),
+  total: z.string(),
+  /** Some line has a discount above the organization's limit, so an org_admin must approve it before sending. */
+  requiresDiscountApproval: z.boolean(),
+  discountApproved: z.boolean(),
+  sentAt: z.iso.datetime().nullable(),
+  decidedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+});
+export type QuoteDto = z.infer<typeof QuoteDto>;
+export const QuoteDetailDto = QuoteDto.extend({ lines: z.array(QuoteLineDto) });
+export type QuoteDetailDto = z.infer<typeof QuoteDetailDto>;
+export const QuotePageDto = z.object({ items: z.array(QuoteDto), nextCursor: z.uuid().nullable() });
+export type QuotePageDto = z.infer<typeof QuotePageDto>;
+export const QuoteSettingsDto = z.object({ maxDiscountPercent: z.string() });
+export type QuoteSettingsDto = z.infer<typeof QuoteSettingsDto>;
+export const SaleDto = z.object({
+  id: z.uuid(),
+  quoteId: z.uuid(),
+  quoteNumber: z.number().int(),
+  opportunityId: z.uuid(),
+  leadId: z.uuid(),
+  prospectId: z.uuid(),
+  total: z.string(),
+  currency: z.string(),
+  closedAt: z.iso.datetime(),
+});
+export type SaleDto = z.infer<typeof SaleDto>;
+export const SalePageDto = z.object({ items: z.array(SaleDto), nextCursor: z.uuid().nullable() });
+export type SalePageDto = z.infer<typeof SalePageDto>;
 
 /** Uniform error envelope for every non-2xx response. `details` is null unless the error carries structured data. */
 export const ProblemDto = z.object({ code: z.string(), message: z.string(), details: z.unknown().nullable(), request_id: z.uuid() });

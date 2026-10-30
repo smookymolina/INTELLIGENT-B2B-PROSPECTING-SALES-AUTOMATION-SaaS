@@ -35,3 +35,6 @@
 | 2026-10-30 | Web | W-03, W-04, W-F4 | precios, importaciones y prospectos en la web; `test:e2e` 15 pasos (incluye lector con peticiones forzadas); rebalanceo de pesos de la interfaz; hito 30 % (≈31 %) | COMPLETED |
 | 2026-10-30 | 5/8 | P5-01 scoring + P8-01 leads | migraciones `scoring_and_leads` (+ RLS/triggers); motor y clasificador puros con 8 unitarias; `scoring-leads.int.spec.ts`; `test:int` 296/296; tres errores propios corregidos en pruebas (conteo, tipos SQL, caso de baja) | COMPLETED |
 | 2026-10-30 | Web | W-F5 | scoring, atributos, respuestas y leads en la web; `test:e2e` 17 pasos; hito 40 % (≈40 %) | COMPLETED |
+| 2026-10-30 | 9 | P9-01 CRM | migración `crm` (RLS por propietario, máquina de etapas, historial por trigger); `crm.int.spec.ts`; la tabla de transiciones del contrato = función de PostgreSQL (81 pares) | COMPLETED |
+| 2026-10-30 | 10 | P10-01 cotizaciones | migración `quotes`; BigInt half-up cruzado con PostgreSQL; hallazgos propios corregidos en pruebas (etapas, parámetros SQL); `test:int` 333/333 | COMPLETED |
+| 2026-10-30 | Web | W-F9, W-F10 | pipeline, enrutamiento, cotizaciones y ventas en la web; `test:e2e` 20 pasos; hito 50 % (≈54 %) | COMPLETED |

@@ -56,6 +56,12 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                           <button type="submit" name="decision" value="accept">Aceptar</button>
                           <button type="submit" name="decision" value="reject" className="secondary">Rechazar</button>
                         </form>
+                      ) : l.state === "accepted" && can("crm:manage") ? (
+                        <form method="post" action="/actions/crm/opportunity" className="inline">
+                          <input type="hidden" name="leadId" value={l.id} />
+                          <label>Título<input name="title" required maxLength={200} defaultValue={`Oportunidad ${l.prospect.name}`} /></label>
+                          <button type="submit" className="secondary">Crear oportunidad</button>
+                        </form>
                       ) : "—"}
                     </td>
                   ) : null}

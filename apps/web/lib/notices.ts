@@ -25,6 +25,18 @@ export const OK: Record<string, string> = {
   threshold: "Umbral guardado.",
   leadaccepted: "Lead aceptado.",
   leadrejected: "Lead rechazado.",
+  opportunity: "Oportunidad creada a partir del lead aceptado.",
+  stage: "Etapa actualizada.",
+  noted: "Nota registrada.",
+  assigned: "Asignación registrada.",
+  quote: "Cotización en borrador creada.",
+  lineadded: "Línea agregada con precio y versión aprobados.",
+  lineremoved: "Línea eliminada.",
+  discountapproved: "Descuentos aprobados para las líneas actuales.",
+  sent: "Cotización enviada: quedó congelada.",
+  accepted: "Cotización aceptada: se registró la venta y la oportunidad se ganó.",
+  rejected: "Cotización rechazada.",
+  cancelled: "Cotización cancelada.",
 };
 export const ERR: Record<string, string> = {
   input: "Revisa los datos ingresados.",

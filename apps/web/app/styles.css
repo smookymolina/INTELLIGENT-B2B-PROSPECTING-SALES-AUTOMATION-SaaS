@@ -51,3 +51,6 @@ section form { max-width: 40rem; }
 fieldset { border: 1px solid var(--line); border-radius: .35rem; margin: .75rem 0; } legend { font-weight: 600; padding: 0 .35rem; }
 label.check { display: flex; gap: .5rem; align-items: center; font-weight: 400; } label.check input { width: auto; margin: 0; }
 dl.stats { display: flex; flex-wrap: wrap; gap: 1rem; } dl.stats div { background: var(--card); border: 1px solid var(--line); border-radius: .5rem; padding: .5rem 1rem; } dl.stats dt { margin: 0; font-size: .8rem; color: var(--muted); } dl.stats dd { font-size: 1.4rem; font-weight: 700; }
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(15rem, 1fr); gap: .75rem; overflow-x: auto; padding-bottom: .5rem; }
+.column { background: var(--card); border: 1px solid var(--line); border-radius: .5rem; padding: 0 .75rem .75rem; } .column h2 { font-size: 1rem; } .column ul { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; } .column li { display: flex; flex-direction: column; gap: .1rem; border-bottom: 1px solid var(--line); padding-bottom: .4rem; }
+ol.timeline { padding-left: 1.2rem; display: grid; gap: .35rem; }

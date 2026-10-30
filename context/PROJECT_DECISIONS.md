@@ -12,6 +12,13 @@
 
 Pendientes: proveedor cloud, pagos, proveedor de identidad, retención, DPA/aviso de privacidad, jurisdicciones y SLAs.
 
+## Fases 9 y 10
+
+| ID | Decisión | Estado | Motivo |
+|---|---|---|---|
+| ADR-025 | CRM: oportunidad = un lead aceptado; máquina de etapas en BD y contrato (probados iguales); historial por trigger; vendedor ve sólo lo asignado (RLS) y sólo mueve etapas; asignación manual / round-robin reproducible (candidatos guardados) / cola; SLA opcional sin valor por defecto | Aprobada | ACCESS_CONTROL (vendedores ven asignados), auditabilidad |
+| ADR-026 | Cotizaciones: líneas sólo desde el contrato de evidencia; BigInt half-up = `round(numeric,4)` verificado por la BD al enviar; descuento sobre el límite (0 % por defecto) exige aprobación de admin ligada a las líneas; snapshot inmutable al enviar; aceptar crea venta y gana la oportunidad; impuesto explícito sin defecto; PDF/fiscalidad/firma/pagos bloqueados | Aprobada | ninguna alucinación comercial; totales reproducibles |
+
 ## Fases 5 y 8
 
 | ID | Decisión | Estado | Motivo |

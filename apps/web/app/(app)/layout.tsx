@@ -17,6 +17,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <Link href="/prospects">Prospectos</Link>
           <Link href="/scoring">Puntuación</Link>
           {me.permissions.includes("leads:read") ? <Link href="/leads">Leads</Link> : null}
+          {me.permissions.includes("crm:read") ? <Link href="/pipeline">Pipeline</Link> : null}
+          {me.permissions.includes("quotes:read") ? <Link href="/sales">Ventas</Link> : null}
           <Link href="/company">Empresa</Link>
         </nav>
         <span className="who">{me.user.displayName} · {label(ROLE_LABELS, me.role)}</span>

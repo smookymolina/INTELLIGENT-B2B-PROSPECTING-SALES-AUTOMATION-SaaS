@@ -310,6 +310,106 @@ export const OPERATIONS: readonly Operation[] = [
     pathParams: ["id"], body: C.LeadDecisionRequest, success: { status: 200, schema: C.LeadDto, description: "Lead" }, errors: [400, 401, 403, 404, 409],
   },
   {
+    method: "get", path: "/opportunities", id: "listOpportunities", summary: "Opportunities (sellers see only those assigned to them; keyset by id)", tag: "CRM", permission: "crm:read",
+    query: C.OpportunityListQuery, success: { status: 200, schema: C.OpportunityPageDto, description: "Page" }, errors: [400, 401, 403],
+  },
+  {
+    method: "post", path: "/opportunities", id: "createOpportunity", summary: "Create from one ACCEPTED lead (auto-assigned when the strategy is round_robin)", tag: "CRM", permission: "crm:manage",
+    body: C.CreateOpportunityRequest, success: { status: 201, schema: C.OpportunityDto, description: "Created" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/opportunities/summary", id: "getPipelineSummary", summary: "Count per stage (kanban)", tag: "CRM", permission: "crm:read",
+    success: { status: 200, schema: C.PipelineSummaryDto, description: "Counts" }, errors: [401, 403],
+  },
+  {
+    method: "get", path: "/opportunities/{id}", id: "getOpportunity", summary: "Opportunity with its immutable timeline", tag: "CRM", permission: "crm:read",
+    pathParams: ["id"], success: { status: 200, schema: C.OpportunityDetailDto, description: "Opportunity" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/opportunities/{id}/stage", id: "changeStage", summary: "Move through the valid stage machine (history is written by the database)", tag: "CRM", permission: "crm:work",
+    pathParams: ["id"], body: C.ChangeStageRequest, success: { status: 200, schema: C.OpportunityDto, description: "Updated" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/opportunities/{id}/notes", id: "addOpportunityNote", summary: "Log a note, call, email or meeting", tag: "CRM", permission: "crm:work",
+    pathParams: ["id"], body: C.AddNoteRequest, success: { status: 201, schema: C.OpportunityDetailDto, description: "Opportunity" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/opportunities/{id}/assign", id: "assignOpportunity", summary: "Assign manually (or null to return to the queue); reassignment keeps the history", tag: "CRM", permission: "crm:manage",
+    pathParams: ["id"], body: C.AssignRequest, success: { status: 200, schema: C.OpportunityDto, description: "Updated" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/opportunities/{id}/auto-assign", id: "autoAssignOpportunity", summary: "Reproducible round-robin over the active pool, respecting capacity; falls back to the queue", tag: "CRM", permission: "crm:manage",
+    pathParams: ["id"], success: { status: 200, schema: C.OpportunityDto, description: "Updated" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/routing/settings", id: "getRoutingSettings", summary: "Routing strategy and first-response SLA", tag: "CRM", permission: "crm:manage",
+    success: { status: 200, schema: C.RoutingSettingsDto, description: "Settings" }, errors: [401, 403],
+  },
+  {
+    method: "put", path: "/routing/settings", id: "setRoutingSettings", summary: "Set the strategy and optional SLA (no SLA until set)", tag: "CRM", permission: "crm:manage",
+    body: C.RoutingSettingsRequest, success: { status: 200, schema: C.RoutingSettingsDto, description: "Settings" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/routing/pool", id: "listRoutingPool", summary: "Sellers eligible for assignment with their load", tag: "CRM", permission: "crm:manage",
+    success: { status: 200, schema: C.PoolDto, description: "Pool" }, errors: [401, 403],
+  },
+  {
+    method: "put", path: "/routing/pool/{userId}", id: "setPoolMember", summary: "Add or update a pool member (active seller, sales manager or admin)", tag: "CRM", permission: "crm:manage",
+    pathParams: ["userId"], body: C.PoolMemberRequest, success: { status: 200, schema: C.PoolMemberDto, description: "Member" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "delete", path: "/routing/pool/{userId}", id: "removePoolMember", summary: "Remove a pool member", tag: "CRM", permission: "crm:manage",
+    pathParams: ["userId"], success: { status: 204, description: "Removed" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "get", path: "/quotes", id: "listQuotes", summary: "Quotes (visibility follows the opportunity: sellers see only theirs)", tag: "Quotes", permission: "quotes:read",
+    query: C.QuoteListQuery, success: { status: 200, schema: C.QuotePageDto, description: "Page" }, errors: [400, 401, 403],
+  },
+  {
+    method: "post", path: "/quotes", id: "createQuote", summary: "Create a draft for an open opportunity from an APPROVED price list (currency comes from the list)", tag: "Quotes", permission: "quotes:manage",
+    body: C.CreateQuoteRequest, success: { status: 201, schema: C.QuoteDetailDto, description: "Created" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/quotes/settings", id: "getQuoteSettings", summary: "Discount limit that needs no approval", tag: "Quotes", permission: "quotes:read",
+    success: { status: 200, schema: C.QuoteSettingsDto, description: "Settings" }, errors: [401, 403],
+  },
+  {
+    method: "put", path: "/quotes/settings", id: "setQuoteSettings", summary: "Set the discount limit (org_admin). Default 0: every discount needs approval", tag: "Quotes", permission: "quotes:approve",
+    body: C.SetQuoteSettingsRequest, success: { status: 200, schema: C.QuoteSettingsDto, description: "Settings" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/quotes/{id}", id: "getQuote", summary: "Quote with its lines and evidence refs", tag: "Quotes", permission: "quotes:read",
+    pathParams: ["id"], success: { status: 200, schema: C.QuoteDetailDto, description: "Quote" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "patch", path: "/quotes/{id}", id: "updateQuote", summary: "Edit validity, tax rate or notes of a draft", tag: "Quotes", permission: "quotes:manage",
+    pathParams: ["id"], body: C.UpdateQuoteRequest, success: { status: 200, schema: C.QuoteDetailDto, description: "Quote" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/quotes/{id}/lines", id: "addQuoteLine", summary: "Add a SKU from approved evidence (price snapshot, exact decimal totals); 409 with reasons when there is no evidence", tag: "Quotes", permission: "quotes:manage",
+    pathParams: ["id"], body: C.AddQuoteLineRequest, success: { status: 201, schema: C.QuoteDetailDto, description: "Quote" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "delete", path: "/quotes/{id}/lines/{lineId}", id: "removeQuoteLine", summary: "Remove a line from a draft (withdraws any discount approval)", tag: "Quotes", permission: "quotes:manage",
+    pathParams: ["id", "lineId"], success: { status: 200, schema: C.QuoteDetailDto, description: "Quote" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/quotes/{id}/approve-discount", id: "approveQuoteDiscount", summary: "Approve the discounts of the current lines (org_admin)", tag: "Quotes", permission: "quotes:approve",
+    pathParams: ["id"], success: { status: 200, schema: C.QuoteDetailDto, description: "Quote" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/quotes/{id}/send", id: "sendQuote", summary: "Freeze the quote: re-verifies evidence, totals and discount approval; advances the opportunity to quote_sent when allowed", tag: "Quotes", permission: "quotes:manage",
+    pathParams: ["id"], success: { status: 200, schema: C.QuoteDetailDto, description: "Quote" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/quotes/{id}/decision", id: "decideQuote", summary: "Accept (creates the sale and wins the opportunity), reject or cancel", tag: "Quotes", permission: "quotes:manage",
+    pathParams: ["id"], body: C.QuoteDecisionRequest, success: { status: 200, schema: C.QuoteDetailDto, description: "Quote" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/sales", id: "listSales", summary: "Sales (accepted quotes), linking lead, opportunity and quote", tag: "Quotes", permission: "quotes:read",
+    query: C.PageQuery, success: { status: 200, schema: C.SalePageDto, description: "Page" }, errors: [400, 401, 403],
+  },
+  {
     method: "get", path: "/memberships", id: "listMemberships", summary: "Members of the caller's organization", tag: "Memberships", permission: "members:read",
     success: { status: 200, schema: z.array(C.MemberDto), description: "Members" }, errors: [401, 403],
   },

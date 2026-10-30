@@ -14,6 +14,8 @@ export default async function HomePage() {
         <li><Link href="/prospects">Prospectos</Link><span>Candidatos, procedencia y lista de no contactar.</span></li>
         <li><Link href="/scoring">Puntuación</Link><span>Modelo de reglas transparente y versionado.</span></li>
         {me.permissions.includes("leads:read") ? <li><Link href="/leads">Leads</Link><span>Creados por regla o intención; los revisa una persona.</span></li> : null}
+        {me.permissions.includes("crm:read") ? <li><Link href="/pipeline">Pipeline</Link><span>Oportunidades, etapas, asignación y SLA.</span></li> : null}
+        {me.permissions.includes("quotes:read") ? <li><Link href="/sales">Ventas</Link><span>Cotizaciones con evidencia aprobada y ventas.</span></li> : null}
         <li><Link href="/company">Empresa</Link><span>Perfil y sedes de tu organización.</span></li>
       </ul>
       <details>

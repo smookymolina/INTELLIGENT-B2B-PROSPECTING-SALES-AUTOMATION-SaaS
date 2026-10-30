@@ -402,6 +402,110 @@ try {
     assert.equal((await api("GET", "/leads/settings", session.token)).body.minScore, 50);
   });
 
+  async function inviteAndLogin(role) {
+    const slug = (await api("GET", "/me", session.token)).body.organization.slug;
+    const email = `${role}-${randomUUID().slice(0, 8)}@example.test`;
+    const inv = await api("POST", "/invitations", session.token, { email, role });
+    const reg = await (await fetch(`${API}/auth/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password, displayName: `${role} user`, organizationName: `${role} ${randomUUID().slice(0, 4)}` }) })).json();
+    await api("POST", "/invitations/accept", reg.token, { token: inv.body.token });
+    const userId = (await api("GET", "/me", reg.token)).body.user.id;
+    return { cookie: cookieOf(await fetch(`${WEB}/session/login`, form({ email, password, organizationSlug: slug }))).pair, userId };
+  }
+  const oppOf = (res) => /^\/pipeline\/([0-9a-f-]{36})\?ok=opportunity$/.exec(where(res))?.[1];
+
+  await step("F9: opportunity from an accepted lead, round-robin routing with SLA, stage machine, and a seller who only sees their own", async () => {
+    const seller = await inviteAndLogin("seller");
+    assert.equal(where(await post("/actions/crm/routing", { strategy: "round_robin", firstResponseSlaMinutes: "60" }, session.pair)), "/pipeline/routing?ok=saved");
+    assert.equal(where(await post("/actions/crm/routing", { strategy: "round_robin", firstResponseSlaMinutes: "abc" }, session.pair)), "/pipeline/routing?error=input");
+    assert.equal(where(await post("/actions/crm/pool", { userId: seller.userId, maxOpen: "3", active: "on" }, session.pair)), "/pipeline/routing?ok=saved");
+    assert.ok((await html(await get("/pipeline/routing", session.pair))).includes("seller user"));
+
+    const created = await post("/actions/crm/opportunity", { leadId: session.leadId, title: "Venta Lead Co" }, session.pair);
+    const oid = oppOf(created);
+    assert.ok(oid, `unexpected redirect ${where(created)}`);
+    session.oppId = oid;
+    assert.equal(where(await post("/actions/crm/opportunity", { leadId: session.leadId, title: "otra" }, session.pair)), "/leads?error=conflict"); // one opportunity per lead
+    let page = await html(await get(`/pipeline/${oid}`, session.pair));
+    assert.ok(page.includes("seller user") && page.includes("límite") && page.includes("Nuevo"), "auto-assigned with an SLA deadline");
+
+    // a second opportunity returned to the queue is invisible to the seller
+    const p2 = (await api("POST", "/prospects", session.token, { name: "Queue Co", domain: `queue-${randomUUID().slice(0, 6)}.example` })).body.id;
+    const lead2 = (await api("POST", `/prospects/${p2}/replies`, session.token, { text: "Queremos comprar" })).body.effects.leadId;
+    await api("POST", `/leads/${lead2}/decision`, session.token, { decision: "accept" });
+    const opp2 = oppOf(await post("/actions/crm/opportunity", { leadId: lead2, title: "Venta Queue Co" }, session.pair));
+    assert.equal(where(await post(`/actions/crm/${opp2}/assign`, { userId: "" }, session.pair)), `/pipeline/${opp2}?ok=assigned`);
+    const board = await html(await get("/pipeline", seller.cookie));
+    assert.ok(board.includes("Venta Lead Co") && !board.includes("Venta Queue Co"), "seller sees only what is assigned to them");
+    assert.equal((await get(`/pipeline/${opp2}`, seller.cookie)).status, 404);
+    assert.ok((await html(await get("/pipeline", session.pair))).includes("Venta Queue Co"));
+
+    // the seller works their opportunity within the stage machine
+    assert.equal(where(await post(`/actions/crm/${oid}/stage`, { stage: "contacted", note: "primer contacto" }, seller.cookie)), `/pipeline/${oid}?ok=stage`);
+    assert.equal(where(await post(`/actions/crm/${oid}/stage`, { stage: "won" }, seller.cookie)), `/pipeline/${oid}?error=conflict`); // cannot skip stages
+    assert.equal(where(await post(`/actions/crm/${oid}/stage`, { stage: "qualification" }, seller.cookie)), `/pipeline/${oid}?ok=stage`);
+    assert.equal(where(await post(`/actions/crm/${oid}/note`, { kind: "call", body: "Llamada con el cliente" }, seller.cookie)), `/pipeline/${oid}?ok=noted`);
+    page = await html(await get(`/pipeline/${oid}`, seller.cookie));
+    assert.ok(page.includes("primer contacto") && page.includes("Llamada con el cliente") && page.includes("Calificación"));
+    assert.ok(!page.includes('action="/actions/crm/' + oid + '/assign"'), "a seller has no assignment controls");
+    assert.equal(where(await post(`/actions/crm/${oid}/assign`, { userId: "" }, seller.cookie)), `/pipeline/${oid}?error=forbidden`);
+    assert.equal(where(await post("/actions/crm/routing", { strategy: "manual" }, seller.cookie)), "/pipeline/routing?error=forbidden");
+    assert.match(await html(await get("/pipeline/routing", seller.cookie)), /no administra la asignación/);
+    session.seller = seller;
+  });
+
+  await step("F10: quotes from approved evidence only, exact totals, discount approval, frozen once sent, acceptance creates the sale", async () => {
+    const seller = session.seller;
+    const itemSku = (await api("GET", `/catalog/items/${session.itemId}`, session.token)).body.sku;
+    const draftSku = (await api("GET", "/catalog/items?status=draft&limit=100", session.token)).body.items[0].sku;
+    const lists = (await api("GET", "/catalog/price-lists?status=approved", session.token)).body.items;
+    const listId = lists.find((l) => l.currency === "MXN").id;
+
+    const made = await post("/actions/quotes/create", { opportunityId: session.oppId, priceListId: listId, taxRate: "16" }, seller.cookie);
+    const qid = /^\/quotes\/([0-9a-f-]{36})\?ok=quote$/.exec(where(made))?.[1];
+    assert.ok(qid, `unexpected redirect ${where(made)}`);
+    assert.equal(where(await post(`/actions/quotes/${qid}/line`, { sku: draftSku, quantity: "1" }, seller.cookie)), `/quotes/${qid}?error=conflict`); // no approved evidence
+    assert.equal(where(await post(`/actions/quotes/${qid}/line`, { sku: itemSku, quantity: "0" }, seller.cookie)), `/quotes/${qid}?error=input`);
+    assert.equal(where(await post(`/actions/quotes/${qid}/line`, { sku: itemSku, quantity: "2" }, seller.cookie)), `/quotes/${qid}?ok=lineadded`);
+    let page = await html(await get(`/quotes/${qid}`, seller.cookie));
+    // 2 x 120.5000 = 241.0000 ; tax 16% = 38.5600 ; total 279.5600
+    for (const t of ["241.0000", "38.5600", "279.5600", "Q-0001", "Borrador"]) assert.ok(page.includes(t), `missing ${t}`);
+    assert.ok(page.includes(`item:${session.itemId.slice(0, 8)}`), "evidence ref is shown");
+
+    // discounts need an administrator by default
+    assert.equal(where(await post(`/actions/quotes/${qid}/unline`, { lineId: (await api("GET", `/quotes/${qid}`, session.token)).body.lines[0].id }, seller.cookie)), `/quotes/${qid}?ok=lineremoved`);
+    assert.equal(where(await post(`/actions/quotes/${qid}/line`, { sku: itemSku, quantity: "2", discountPercent: "10" }, seller.cookie)), `/quotes/${qid}?ok=lineadded`);
+    assert.equal(where(await post(`/actions/quotes/${qid}/send`, {}, seller.cookie)), `/quotes/${qid}?error=conflict`);
+    assert.equal(where(await post(`/actions/quotes/${qid}/approve-discount`, {}, seller.cookie)), `/quotes/${qid}?error=forbidden`);
+    assert.equal(where(await post("/actions/quotes/settings", { maxDiscountPercent: "50" }, seller.cookie)), "/sales?error=forbidden");
+    assert.equal(where(await post(`/actions/quotes/${qid}/approve-discount`, {}, session.pair)), `/quotes/${qid}?ok=discountapproved`);
+    assert.equal(where(await post(`/actions/quotes/${qid}/send`, {}, seller.cookie)), `/quotes/${qid}?ok=sent`);
+    page = await html(await get(`/quotes/${qid}`, seller.cookie));
+    assert.ok(page.includes("congelada") && !page.includes("Agregar producto") && page.includes("Registrar aceptación"));
+    assert.equal(where(await post(`/actions/quotes/${qid}/line`, { sku: itemSku, quantity: "1" }, seller.cookie)), `/quotes/${qid}?error=conflict`); // frozen
+    assert.ok((await html(await get(`/pipeline/${session.oppId}`, seller.cookie))).includes("Cotización enviada"));
+
+    assert.equal(where(await post(`/actions/quotes/${qid}/decision`, { decision: "accept", note: "ok" }, seller.cookie)), `/quotes/${qid}?ok=accepted`);
+    assert.equal(where(await post(`/actions/quotes/${qid}/decision`, { decision: "accept" }, seller.cookie)), `/quotes/${qid}?error=conflict`);
+    const sales = await html(await get("/sales", seller.cookie));
+    assert.ok(sales.includes("Q-0001") && sales.includes("251.6040"), "the sale is listed with its exact total");
+    assert.ok((await html(await get(`/pipeline/${session.oppId}`, seller.cookie))).includes("Ganado"));
+    const apiSales = (await api("GET", "/sales", session.token)).body.items;
+    assert.equal(apiSales.length, 1);
+    assert.equal(apiSales[0].total, "251.6040"); // (241.0000 - 10% = 216.9000) + 16% tax 34.7040, exact decimals
+  });
+
+  await step("F9/F10: a viewer reads the pipeline and sales but every write is refused", async () => {
+    const viewer = await inviteAndLogin("viewer");
+    const board = await html(await get("/pipeline", viewer.cookie));
+    assert.ok(board.includes("Venta Lead Co") && board.includes("Venta Queue Co"));
+    const detail = await html(await get(`/pipeline/${session.oppId}`, viewer.cookie));
+    assert.ok(!detail.includes("Cambiar etapa") && !detail.includes("Registrar actividad") && !detail.includes("Nueva cotización"));
+    assert.equal(where(await post(`/actions/crm/${session.oppId}/note`, { kind: "note", body: "x" }, viewer.cookie)), `/pipeline/${session.oppId}?error=forbidden`);
+    assert.equal(where(await post("/actions/quotes/create", { opportunityId: session.oppId, priceListId: randomUUID() }, viewer.cookie)), `/pipeline/${session.oppId}?error=forbidden`);
+    const sales = await html(await get("/sales", viewer.cookie));
+    assert.ok(!sales.includes('action="/actions/quotes/settings"'));
+  });
+
   await step("wrong passwords show a generic error and the account throttle kicks in", async () => {
     const wrong = await fetch(`${WEB}/session/login`, form({ email, password: "definitely wrong password" }));
     assert.equal(wrong.headers.get("location"), "/login?error=invalid");
