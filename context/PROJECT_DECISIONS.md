@@ -12,6 +12,14 @@
 
 Pendientes: proveedor cloud, pagos, proveedor de identidad, retención, DPA/aviso de privacidad, jurisdicciones y SLAs.
 
+## Fase 3
+
+| ADR-018 | Matriz de catálogo: `catalog:read` = los 6 roles; `catalog:manage` = `org_admin` + `sales_manager`; `catalog:approve` = `org_admin`. Versionado: ítem estable + versiones (`draft` única → `approved` inmutable → `superseded`); estado derivado; `approved` es la única fuente consumible (null si archivado); sin DELETE; SKU inmutable y único por tenant; paginación por `sku_key` (exacta; `created_at` en JS pierde microsegundos); reglas repetidas en RLS/triggers; sin aprobación a cuatro ojos todavía (un `org_admin` único puede crear y aprobar) | Aprobada | mínimo privilegio, trazabilidad y que cotizaciones/IA sólo vean contenido aprobado |
+
+| ID | Decisión | Estado | Motivo |
+|---|---|---|---|
+| ADR-017 | Perfil de empresa 1:1 y sedes con `organization:update`/`organization:read`; sedes se deshabilitan, no se borran; PUT de perfil reemplaza todo; auditoría de campos sin valores; Fase 3 arranca con Fase 2 en IN_REVIEW por instrucción del usuario | Aprobada | mínimo privilegio sin ampliar la matriz; trazabilidad sin copiar datos de negocio a auditoría |
+
 ## Fase 2
 
 | ADR-016 | Cambio de organización = nueva sesión emitida tras releer las membresías activas del usuario en BD (el slug es sólo una pista); la sesión anterior se revoca; 404 uniforme para organización ajena/inexistente. `saas_admin` queda BLOCKED hasta decisión de producto (`docs/security/SAAS_ADMIN_DECISION.md`) | Aprobada / Pendiente humana | reglas inequívocas sólo para el cambio; no se inventan privilegios globales |

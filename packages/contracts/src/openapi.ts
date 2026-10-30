@@ -8,7 +8,7 @@ import * as C from "./index.js";
  */
 export const API_VERSION = "1.0.0";
 
-type Method = "get" | "post" | "patch" | "delete";
+type Method = "get" | "post" | "put" | "patch" | "delete";
 export type Operation = Readonly<{
   method: Method;
   /** OpenAPI style path, relative to /v1 (e.g. `/memberships/{id}`). */
@@ -59,6 +59,74 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: "patch", path: "/organization", id: "updateOrganization", summary: "Rename the caller's organization", tag: "Organization", permission: "organization:update",
     body: C.UpdateOrganizationRequest, success: { status: 200, schema: C.OrganizationDto, description: "Updated" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "get", path: "/organization/profile", id: "getProfile", summary: "Company profile (all fields null until the tenant fills them)", tag: "Organization", permission: "organization:read",
+    success: { status: 200, schema: C.ProfileDto, description: "Profile" }, errors: [401, 403],
+  },
+  {
+    method: "put", path: "/organization/profile", id: "replaceProfile", summary: "Replace the company profile (omitted fields are cleared)", tag: "Organization", permission: "organization:update",
+    body: C.UpdateProfileRequest, success: { status: 200, schema: C.ProfileDto, description: "Profile" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/branches", id: "listBranches", summary: "Branches of the caller's organization (active and disabled)", tag: "Branches", permission: "organization:read",
+    success: { status: 200, schema: z.array(C.BranchDto), description: "Branches" }, errors: [401, 403],
+  },
+  {
+    method: "post", path: "/branches", id: "createBranch", summary: "Create a branch (name unique per organization, case-insensitive)", tag: "Branches", permission: "organization:update",
+    body: C.CreateBranchRequest, success: { status: 201, schema: C.BranchDto, description: "Created" }, errors: [400, 401, 403, 409],
+  },
+  {
+    method: "patch", path: "/branches/{id}", id: "updateBranch", summary: "Edit or disable a branch (branches are never deleted)", tag: "Branches", permission: "organization:update",
+    pathParams: ["id"], body: C.UpdateBranchRequest, success: { status: 200, schema: C.BranchDto, description: "Updated" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/catalog/categories", id: "listCategories", summary: "Catalog categories", tag: "Catalog", permission: "catalog:read",
+    success: { status: 200, schema: z.array(C.CategoryDto), description: "Categories" }, errors: [401, 403],
+  },
+  {
+    method: "post", path: "/catalog/categories", id: "createCategory", summary: "Create a category (name unique per organization, case-insensitive)", tag: "Catalog", permission: "catalog:manage",
+    body: C.CreateCategoryRequest, success: { status: 201, schema: C.CategoryDto, description: "Created" }, errors: [400, 401, 403, 409],
+  },
+  {
+    method: "patch", path: "/catalog/categories/{id}", id: "updateCategory", summary: "Rename or disable a category", tag: "Catalog", permission: "catalog:manage",
+    pathParams: ["id"], body: C.UpdateCategoryRequest, success: { status: 200, schema: C.CategoryDto, description: "Updated" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/catalog/items", id: "listItems", summary: "Items with their approved and draft content (keyset pagination)", tag: "Catalog", permission: "catalog:read",
+    query: C.ItemListQuery, success: { status: 200, schema: C.ItemPageDto, description: "Page of items" }, errors: [400, 401, 403],
+  },
+  {
+    method: "post", path: "/catalog/items", id: "createItem", summary: "Create an item with version 1 as a draft (SKU unique per organization)", tag: "Catalog", permission: "catalog:manage",
+    body: C.CreateItemRequest, success: { status: 201, schema: C.ItemDto, description: "Created" }, errors: [400, 401, 403, 409],
+  },
+  {
+    method: "get", path: "/catalog/items/{id}", id: "getItem", summary: "One item", tag: "Catalog", permission: "catalog:read",
+    pathParams: ["id"], success: { status: 200, schema: C.ItemDto, description: "Item" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "patch", path: "/catalog/items/{id}", id: "updateItemDraft", summary: "Edit the open draft (409 if there is none)", tag: "Catalog", permission: "catalog:manage",
+    pathParams: ["id"], body: C.UpdateItemDraftRequest, success: { status: 200, schema: C.ItemDto, description: "Updated" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/catalog/items/{id}/versions", id: "listItemVersions", summary: "Version history (immutable once approved)", tag: "Catalog", permission: "catalog:read",
+    pathParams: ["id"], success: { status: 200, schema: z.array(C.ItemVersionDto), description: "Versions, newest first" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/catalog/items/{id}/versions", id: "createItemDraft", summary: "Start a new draft copied from the latest version (409 if a draft is open)", tag: "Catalog", permission: "catalog:manage",
+    pathParams: ["id"], success: { status: 201, schema: C.ItemDto, description: "Draft created" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/catalog/items/{id}/approve", id: "approveItem", summary: "Approve the open draft; the previous approved version is superseded", tag: "Catalog", permission: "catalog:approve",
+    pathParams: ["id"], success: { status: 200, schema: C.ItemDto, description: "Approved" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/catalog/items/{id}/archive", id: "archiveItem", summary: "Archive an item (its approved content stops being consumable)", tag: "Catalog", permission: "catalog:approve",
+    pathParams: ["id"], success: { status: 200, schema: C.ItemDto, description: "Archived" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/catalog/items/{id}/restore", id: "restoreItem", summary: "Restore an archived item", tag: "Catalog", permission: "catalog:approve",
+    pathParams: ["id"], success: { status: 200, schema: C.ItemDto, description: "Restored" }, errors: [400, 401, 403, 404, 409],
   },
   {
     method: "get", path: "/memberships", id: "listMemberships", summary: "Members of the caller's organization", tag: "Memberships", permission: "members:read",

@@ -40,6 +40,11 @@ model Organization {
   audit_events AuditEvent[]
   sessions    Session[]
   invitations Invitation[]
+  profile     OrganizationProfile?
+  branches    Branch[]
+  catalog_categories CatalogCategory[]
+  catalog_items      CatalogItem[]
+  catalog_versions   CatalogItemVersion[]
 
   @@map("organizations")
 }
@@ -161,4 +166,123 @@ model Invitation {
   @@index([organization_id, created_at(sort: Desc)])
   @@index([organization_id, email])
   @@map("invitations")
+}
+
+/// Company profile (1:1 with the tenant). Every field is optional free text supplied by the tenant; nothing is inferred or prefilled.
+model OrganizationProfile {
+  organization_id  String   @id @db.Uuid
+  legal_name       String?
+  trade_name       String?
+  industry         String?
+  website          String?
+  description      String?
+  country          String?  @db.Char(2)
+  timezone         String?
+  default_currency String?  @db.Char(3)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @updatedAt @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@map("organization_profiles")
+}
+
+/// Branch / site. Never deleted (future records will reference it): disabled via status. name_key = normalized name for case-insensitive uniqueness.
+model Branch {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String       @db.Uuid
+  name            String
+  name_key        String
+  address         String?
+  city            String?
+  region          String?
+  country         String?      @db.Char(2)
+  status          RecordStatus @default(active)
+  created_at      DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime     @updatedAt @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@unique([organization_id, name_key])
+  @@map("branches")
+}
+
+enum CatalogItemKind {
+  product
+  service
+
+  @@map("catalog_item_kind")
+}
+
+enum CatalogVersionState {
+  draft
+  approved
+  superseded
+
+  @@map("catalog_version_state")
+}
+
+model CatalogCategory {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String       @db.Uuid
+  name            String
+  name_key        String
+  status          RecordStatus @default(active)
+  created_at      DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime     @updatedAt @db.Timestamptz(6)
+
+  organization Organization         @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  versions     CatalogItemVersion[]
+
+  @@unique([organization_id, name_key])
+  @@map("catalog_categories")
+}
+
+/// Stable identity of a product/service. Content lives in immutable-once-approved versions. Status is derived:
+/// archived_at set => archived; approved_version set => approved; otherwise draft.
+model CatalogItem {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String          @db.Uuid
+  kind             CatalogItemKind
+  sku              String
+  sku_key          String
+  latest_version   Int             @default(1)
+  approved_version Int?
+  archived_at      DateTime?       @db.Timestamptz(6)
+  created_by       String          @db.Uuid
+  created_at       DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime        @updatedAt @db.Timestamptz(6)
+
+  organization Organization         @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  versions     CatalogItemVersion[]
+
+  @@unique([organization_id, id])
+  @@unique([organization_id, sku_key])
+  @@index([organization_id, created_at(sort: Desc), id(sort: Desc)])
+  @@map("catalog_items")
+}
+
+model CatalogItemVersion {
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String              @db.Uuid
+  item_id         String              @db.Uuid
+  version         Int
+  state           CatalogVersionState @default(draft)
+  name            String
+  description     String?
+  unit            String?
+  features        Json                @default("[]")
+  category_id     String?             @db.Uuid
+  created_by      String              @db.Uuid
+  approved_by     String?             @db.Uuid
+  approved_at     DateTime?           @db.Timestamptz(6)
+  created_at      DateTime            @default(now()) @db.Timestamptz(6)
+
+  organization Organization     @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  item         CatalogItem      @relation(fields: [organization_id, item_id], references: [organization_id, id], onDelete: Restrict)
+  category     CatalogCategory? @relation(fields: [category_id], references: [id], onDelete: Restrict)
+
+  @@unique([item_id, version])
+  @@index([organization_id, item_id])
+  @@map("catalog_item_versions")
 }

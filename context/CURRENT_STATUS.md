@@ -1,6 +1,6 @@
 # Estado actual
 
-Fecha: 2026-10-30. Fase 1: **COMPLETED**. Fase 2 (identidad, tenancy, RBAC, RLS): **IN_REVIEW**. Git local en `main`, sin commits ni push; sin proveedores externos ni credenciales reales.
+Fecha: 2026-10-30. Fase 1: **COMPLETED**. Fase 2 (identidad, tenancy, RBAC, RLS): **IN_REVIEW**. Fase 3 (perfil de empresa y catálogo): **IN_PROGRESS** (P3-01 y P3-02 completados, 153/153 pruebas; progreso global ≈13 %, ver `planning/PROGRESS.md`; ver `planning/PHASE_3_EXECUTION.md`). Git local en `main`, sin commits ni push; sin proveedores externos ni credenciales reales.
 
 Evidencia local: `npm run check` exit 0; `npm run db:test:setup -- --reset && npm run test:int` → 101/101 contra PostgreSQL 18 (8 migraciones desde cero). Cubre aislamiento tenant (BD y HTTP), RBAC, auditoría append-only, throttle de login distribuido, contrato de errores/request id/idempotencia, OpenAPI con paridad de rutas, invitaciones y cambio de organización. Detalle: `planning/PHASE_2_EXECUTION.md`.
 

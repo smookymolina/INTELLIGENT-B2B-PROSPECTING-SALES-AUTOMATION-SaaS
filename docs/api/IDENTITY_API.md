@@ -12,6 +12,11 @@ Base `/v1`. Autenticación: `Authorization: Bearer <token>` (token opaco; sólo 
 | `GET /me` | sesión | usuario, organización, rol y permisos |
 | `GET /organization` | `organization:read` | siempre la organización de la sesión |
 | `PATCH /organization` | `organization:update` | `{name}`; audita nombre previo |
+| `GET /organization/profile` | `organization:read` | perfil de empresa; todos los campos `null` hasta que el tenant los llene |
+| `PUT /organization/profile` | `organization:update` | reemplazo total e idempotente; país ISO-2, moneda ISO-4217, zona IANA, web http(s); audita nombres de campos |
+| `GET /branches` | `organization:read` | sedes activas y deshabilitadas |
+| `POST /branches` | `organization:update` | nombre único por organización (sin distinguir mayúsculas) → 409 |
+| `PATCH /branches/:id` | `organization:update` | editar o `status: disabled|active`; no hay DELETE |
 | `GET /memberships` | `members:read` | sólo del tenant |
 | `PATCH /memberships/:id` | `members:manage` | `{role}`; 404 si es de otro tenant; 409 si dejaría la org sin `org_admin` |
 | `DELETE /memberships/:id` | `members:manage` | 204; el token del miembro quita acceso de inmediato |
