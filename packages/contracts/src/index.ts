@@ -164,6 +164,39 @@ export const ItemListQuery = z.strictObject({
 });
 export type ItemListQuery = z.infer<typeof ItemListQuery>;
 
+/* ---------- Price lists (P3-03) ---------- */
+
+/** Exact decimal as a STRING (never a JSON number): up to 14 integer and 4 fraction digits. */
+export const MoneyString = z.string().regex(/^\d{1,14}(\.\d{1,4})?$/, "decimal string, up to 14 integer and 4 fraction digits");
+const isoCurrency = z.string().regex(/^[A-Z]{3}$/).refine((v) => Intl.supportedValuesOf("currency").includes(v), "ISO 4217 currency code");
+const validFrom = z.iso.date();
+
+export const CreatePriceListRequest = z
+  .strictObject({ name: text(120), currency: isoCurrency, validFrom: validFrom.nullish(), validUntil: validFrom.nullish() })
+  .refine((v) => !v.validFrom || !v.validUntil || v.validUntil >= v.validFrom, { message: "validUntil must not precede validFrom", path: ["validUntil"] });
+export type CreatePriceListRequest = z.infer<typeof CreatePriceListRequest>;
+
+/** Currency is immutable after creation (prices would silently change meaning). */
+export const UpdatePriceListRequest = z
+  .strictObject({ name: text(120).optional(), validFrom: validFrom.nullable().optional(), validUntil: validFrom.nullable().optional() })
+  .refine(nonEmpty, "at least one field is required")
+  .refine((v) => !v.validFrom || !v.validUntil || v.validUntil >= v.validFrom, { message: "validUntil must not precede validFrom", path: ["validUntil"] });
+export type UpdatePriceListRequest = z.infer<typeof UpdatePriceListRequest>;
+
+export const ClonePriceListRequest = z.strictObject({ name: text(120) });
+export type ClonePriceListRequest = z.infer<typeof ClonePriceListRequest>;
+export const SetPriceRequest = z.strictObject({ unitPrice: MoneyString });
+export type SetPriceRequest = z.infer<typeof SetPriceRequest>;
+
+export const PriceListQuery = z.strictObject({
+  status: z.enum(["all", "draft", "approved", "archived"]).default("all"),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.uuid().optional(),
+});
+export type PriceListQuery = z.infer<typeof PriceListQuery>;
+export const PageQuery = z.strictObject({ limit: z.coerce.number().int().min(1).max(100).default(50), cursor: z.uuid().optional() });
+export type PageQuery = z.infer<typeof PageQuery>;
+
 export const UuidParam = z.uuid();
 
 export const AuditQuery = z.strictObject({ limit: z.coerce.number().int().min(1).max(100).default(50) });
@@ -270,6 +303,45 @@ export const ItemDto = z.object({
 export type ItemDto = z.infer<typeof ItemDto>;
 export const ItemPageDto = z.object({ items: z.array(ItemDto), nextCursor: z.string().nullable() });
 export type ItemPageDto = z.infer<typeof ItemPageDto>;
+
+export const PriceListDto = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  currency: z.string(),
+  status: z.enum(["draft", "approved", "archived"]),
+  validFrom: z.string().nullable(),
+  validUntil: z.string().nullable(),
+  clonedFrom: z.uuid().nullable(),
+  entryCount: z.number().int(),
+  createdAt: z.iso.datetime(),
+  approvedAt: z.iso.datetime().nullable(),
+  approvedBy: z.uuid().nullable(),
+  archivedAt: z.iso.datetime().nullable(),
+});
+export type PriceListDto = z.infer<typeof PriceListDto>;
+export const PriceListPageDto = z.object({ items: z.array(PriceListDto), nextCursor: z.uuid().nullable() });
+export type PriceListPageDto = z.infer<typeof PriceListPageDto>;
+export const PriceEntryDto = z.object({ id: z.uuid(), itemId: z.uuid(), sku: z.string(), unitPrice: MoneyString });
+export type PriceEntryDto = z.infer<typeof PriceEntryDto>;
+export const PriceEntryPageDto = z.object({ items: z.array(PriceEntryDto), nextCursor: z.uuid().nullable() });
+export type PriceEntryPageDto = z.infer<typeof PriceEntryPageDto>;
+/** Consumption view for quotes/AI: only entries of an APPROVED list whose item is currently approved and not archived. */
+export const ApprovedPriceDto = z.object({
+  priceListId: z.uuid(),
+  entryId: z.uuid(),
+  itemId: z.uuid(),
+  sku: z.string(),
+  kind: z.enum(["product", "service"]),
+  itemVersion: z.number().int(),
+  itemName: z.string(),
+  unitPrice: MoneyString,
+  currency: z.string(),
+  validFrom: z.string().nullable(),
+  validUntil: z.string().nullable(),
+});
+export type ApprovedPriceDto = z.infer<typeof ApprovedPriceDto>;
+export const ApprovedPricePageDto = z.object({ items: z.array(ApprovedPriceDto), nextCursor: z.uuid().nullable() });
+export type ApprovedPricePageDto = z.infer<typeof ApprovedPricePageDto>;
 
 /** Uniform error envelope for every non-2xx response. `details` is null unless the error carries structured data. */
 export const ProblemDto = z.object({ code: z.string(), message: z.string(), details: z.unknown().nullable(), request_id: z.uuid() });

@@ -22,3 +22,5 @@
 | 2026-10-30 | 2 | Commit local | `11fe9d9` Fase 2 (incluye Fases 0–1 por no haber commits previos); sin push; `.gitattributes` fija LF | COMPLETED |
 | 2026-10-30 | 3 | P3-01 perfil y sedes | migración `company_profile` (RLS + checks); `company.int.spec.ts` 24 pruebas; `test:int` 125/125; BLOCKED P3-05 (almacenamiento/antivirus) | COMPLETED |
 | 2026-10-30 | 3 | P3-02 catálogo base | migración `catalog_base` (3 tablas, RLS, triggers); `catalog.int.spec.ts` 28 pruebas; ajuste propio de una prueba (FK vs regla de borrador único); `test:int` 153/153; matriz ADR-018 | COMPLETED |
+| 2026-10-30 | 3 | Commit local | `5f61096` P3-01 + P3-02; sin push | COMPLETED |
+| 2026-10-30 | 3 | P3-03 listas de precios | migración `price_lists`; `pricing.int.spec.ts` 40 pruebas; mutación: trigger de entradas desactivado → falla la prueba de inmutabilidad BD, restaurado → verde; `test:int` 193/193 | COMPLETED |

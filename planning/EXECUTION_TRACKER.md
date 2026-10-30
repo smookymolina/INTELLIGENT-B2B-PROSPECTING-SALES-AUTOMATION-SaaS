@@ -11,7 +11,7 @@
 - Fase 1: COMPLETED (re-verificada con `npm run check`).
 - Fase 2 (núcleo): esquema, migraciones, RLS, auth, RBAC, auditoría y contratos, throttle, idempotencia, OpenAPI, invitaciones y cambio de organización con 101/101 pruebas de integración.
 
-- Fase 3: P3-01 perfil y sedes y P3-02 catálogo base COMPLETED (153/153). Progreso global ≈13 % (`planning/PROGRESS.md`). Detalle: `planning/PHASE_3_EXECUTION.md`.
+- Fase 3: P3-01 perfil/sedes, P3-02 catálogo base y P3-03 listas de precios COMPLETED (193/193). Progreso global ≈14 % (`planning/PROGRESS.md`). Detalle: `planning/PHASE_3_EXECUTION.md`.
 
 ## En curso
 
@@ -19,7 +19,7 @@
 
 ## Siguiente, en orden
 
-1. Fase 3: P3-03 listas de precios y precios (sólo con ítem y lista aprobados).
+1. Fase 3: P3-04 importación CSV validada (dry-run, errores por fila, idempotente).
 2. Cerrar Fase 2: obtener evidencia de CI remoto (requiere push autorizado), decisión sobre `saas_admin` y revisión independiente; entonces COMPLETED y arrancar Fase 3 (empresa/catálogo).
 3. Fase 3: perfil de empresa y catálogo con importación validada.
 4. Fases 4–12 conforme a `planning/MASTER_ROADMAP.md`; no se activan proveedores externos sin credenciales, aprobación y cumplimiento.

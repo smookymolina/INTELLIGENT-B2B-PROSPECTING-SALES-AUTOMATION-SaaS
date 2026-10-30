@@ -45,6 +45,8 @@ model Organization {
   catalog_categories CatalogCategory[]
   catalog_items      CatalogItem[]
   catalog_versions   CatalogItemVersion[]
+  price_lists        PriceList[]
+  price_entries      PriceListEntry[]
 
   @@map("organizations")
 }
@@ -255,6 +257,7 @@ model CatalogItem {
 
   organization Organization         @relation(fields: [organization_id], references: [id], onDelete: Restrict)
   versions     CatalogItemVersion[]
+  price_entries PriceListEntry[]
 
   @@unique([organization_id, id])
   @@unique([organization_id, sku_key])
@@ -285,4 +288,58 @@ model CatalogItemVersion {
   @@unique([item_id, version])
   @@index([organization_id, item_id])
   @@map("catalog_item_versions")
+}
+
+enum PriceListStatus {
+  draft
+  approved
+  archived
+
+  @@map("price_list_status")
+}
+
+/// Immutable once approved (clone to change). Currency is fixed at creation so stored amounts can never be reinterpreted.
+model PriceList {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String          @db.Uuid
+  name            String
+  name_key        String
+  currency        String          @db.Char(3)
+  status          PriceListStatus @default(draft)
+  valid_from      DateTime?       @db.Date
+  valid_until     DateTime?       @db.Date
+  cloned_from     String?         @db.Uuid
+  created_by      String          @db.Uuid
+  approved_by     String?         @db.Uuid
+  approved_at     DateTime?       @db.Timestamptz(6)
+  archived_at     DateTime?       @db.Timestamptz(6)
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime        @updatedAt @db.Timestamptz(6)
+
+  organization Organization     @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  entries      PriceListEntry[]
+
+  @@unique([organization_id, id])
+  @@unique([organization_id, name_key])
+  @@map("price_lists")
+}
+
+/// One unit price per (list, item). Amounts are exact decimals; no tiers, taxes or discounts are modelled (none are defined by the business yet).
+model PriceListEntry {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String   @db.Uuid
+  price_list_id   String   @db.Uuid
+  item_id         String   @db.Uuid
+  unit_price      Decimal  @db.Decimal(18, 4)
+  created_by      String   @db.Uuid
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @updatedAt @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  price_list   PriceList    @relation(fields: [organization_id, price_list_id], references: [organization_id, id], onDelete: Restrict)
+  item         CatalogItem  @relation(fields: [organization_id, item_id], references: [organization_id, id], onDelete: Restrict)
+
+  @@unique([price_list_id, item_id])
+  @@index([organization_id, item_id])
+  @@map("price_list_entries")
 }

@@ -14,6 +14,8 @@ Pendientes: proveedor cloud, pagos, proveedor de identidad, retención, DPA/avis
 
 ## Fase 3
 
+| ADR-019 | Precios: lista inmutable al aprobar (cambio = clon); moneda fija por lista; importes como cadena decimal exacta (numeric(18,4), sin floats); sin escalas/impuestos/descuentos hasta que el negocio los defina; aprobar exige precios y todos los ítems aprobados; vista de consumo = lista aprobada ∩ ítem hoy aprobado; auditoría sin importes; mismos permisos que el catálogo | Aprobada | evita precios inventados o alterados y errores de redondeo/moneda |
+
 | ADR-018 | Matriz de catálogo: `catalog:read` = los 6 roles; `catalog:manage` = `org_admin` + `sales_manager`; `catalog:approve` = `org_admin`. Versionado: ítem estable + versiones (`draft` única → `approved` inmutable → `superseded`); estado derivado; `approved` es la única fuente consumible (null si archivado); sin DELETE; SKU inmutable y único por tenant; paginación por `sku_key` (exacta; `created_at` en JS pierde microsegundos); reglas repetidas en RLS/triggers; sin aprobación a cuatro ojos todavía (un `org_admin` único puede crear y aprobar) | Aprobada | mínimo privilegio, trazabilidad y que cotizaciones/IA sólo vean contenido aprobado |
 
 | ID | Decisión | Estado | Motivo |

@@ -8,6 +8,7 @@ import { DbModule } from "./db/db.module.js";
 import { HttpSupportModule } from "./http/http.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { InvitationsModule } from "./invitations/invitations.module.js";
+import { PricingModule } from "./pricing/pricing.module.js";
 import { CatalogModule } from "./catalog/catalog.module.js";
 import { CompanyModule } from "./company/company.module.js";
 import { MembershipsModule } from "./memberships/memberships.module.js";
@@ -15,7 +16,7 @@ import { OrganizationsModule } from "./organizations/organizations.module.js";
 
 // Guards run in order: authentication (session -> tenant context), then RBAC. Routes are private unless marked @Public().
 @Module({
-  imports: [DbModule, HttpSupportModule, HealthModule, AuditModule, AuthModule, OrganizationsModule, MembershipsModule, InvitationsModule, CompanyModule, CatalogModule],
+  imports: [DbModule, HttpSupportModule, HealthModule, AuditModule, AuthModule, OrganizationsModule, MembershipsModule, InvitationsModule, CompanyModule, CatalogModule, PricingModule],
   providers: [
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },

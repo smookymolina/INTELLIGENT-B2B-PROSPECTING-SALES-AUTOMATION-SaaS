@@ -129,6 +129,50 @@ export const OPERATIONS: readonly Operation[] = [
     pathParams: ["id"], success: { status: 200, schema: C.ItemDto, description: "Restored" }, errors: [400, 401, 403, 404, 409],
   },
   {
+    method: "get", path: "/catalog/price-lists", id: "listPriceLists", summary: "Price lists (keyset by id)", tag: "Pricing", permission: "catalog:read",
+    query: C.PriceListQuery, success: { status: 200, schema: C.PriceListPageDto, description: "Page" }, errors: [400, 401, 403],
+  },
+  {
+    method: "post", path: "/catalog/price-lists", id: "createPriceList", summary: "Create a draft price list (name unique, currency fixed)", tag: "Pricing", permission: "catalog:manage",
+    body: C.CreatePriceListRequest, success: { status: 201, schema: C.PriceListDto, description: "Created" }, errors: [400, 401, 403, 409],
+  },
+  {
+    method: "get", path: "/catalog/price-lists/{id}", id: "getPriceList", summary: "One price list", tag: "Pricing", permission: "catalog:read",
+    pathParams: ["id"], success: { status: 200, schema: C.PriceListDto, description: "Price list" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "patch", path: "/catalog/price-lists/{id}", id: "updatePriceList", summary: "Edit name/validity of a draft list", tag: "Pricing", permission: "catalog:manage",
+    pathParams: ["id"], body: C.UpdatePriceListRequest, success: { status: 200, schema: C.PriceListDto, description: "Updated" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/catalog/price-lists/{id}/clone", id: "clonePriceList", summary: "Copy a list (any status) into a new draft with all its entries", tag: "Pricing", permission: "catalog:manage",
+    pathParams: ["id"], body: C.ClonePriceListRequest, success: { status: 201, schema: C.PriceListDto, description: "Cloned" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/catalog/price-lists/{id}/approve", id: "approvePriceList", summary: "Approve a draft: needs entries and every priced item approved", tag: "Pricing", permission: "catalog:approve",
+    pathParams: ["id"], success: { status: 200, schema: C.PriceListDto, description: "Approved" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/catalog/price-lists/{id}/archive", id: "archivePriceList", summary: "Archive a list (not consumable, immutable)", tag: "Pricing", permission: "catalog:approve",
+    pathParams: ["id"], success: { status: 200, schema: C.PriceListDto, description: "Archived" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/catalog/price-lists/{id}/entries", id: "listPriceEntries", summary: "Entries of a list (keyset by id)", tag: "Pricing", permission: "catalog:read",
+    pathParams: ["id"], query: C.PageQuery, success: { status: 200, schema: C.PriceEntryPageDto, description: "Page" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "put", path: "/catalog/price-lists/{id}/entries/{itemId}", id: "setPrice", summary: "Set the price of an item in a draft list (idempotent)", tag: "Pricing", permission: "catalog:manage",
+    pathParams: ["id", "itemId"], body: C.SetPriceRequest, success: { status: 200, schema: C.PriceEntryDto, description: "Entry" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "delete", path: "/catalog/price-lists/{id}/entries/{itemId}", id: "removePrice", summary: "Remove an item's price from a draft list", tag: "Pricing", permission: "catalog:manage",
+    pathParams: ["id", "itemId"], success: { status: 204, description: "Removed" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/catalog/price-lists/{id}/approved-prices", id: "listApprovedPrices", summary: "CONSUMPTION VIEW: prices of an approved list whose items are currently approved", tag: "Pricing", permission: "catalog:read",
+    pathParams: ["id"], query: C.PageQuery, success: { status: 200, schema: C.ApprovedPricePageDto, description: "Page" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
     method: "get", path: "/memberships", id: "listMemberships", summary: "Members of the caller's organization", tag: "Memberships", permission: "members:read",
     success: { status: 200, schema: z.array(C.MemberDto), description: "Members" }, errors: [401, 403],
   },

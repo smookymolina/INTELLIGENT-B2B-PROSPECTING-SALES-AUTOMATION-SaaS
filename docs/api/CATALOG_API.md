@@ -34,3 +34,23 @@ RLS y triggers repiten la regla: `sales_manager` no puede aprobar/archivar ni co
 Sin DELETE: el historial es permanente. Concurrencia: cada mutación bloquea la fila del ítem (`FOR UPDATE`); aprobaciones o borradores simultáneos → uno gana, otro 409.
 
 Auditoría: `catalog.category_created|updated`, `catalog.item_created|draft_updated|version_created|approved|archived|restored` (ids, versión y nombres de campos; nunca el contenido).
+
+## Listas de precios (P3-03)
+
+Mismos permisos que el catálogo (ADR-018/019). Base `/v1/catalog/price-lists`.
+
+- **Lista:** nombre único por organización (case-insens), **moneda ISO-4217 fija al crearla**, vigencia opcional (`validFrom/validUntil`, fechas `YYYY-MM-DD`), estados `draft → approved → archived`. Aprobada o archivada es **inmutable** (para cambiar: `clone`).
+- **Precio:** un `unitPrice` por (lista, ítem), siempre **cadena decimal** (`"120.5"`; hasta 14 enteros y 4 decimales; sin números JSON, signos, exponentes ni comas); se devuelve normalizado a 4 decimales. No se modelan escalas, impuestos ni descuentos (el negocio no los ha definido).
+- **Aprobar** (`org_admin`): exige ≥1 precio y que **cada ítem esté aprobado y no archivado**; si no, 409 con `details.skus` (hasta 20). El mismo control lo repiten triggers en BD.
+
+| Ruta | Permiso | Notas |
+|---|---|---|
+| `GET/POST /catalog/price-lists`, `GET/PATCH …/{id}` | read / manage | cursor por `id`; PATCH sólo en borrador (nombre, vigencia) |
+| `POST …/{id}/clone` | manage | nueva lista borrador con moneda, vigencia y todos los precios; sirve para cualquier estado |
+| `POST …/{id}/approve`, `POST …/{id}/archive` | approve | 409 si el estado no lo permite |
+| `GET …/{id}/entries` | read | cursor por `id` |
+| `PUT …/{id}/entries/{itemId}` | manage | alta/actualización idempotente en borrador; ítem ajeno → 404; archivado → 409 |
+| `DELETE …/{id}/entries/{itemId}` | manage | sólo en borrador |
+| `GET …/{id}/approved-prices` | read | **vista de consumo** para cotizaciones/IA: lista aprobada (si no, 409) y sólo ítems **hoy** aprobados y no archivados; nombre y versión salen de la versión aprobada vigente |
+
+Concurrencia: cada mutación bloquea la lista (`FOR UPDATE`); las entradas toman `FOR SHARE` en trigger, así una edición tardía durante la aprobación se rechaza en vez de perderse. Auditoría: `pricing.list_created|updated|cloned|approved|archived`, `pricing.price_set|updated|removed` con ids, nunca importes.
