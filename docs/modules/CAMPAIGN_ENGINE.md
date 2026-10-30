@@ -1,0 +1,2 @@
+# M07 Motor de campañas
+Objetivo: ejecutar secuencias permitidas y medibles. Entidades: Campaign, Segment, Template, SequenceStep, Enrollment, SendAttempt, Suppression. Flujo: borrador→aprobación→audiencia elegible→encolado→evento. Reglas: frecuencia, horarios, límites, pausas, cancelación y supresión antes de cada intento. Aceptación: reintentos idempotentes, no envío tras baja y atribución por campaña.

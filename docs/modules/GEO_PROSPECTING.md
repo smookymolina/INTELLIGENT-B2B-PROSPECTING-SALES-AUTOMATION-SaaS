@@ -1,0 +1,2 @@
+# M03 Prospección geolocalizada
+Objetivo: descubrir empresas mediante conectores autorizados con filtros geográficos/sectoriales. Entidades: Search, Geography, Query, Prospect, SourceRecord. Flujo: criterios→consulta encolada→normalización→dedupe→resultado. Reglas: respetar términos, cuotas y prohibiciones; no CAPTCHA bypass; conservar procedencia/fecha. Salidas: prospectos candidatos, nunca permiso de contacto. Aceptación: conectores intercambiables, límites/rate-limit y resultados trazables.

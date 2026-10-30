@@ -1,0 +1,164 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  importFileExtension = "js"
+  moduleFormat        = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MembershipRole {
+  org_admin
+  campaign_manager
+  sales_manager
+  seller
+  analyst
+  viewer
+
+  @@map("membership_role")
+}
+
+enum RecordStatus {
+  active
+  disabled
+
+  @@map("record_status")
+}
+
+/// Tenant root. RLS: id = app.organization_id.
+model Organization {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  name       String
+  slug       String       @unique
+  status     RecordStatus @default(active)
+  created_at DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at DateTime     @updatedAt @db.Timestamptz(6)
+
+  memberships Membership[]
+  audit_events AuditEvent[]
+  sessions    Session[]
+  invitations Invitation[]
+
+  @@map("organizations")
+}
+
+/// Global identity (a person may belong to several organizations). Access is mediated by RLS + SECURITY DEFINER auth functions.
+model User {
+  id            String       @id @default(uuid(7)) @db.Uuid
+  email         String       @unique
+  password_hash String
+  display_name  String
+  status        RecordStatus @default(active)
+  created_at    DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime     @updatedAt @db.Timestamptz(6)
+
+  memberships Membership[]
+  sessions    Session[]
+
+  @@map("users")
+}
+
+model Membership {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  organization_id String         @db.Uuid
+  user_id         String         @db.Uuid
+  role            MembershipRole
+  status          RecordStatus   @default(active)
+  created_at      DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime       @updatedAt @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
+  @@unique([organization_id, user_id])
+  @@index([user_id])
+  @@map("memberships")
+}
+
+/// Opaque bearer sessions; only the SHA-256 of the token is stored.
+model Session {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  organization_id String    @db.Uuid
+  user_id         String    @db.Uuid
+  token_hash      String    @unique
+  expires_at      DateTime  @db.Timestamptz(6)
+  revoked_at      DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
+  @@index([organization_id, user_id])
+  @@map("sessions")
+}
+
+/// Append-only (RLS has no UPDATE/DELETE policy; trigger blocks both).
+model AuditEvent {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  organization_id String   @db.Uuid
+  actor_user_id   String?  @db.Uuid
+  action          String
+  resource_type   String
+  resource_id     String?
+  metadata        Json     @default("{}")
+  request_id      String?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@index([organization_id, created_at(sort: Desc)])
+  @@map("audit_events")
+}
+
+/// Pre-tenant login throttle state. Only keyed HMACs, never raw IP/email. No grants to app_runtime: access via auth_login_* functions.
+model LoginAttempt {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ip_hash      String
+  account_hash String
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([ip_hash, created_at])
+  @@index([account_hash, created_at])
+  @@index([created_at])
+  @@map("login_attempts")
+}
+
+/// Idempotent command results. Keys are keyed HMACs; the stored response (may contain a session token) is AES-256-GCM ciphertext.
+/// No grants to app_runtime: access via idem_* functions.
+model IdempotencyKey {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scope               String
+  key_hash            String
+  request_hash        String
+  response_ciphertext String?
+  completed_at        DateTime? @db.Timestamptz(6)
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([scope, key_hash])
+  @@index([created_at])
+  @@map("idempotency_keys")
+}
+
+/// Pending membership offers. Creating one never creates a membership; acceptance (invitation_accept) does, atomically.
+/// Only the SHA-256 of the token is stored. RLS: tenant-scoped, org_admin writes.
+model Invitation {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String         @db.Uuid
+  email           String
+  role            MembershipRole
+  token_hash      String         @unique
+  invited_by      String         @db.Uuid
+  expires_at      DateTime       @db.Timestamptz(6)
+  accepted_at     DateTime?      @db.Timestamptz(6)
+  accepted_by     String?        @db.Uuid
+  revoked_at      DateTime?      @db.Timestamptz(6)
+  created_at      DateTime       @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@index([organization_id, created_at(sort: Desc)])
+  @@index([organization_id, email])
+  @@map("invitations")
+}

@@ -1,0 +1,28 @@
+{
+  "name": "intelligent-b2b-prospecting-sales-automation-saas",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@11.17.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=@prospecting/contracts && npm run build --workspace=@prospecting/api && npm run build --workspace=@prospecting/web",
+    "dev": "npm run dev --workspace=@prospecting/web",
+    "dev:api": "npm run dev --workspace=@prospecting/api",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run build --workspace=@prospecting/contracts && npm run typecheck --workspace=@prospecting/api && npm run typecheck --workspace=@prospecting/web",
+    "check": "npm run db:generate && npm run lint && npm run typecheck && npm run openapi:check && npm run test && npm run build",
+    "db:generate": "npm run db:generate --workspace=@prospecting/api",
+    "db:test:setup": "node scripts/db-test-setup.mjs",
+    "test:int": "npm run build --workspace=@prospecting/contracts && npm run test:int --workspace=@prospecting/api",
+    "openapi:generate": "npm run build --workspace=@prospecting/contracts && node scripts/openapi.mjs",
+    "openapi:check": "npm run build --workspace=@prospecting/contracts && node scripts/openapi.mjs --check"
+  }
+}

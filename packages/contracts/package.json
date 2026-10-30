@@ -1,0 +1,27 @@
+{
+  "name": "@prospecting/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./openapi": {
+      "types": "./dist/openapi.d.ts",
+      "default": "./dist/openapi.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "node \"../../node_modules/typescript/bin/tsc\" -p tsconfig.json",
+    "typecheck": "node \"../../node_modules/typescript/bin/tsc\" --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  }
+}

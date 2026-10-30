@@ -1,0 +1,2 @@
+# M01 Empresas y usuarios
+Objetivo: tenancy, perfiles, sedes, miembros, planes y RBAC. Actores: admin SaaS, admin organización, miembro. Entidades: Organization, Branch, User, Membership, Role, Subscription, UsageLedger. Flujos: alta→verificación→contexto tenant; invitación→aceptación→rol. Reglas: aislamiento por tenant, mínimo privilegio, límites antes de consumo, auditoría de privilegios. API: organizaciones, miembros, roles, sedes. Errores: 409 duplicado, 403 rol/tenant, 429 límite. Aceptación: RLS y pruebas de acceso cruzado fallan.

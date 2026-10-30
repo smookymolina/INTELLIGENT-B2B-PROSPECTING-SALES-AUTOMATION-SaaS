@@ -1,0 +1,2 @@
+# M10 Detección y generación de leads
+Objetivo: clasificar respuesta y crear lead sólo por reglas configuradas. Clases: compra, cotización, información, llamada, futuro, sin interés, baja, automático, irrelevante, revisión. Entidades: IntentAssessment, LeadRule, Lead, Evidence. Regla: evidencia + umbral + no supresión; ambigüedad→humano. Aceptación: clasificación explicable, versionada y creación idempotente.

@@ -1,0 +1,2 @@
+# M04 Enriquecimiento
+Objetivo: completar/validar atributos sin perder evidencia. Entidades: EnrichmentJob, AttributeValue, Evidence, ValidationStatus, Match. Regla: cada atributo tiene fuente, fecha, confianza, finalidad y estado; conflicto no sobreescribe automáticamente. Dedupe usa claves normalizadas y revisión cuando la confianza es baja. Seguridad: datos mínimos, supresión y acceso restringido. Aceptación: historial de cambios y merge reversible/auditado.

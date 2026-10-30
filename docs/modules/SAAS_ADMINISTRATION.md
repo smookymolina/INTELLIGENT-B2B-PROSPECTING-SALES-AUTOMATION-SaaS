@@ -1,0 +1,2 @@
+# M15 Administración SaaS
+Objetivo: operar organizaciones, planes, créditos, uso y soporte con mínimo privilegio. Entidades: Plan, Entitlement, UsageLedger, Invoice, Payment, SupportAccess. Reglas: ledger append-only, límites consistentes en API/workers, acceso soporte temporal/auditado. Dependencias: M01 y facturación futura. Aceptación: medición por tenant y bloqueo degradado configurable al exceder límite.

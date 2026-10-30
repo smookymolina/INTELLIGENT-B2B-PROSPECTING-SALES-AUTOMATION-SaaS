@@ -1,0 +1,926 @@
+# SUPER PROMPT — CONSTRUCCIÓN DE UNA PLATAFORMA SaaS DE PROSPECCIÓN INTELIGENTE, GENERACIÓN DE LEADS Y AUTOMATIZACIÓN COMERCIAL
+
+**Proyecto:** Intelligent B2B Prospecting & Sales Automation Platform  
+**Responsable del proyecto:** Jair Molina Arce  
+**Entorno:** VS Code + GitHub  
+**Agentes principales:** Claude Code + OpenAI Codex  
+**Metodología:** Multi-Agent Engineering + Documentation-Driven Development  
+**Objetivo inicial:** Construcción del contexto, arquitectura documental y plan maestro de desarrollo.
+
+---
+
+# 1. TU MISIÓN
+
+Actúa como CTO, Principal Software Architect, Senior Full-Stack Engineer, AI Engineer y Technical Product Manager.
+
+Serás responsable de establecer las bases de ingeniería de un producto SaaS profesional, escalable, multiempresa y comercialmente viable.
+
+Trabajarás con dos agentes de inteligencia artificial:
+
+- Claude Code (Anthropic).
+- OpenAI Codex (OpenAI).
+
+Ambos deben colaborar como un equipo de ingeniería coordinado, aprovechando sus capacidades para reducir tiempos de desarrollo, mejorar la calidad y distribuir las tareas de forma inteligente.
+
+No quiero un prototipo improvisado, una aplicación de demostración ni un conjunto de scripts desconectados.
+
+Quiero construir un producto SaaS real, preparado para comercializarse a diferentes empresas, sectores e industrias.
+
+**Tu objetivo es crear un sistema que transforme información empresarial en oportunidades comerciales reales, automatizando la prospección, el contacto inicial, la identificación de interés y la transferencia de leads al departamento de ventas.**
+
+No prometas conversiones absolutas. Diseña una plataforma medible, optimizable y orientada a maximizar la generación de oportunidades comerciales calificadas.
+
+---
+
+# 2. VISIÓN GENERAL DEL SOFTWARE
+
+Desarrollaremos una plataforma SaaS que permita a cualquier empresa encontrar nuevos clientes dentro de zonas geográficas específicas y automatizar su proceso inicial de prospección comercial.
+
+El sistema debe funcionar para diferentes tipos de negocios sin necesidad de modificar su código fuente.
+
+Ejemplos de posibles clientes del SaaS:
+
+- Empresas de compresores industriales.
+- Distribuidores de maquinaria.
+- Proveedores de equipos industriales.
+- Empresas de seguridad.
+- Distribuidores de materiales.
+- Empresas de servicios B2B.
+- Proveedores de mantenimiento.
+- Empresas comerciales de diferentes sectores.
+
+Cada empresa configurará su propio perfil, catálogo, mercado objetivo, zonas geográficas, canales de comunicación y equipo comercial.
+
+## Flujo comercial principal
+
+1. La empresa registra su negocio.
+2. Configura productos y servicios.
+3. Define su cliente ideal (ICP).
+4. Selecciona zonas geográficas.
+5. El sistema busca empresas potenciales.
+6. Enriquece y valida sus datos comerciales.
+7. La IA analiza su compatibilidad.
+8. El usuario selecciona los prospectos.
+9. Se diseñan campañas de correo y WhatsApp.
+10. Se ejecutan secuencias de contacto autorizadas.
+11. El sistema recibe e interpreta respuestas.
+12. Identifica interés comercial.
+13. Genera automáticamente un LEAD cuando corresponde.
+14. Asigna el lead al vendedor adecuado.
+15. El vendedor continúa la conversación.
+16. El vendedor prepara cotizaciones y negocia.
+17. Se registra el cierre o pérdida de la oportunidad.
+18. El sistema analiza resultados y optimiza futuras campañas.
+
+El sistema debe permitir rastrear el recorrido completo desde la fuente del prospecto hasta la venta final.
+
+---
+
+# 3. OBJETIVOS ESTRATÉGICOS
+
+El producto debe cumplir los siguientes objetivos:
+
+### Comerciales
+
+- Reducir el trabajo manual de búsqueda de clientes.
+- Encontrar empresas con alta compatibilidad comercial.
+- Identificar oportunidades por ubicación y sector.
+- Personalizar el contacto inicial.
+- Incrementar la cantidad de conversaciones comerciales relevantes.
+- Generar leads con información suficiente para vender.
+- Reducir el tiempo de respuesta del departamento comercial.
+- Medir el rendimiento de vendedores y campañas.
+- Identificar qué sectores y zonas generan más ingresos.
+
+### Técnicos
+
+- Arquitectura modular.
+- Multi-tenancy.
+- Seguridad desde el diseño.
+- Escalabilidad horizontal cuando sea necesaria.
+- Procesamiento asíncrono.
+- Integraciones intercambiables.
+- Código mantenible.
+- APIs documentadas.
+- Pruebas automatizadas.
+- Observabilidad.
+- Optimización de costos.
+- Independencia razonable de proveedores.
+
+### Operativos
+
+- Desarrollo por fases.
+- Documentación como fuente de verdad.
+- Coordinación Claude Code + Codex.
+- Asignación independiente de tareas.
+- Revisión cruzada.
+- Control de versiones.
+- Entregables verificables.
+- Consumo eficiente de tokens.
+
+---
+
+# 4. FUNCIONALIDADES DEL PRODUCTO
+
+La plataforma estará compuesta por los siguientes módulos.
+
+## M01 — Gestión de empresas y usuarios
+
+- Registro de empresas.
+- Autenticación.
+- Multi-tenancy.
+- Roles y permisos.
+- Usuarios.
+- Sucursales.
+- Configuración comercial.
+- Perfil de empresa.
+- Planes y límites de uso.
+
+## M02 — Catálogo inteligente
+
+- Productos.
+- Servicios.
+- Categorías.
+- Importación CSV y Excel.
+- Descripciones.
+- Características técnicas.
+- Beneficios.
+- Precios.
+- Sectores relacionados.
+- Documentación.
+- Palabras clave.
+- Productos asociados a diferentes tipos de clientes.
+
+La IA debe consultar este catálogo antes de recomendar productos.
+
+No puede inventar precios, características ni condiciones comerciales.
+
+## M03 — Prospección geolocalizada
+
+- Países.
+- Estados.
+- Municipios.
+- Ciudades.
+- Colonias.
+- Códigos postales.
+- Coordenadas.
+- Radios geográficos.
+- Sectores.
+- Giros comerciales.
+- Palabras clave.
+- Tipo de empresa.
+- Tamaño estimado.
+- Sucursales.
+- Filtros avanzados.
+- Mapa interactivo.
+- Historial de búsquedas.
+
+Fuentes potenciales:
+
+- Google Places API.
+- OpenStreetMap.
+- Directorios comerciales con API autorizada.
+- Fuentes empresariales públicas.
+- Proveedores de datos B2B.
+- Sitios web empresariales consultados conforme a sus condiciones.
+
+Implementar conectores intercambiables.
+
+No evadir CAPTCHAs, restricciones, autenticación ni mecanismos de protección de proveedores.
+
+## M04 — Enriquecimiento de prospectos
+
+- Información comercial.
+- Dirección.
+- Teléfono.
+- Correo.
+- Sitio web.
+- Sector.
+- Sucursales.
+- Procedencia de datos.
+- Fecha de validación.
+- Estado de cada dato.
+- Deduplicación.
+- Identificación de empresas existentes.
+
+No asumir que un dato publicado en Internet está autorizado para cualquier uso comercial.
+
+## M05 — Inteligencia artificial comercial
+
+Implementar una capa independiente del proveedor.
+
+Proveedores iniciales:
+
+- Anthropic.
+- OpenAI.
+
+Funciones:
+
+- Análisis del prospecto.
+- Identificación de necesidades potenciales.
+- Compatibilidad con el catálogo.
+- Selección de productos.
+- Personalización de mensajes.
+- Lead scoring.
+- Clasificación de respuestas.
+- Extracción de información.
+- Resumen de conversaciones.
+- Recomendación de acciones.
+- Análisis de campañas.
+
+Registrar consumo de tokens, costos y rendimiento por operación.
+
+## M06 — Lead Scoring
+
+Puntuación de 0 a 100 considerando:
+
+- Coincidencia con ICP.
+- Compatibilidad comercial.
+- Ubicación.
+- Tamaño estimado.
+- Necesidad identificada.
+- Calidad de información.
+- Disponibilidad de contacto.
+- Historial comercial.
+
+Clasificación:
+
+- 80–100: prioridad alta.
+- 60–79: prioridad media.
+- 40–59: prioridad baja.
+- 0–39: no prioritario.
+
+El resultado debe ser explicable y no debe confundirse con intención de compra confirmada.
+
+## M07 — Motor de campañas
+
+- Campañas.
+- Segmentación.
+- Plantillas.
+- Personalización.
+- Secuencias.
+- Programación.
+- Límites de envío.
+- Estadísticas.
+- Reintentos.
+- Pausas.
+- Cancelaciones.
+- Control de frecuencia.
+- Listas de exclusión.
+
+## M08 — Automatización de correo
+
+Integraciones:
+
+- SMTP.
+- Resend.
+- Proveedores intercambiables.
+
+Funciones:
+
+- Plantillas.
+- Variables.
+- Personalización.
+- Entrega.
+- Rebotes.
+- Respuestas.
+- Seguimientos.
+- Cancelación de suscripción.
+- Historial.
+
+## M09 — Automatización de WhatsApp
+
+Integración oficial mediante Meta WhatsApp Cloud API.
+
+Funciones:
+
+- Plantillas aprobadas.
+- Variables dinámicas.
+- Webhooks.
+- Recepción de mensajes.
+- Conversaciones.
+- Respuestas.
+- Transferencia a vendedores.
+- Seguimientos permitidos.
+
+Respetar las políticas vigentes de Meta, ventanas de atención, plantillas y requisitos de consentimiento.
+
+No utilizar automatizaciones no oficiales que pongan en riesgo las cuentas de los clientes.
+
+## M10 — Detección de intención comercial
+
+Clasificar respuestas en:
+
+- Interés de compra.
+- Solicitud de cotización.
+- Solicitud de información.
+- Solicitud de llamada.
+- Interés futuro.
+- Sin interés.
+- Baja de comunicaciones.
+- Respuesta automática.
+- Mensaje irrelevante.
+- Revisión humana.
+
+Crear un lead únicamente cuando se cumplan las reglas de interés comercial configuradas.
+
+Las respuestas ambiguas deben pasar a revisión.
+
+## M11 — Gestión y distribución de leads
+
+- Generación automática.
+- Asignación manual.
+- Round-Robin.
+- Asignación por ubicación.
+- Asignación por producto.
+- Asignación por sector.
+- Especialización del vendedor.
+- Disponibilidad.
+- Carga de trabajo.
+- Historial.
+- Notificaciones.
+- Tiempo de primera atención.
+
+## M12 — CRM comercial
+
+Pipeline inicial:
+
+1. Lead nuevo.
+2. Pendiente de atención.
+3. Contactado.
+4. En calificación.
+5. Cotización solicitada.
+6. Cotización enviada.
+7. Negociación.
+8. Ganado.
+9. Perdido.
+10. Seguimiento futuro.
+
+Funciones:
+
+- Kanban.
+- Historial.
+- Conversaciones.
+- Notas.
+- Tareas.
+- Recordatorios.
+- Seguimientos.
+- Vendedores.
+- Motivos de pérdida.
+- Registro de ventas.
+
+## M13 — Cotizaciones y ventas
+
+- Productos.
+- Cantidades.
+- Precios.
+- Impuestos.
+- Descuentos autorizados.
+- Vigencias.
+- Condiciones comerciales.
+- PDF.
+- Historial.
+- Asociación con leads.
+- Registro de ventas.
+- Ingresos generados.
+
+## M14 — Dashboard y analítica
+
+Indicadores:
+
+- Empresas encontradas.
+- Prospectos únicos.
+- Prospectos calificados.
+- Contactos válidos.
+- Mensajes enviados.
+- Entregas.
+- Respuestas.
+- Respuestas positivas.
+- Leads generados.
+- Leads asignados.
+- Leads atendidos.
+- Cotizaciones.
+- Ventas.
+- Ingresos.
+- Costo por lead.
+- Costo de adquisición.
+- Conversión.
+- Tiempo de atención.
+- Rendimiento por vendedor.
+- Rendimiento por zona.
+- Rendimiento por sector.
+
+El sistema debe distinguir entre entrega, apertura, respuesta, intención, lead, cotización y venta.
+
+## M15 — Administración SaaS
+
+- Organizaciones.
+- Suscripciones.
+- Planes.
+- Límites de consumo.
+- Créditos.
+- Facturación.
+- Uso de APIs.
+- Consumo de IA.
+- Historial de pagos.
+- Administración global.
+
+Este módulo debe diseñarse desde el principio, aunque su implementación completa pueda posponerse.
+
+---
+
+# 5. TECNOLOGÍAS DE REFERENCIA
+
+Considerar inicialmente:
+
+### Frontend
+- Next.js.
+- React.
+- TypeScript.
+- Tailwind CSS.
+- Componentes reutilizables.
+- Mapas interactivos.
+
+### Backend
+- Node.js.
+- TypeScript.
+- NestJS.
+- API REST.
+- Webhooks.
+
+### Datos
+- PostgreSQL.
+- Prisma ORM.
+- Redis.
+- BullMQ.
+
+### IA
+- Anthropic API.
+- OpenAI API.
+- Adaptadores intercambiables.
+- Prompts versionados.
+
+### Infraestructura
+- Docker.
+- Docker Compose.
+- GitHub.
+- GitHub Actions.
+- Almacenamiento compatible con S3.
+- Logging y monitoreo.
+
+Evaluar cada tecnología antes de aprobarla.
+
+No incorporar dependencias innecesarias.
+
+---
+
+# 6. ARQUITECTURA Y SEGURIDAD
+
+La arquitectura deberá contemplar:
+
+- Monolito modular.
+- Workers asíncronos.
+- Contratos entre módulos.
+- API versionada.
+- Multi-tenancy.
+- Aislamiento de datos.
+- RBAC.
+- RLS cuando corresponda.
+- Gestión segura de credenciales.
+- Cifrado.
+- Auditoría.
+- Backups.
+- Rate limiting.
+- Validación de entradas.
+- Protección de webhooks.
+- Idempotencia.
+- Manejo de errores.
+- Observabilidad.
+
+Considerar legislación mexicana aplicable en materia de protección de datos personales y normativa de los países donde opere el producto.
+
+Implementar trazabilidad de origen, preferencias, consentimiento cuando corresponda, bajas, listas de supresión y políticas de conservación.
+
+No interpretar la disponibilidad pública de un dato como autorización general de contacto comercial.
+
+---
+
+# 7. EQUIPO DE DESARROLLO: CLAUDE CODE + OPENAI CODEX
+
+Ambos agentes serán responsables de desarrollar el software.
+
+No deben operar como sistemas independientes.
+
+## Claude Code — Coordinación técnica y desarrollo
+
+Responsabilidades:
+
+- Liderazgo arquitectónico.
+- Documentación.
+- Diseño de contratos.
+- Desarrollo backend.
+- Desarrollo frontend.
+- Integraciones.
+- Coordinación.
+- Integración final.
+- Mantenimiento del contexto.
+- Revisión de entregables.
+
+## OpenAI Codex — Ingeniería paralela y validación
+
+Responsabilidades:
+
+- Desarrollo de módulos independientes.
+- Frontend.
+- Backend.
+- Pruebas.
+- Depuración.
+- Revisión de arquitectura.
+- Auditoría de seguridad.
+- Optimización.
+- Validación de integraciones.
+- Revisión de código.
+
+Codex debe tener capacidad real de implementar funcionalidades completas.
+
+## Reglas de colaboración
+
+1. Claude Code mantiene la coherencia arquitectónica.
+2. Codex implementa y audita tareas independientes.
+3. Ambos consultan la documentación compartida.
+4. Ambos pueden proponer decisiones.
+5. Las decisiones aprobadas se registran.
+6. Cada tarea tiene un responsable único.
+7. Evitar modificar simultáneamente los mismos archivos.
+8. Utilizar ramas independientes.
+9. Integrar mediante Pull Requests.
+10. Ejecutar pruebas antes de fusionar.
+11. Mantener trazabilidad.
+12. Evitar ciclos de revisión innecesarios.
+
+No asumir acceso ilimitado a los modelos.
+
+Utilizar las suscripciones disponibles de Claude Code y Codex de manera eficiente, considerando sus límites de uso.
+
+Las APIs de producción y sus costos son independientes de las suscripciones de desarrollo.
+
+---
+
+# 8. ESTRUCTURA DOCUMENTAL DEL PROYECTO
+
+La primera entrega debe consistir en construir toda la documentación.
+
+Estructura propuesta:
+
+```text
+/
+├── CLAUDE.md
+├── AGENTS.md
+├── README.md
+│
+├── context/
+│   ├── PROJECT_CONTEXT.md
+│   ├── PRODUCT_VISION.md
+│   ├── BUSINESS_MODEL.md
+│   ├── TARGET_MARKET.md
+│   ├── GLOSSARY.md
+│   ├── PROJECT_DECISIONS.md
+│   ├── TECHNICAL_CONSTRAINTS.md
+│   └── CURRENT_STATUS.md
+│
+├── docs/
+│   ├── architecture/
+│   │   ├── SYSTEM_ARCHITECTURE.md
+│   │   ├── COMPONENTS.md
+│   │   ├── DATA_FLOWS.md
+│   │   ├── MULTI_TENANCY.md
+│   │   └── INTEGRATIONS.md
+│   │
+│   ├── modules/
+│   │   ├── COMPANY_MANAGEMENT.md
+│   │   ├── PRODUCT_CATALOG.md
+│   │   ├── GEO_PROSPECTING.md
+│   │   ├── DATA_ENRICHMENT.md
+│   │   ├── AI_ENGINE.md
+│   │   ├── CAMPAIGN_ENGINE.md
+│   │   ├── EMAIL_AUTOMATION.md
+│   │   ├── WHATSAPP_AUTOMATION.md
+│   │   ├── LEAD_GENERATION.md
+│   │   ├── LEAD_ROUTING.md
+│   │   ├── CRM.md
+│   │   ├── QUOTATIONS.md
+│   │   ├── ANALYTICS.md
+│   │   └── SAAS_ADMINISTRATION.md
+│   │
+│   ├── database/
+│   │   ├── DATABASE_SCHEMA.md
+│   │   ├── ENTITY_RELATIONSHIPS.md
+│   │   └── DATA_POLICIES.md
+│   │
+│   ├── api/
+│   │   ├── API_SPECIFICATION.md
+│   │   ├── WEBHOOKS.md
+│   │   └── INTEGRATION_CONTRACTS.md
+│   │
+│   ├── security/
+│   │   ├── SECURITY_ARCHITECTURE.md
+│   │   ├── PRIVACY_AND_COMPLIANCE.md
+│   │   └── ACCESS_CONTROL.md
+│   │
+│   ├── ai/
+│   │   ├── AI_ARCHITECTURE.md
+│   │   ├── PROMPT_STRATEGY.md
+│   │   ├── LEAD_SCORING.md
+│   │   └── INTENT_CLASSIFICATION.md
+│   │
+│   ├── infrastructure/
+│   │   ├── TECHNOLOGY_STACK.md
+│   │   ├── DEPLOYMENT.md
+│   │   ├── ENVIRONMENT_VARIABLES.md
+│   │   └── MCP_INTEGRATION.md
+│   │
+│   └── quality/
+│       ├── TESTING_STRATEGY.md
+│       ├── ACCEPTANCE_CRITERIA.md
+│       └── ERROR_HANDLING.md
+│
+├── planning/
+│   ├── MASTER_ROADMAP.md
+│   ├── DEVELOPMENT_PHASES.md
+│   ├── MVP_SCOPE.md
+│   ├── TASK_BACKLOG.md
+│   ├── DEPENDENCIES.md
+│   ├── RISKS_AND_MITIGATIONS.md
+│   └── RELEASE_PLAN.md
+│
+├── agents/
+│   ├── AGENT_STRATEGY.md
+│   ├── AGENT_ROLES.md
+│   ├── AGENT_WORKFLOW.md
+│   ├── TASK_DELEGATION.md
+│   └── INTEGRATION_PROTOCOL.md
+│
+└── logs/
+    ├── CHANGELOG.md
+    └── DEVELOPMENT_LOG.md
+```
+
+Puedes agregar documentos si existe una necesidad técnica real.
+
+Evita archivos redundantes.
+
+---
+
+# 9. ESPECIFICACIÓN OBLIGATORIA DE LOS DOCUMENTOS
+
+Cada documento debe tener una responsabilidad definida.
+
+## Contexto
+
+Debe explicar el producto, objetivos, usuarios, restricciones y decisiones.
+
+## Arquitectura
+
+Debe describir componentes, dependencias, contratos, eventos y flujos.
+
+## Módulos
+
+Cada módulo debe incluir:
+
+1. Objetivo.
+2. Alcance.
+3. Actores.
+4. Funcionalidades.
+5. Flujos.
+6. Entradas.
+7. Salidas.
+8. Reglas de negocio.
+9. Entidades.
+10. Integraciones.
+11. Seguridad.
+12. Manejo de errores.
+13. Dependencias.
+14. Criterios de aceptación.
+
+## Base de datos
+
+Documentar tablas, campos, tipos, relaciones, índices, restricciones y aislamiento.
+
+## Inteligencia artificial
+
+Documentar proveedores, adaptadores, prompts, scoring, clasificación, validación y costos.
+
+## Planificación
+
+Documentar fases, dependencias, tareas, entregables y criterios de aceptación.
+
+## Agentes
+
+Documentar responsabilidades, asignaciones, comunicación, permisos y revisión cruzada.
+
+---
+
+# 10. METODOLOGÍA DE DESARROLLO
+
+Organizar el proyecto en las siguientes fases:
+
+| Fase | Objetivo |
+|---|---|
+| 0 | Contexto, documentación y planificación |
+| 1 | Infraestructura y fundamentos |
+| 2 | Autenticación y multi-tenancy |
+| 3 | Empresas y catálogo |
+| 4 | Prospección geolocalizada |
+| 5 | Enriquecimiento y scoring |
+| 6 | Inteligencia artificial |
+| 7 | Campañas y mensajería |
+| 8 | Detección y generación de leads |
+| 9 | CRM y asignación |
+| 10 | Cotizaciones y ventas |
+| 11 | Analítica y optimización |
+| 12 | SaaS, seguridad y producción |
+
+Cada fase debe tener:
+
+- Objetivo.
+- Tareas.
+- Responsable.
+- Dependencias.
+- Entregables.
+- Pruebas.
+- Criterios de aceptación.
+- Riesgos.
+- Estado.
+
+Estados permitidos:
+
+- NOT_STARTED.
+- IN_PROGRESS.
+- BLOCKED.
+- IN_REVIEW.
+- COMPLETED.
+
+No marcar una fase como terminada sin evidencia verificable.
+
+---
+
+# 11. OPTIMIZACIÓN DE TOKENS Y CONTEXTO
+
+El consumo de contexto es una restricción importante.
+
+Aplicar:
+
+1. CLAUDE.md y AGENTS.md compactos.
+2. Contexto central resumido.
+3. Documentación especializada.
+4. Lectura selectiva.
+5. Evitar repetir análisis.
+6. Evitar duplicar información.
+7. Tareas acotadas.
+8. Reportes compactos.
+9. Prompts específicos por módulo.
+10. Actualización del estado al terminar cada tarea.
+
+Los agentes no deben cargar todos los documentos en cada sesión.
+
+Cada tarea debe indicar exactamente qué documentación consultar.
+
+---
+
+# 12. PRIMERA EJECUCIÓN: FASE 0
+
+En esta primera ejecución debes trabajar exclusivamente en la creación del contexto y la documentación.
+
+### PASO 1 — AUDITORÍA
+
+Inspecciona:
+
+- Repositorio.
+- Carpetas.
+- Archivos.
+- Documentación existente.
+- Instrucciones de Claude Code.
+- Instrucciones de Codex.
+- Estado de Git.
+- Ramas existentes.
+
+No sobrescribas archivos sin revisarlos.
+
+### PASO 2 — DISEÑO DOCUMENTAL
+
+Define la estructura definitiva.
+
+Identifica redundancias y establece qué información pertenece a cada documento.
+
+### PASO 3 — ARQUITECTURA
+
+Diseña la arquitectura conceptual y sus flujos.
+
+Incluye diagramas Mermaid cuando sean útiles.
+
+### PASO 4 — ESPECIFICACIONES
+
+Genera la documentación de módulos, base de datos, IA, APIs, integraciones y seguridad.
+
+### PASO 5 — PLAN MAESTRO
+
+Construye fases, dependencias, backlog y criterios de aceptación.
+
+### PASO 6 — SISTEMA MULTIAGENTE
+
+Genera instrucciones compatibles para Claude Code y Codex.
+
+Define cómo se asignarán y revisarán tareas.
+
+### PASO 7 — VALIDACIÓN CRUZADA
+
+Solicita a Codex una auditoría independiente de:
+
+- Consistencia arquitectónica.
+- Completitud documental.
+- Contradicciones.
+- Dependencias faltantes.
+- Riesgos.
+- Omisiones.
+- Eficiencia de contexto.
+
+Claude Code debe integrar las observaciones válidas.
+
+Si Codex no está disponible para invocación directa desde el entorno actual, genera una tarea de auditoría autónoma lista para copiar y ejecutar en Codex.
+
+### PASO 8 — REPORTE
+
+Genera un reporte final con:
+
+- Archivos creados.
+- Archivos modificados.
+- Arquitectura propuesta.
+- Decisiones aprobadas.
+- Decisiones pendientes.
+- Riesgos.
+- Estado de auditoría.
+- Siguientes pasos.
+
+---
+
+# 13. REGLAS DE EJECUCIÓN
+
+- No desarrollar código de aplicación durante la Fase 0.
+- No instalar dependencias.
+- No configurar servicios externos.
+- No crear bases de datos.
+- No inventar credenciales.
+- No afirmar que una integración está activa si no existe.
+- No afirmar que Codex ejecutó una revisión si no se realizó.
+- No borrar archivos existentes sin autorización.
+- No modificar la rama principal sin autorización.
+- No implementar funcionalidades fuera del alcance aprobado.
+
+Puedes realizar investigaciones técnicas necesarias para fundamentar las decisiones, pero documenta las fuentes y diferencia hechos de propuestas.
+
+Si falta información comercial, utiliza hipótesis explícitas y registra los pendientes sin bloquear toda la documentación.
+
+---
+
+# 14. CRITERIOS DE ÉXITO
+
+La Fase 0 estará completa cuando:
+
+1. La estructura documental esté creada.
+2. El contexto del producto sea comprensible.
+3. La arquitectura sea consistente.
+4. Los módulos estén especificados.
+5. El modelo de datos esté diseñado.
+6. Las integraciones estén identificadas.
+7. Los riesgos estén documentados.
+8. Las fases tengan criterios verificables.
+9. Los agentes tengan responsabilidades.
+10. Exista un protocolo de colaboración.
+11. CLAUDE.md y AGENTS.md estén sincronizados conceptualmente.
+12. El proyecto pueda retomarse sin depender del historial de conversación.
+13. La auditoría documental esté realizada o su tarea esté preparada para Codex.
+14. No existan contradicciones críticas.
+
+---
+
+# 15. INSTRUCCIÓN FINAL
+
+Comienza auditando el repositorio actual.
+
+Después construye toda la estructura documental y genera los archivos Markdown con contenido técnico suficiente para servir como especificación de desarrollo.
+
+Prioriza precisión, consistencia, modularidad y eficiencia de contexto.
+
+No intentes desarrollar el producto completo en esta ejecución.
+
+**Tu entrega es el cerebro documental y el sistema de coordinación de ingeniería sobre el que Claude Code y OpenAI Codex construirán posteriormente el software.**
+
+Al finalizar la Fase 0, detente y espera la autorización expresa de Jair Molina Arce para comenzar la Fase 1.
+
+No avances automáticamente a programación.
+
+El objetivo es construir una base técnica sólida que permita desarrollar el SaaS con máxima eficiencia, mínima duplicidad y calidad de producción.
+
+RECUERDA OPTIMIZAR, EFICIENTAR Y AHORRAR TOKENS AL MAXIMO. ESTE OBJETIVO ES PRIORITARIO.
+
+LINK GitHub: https://github.com/smookymolina/INTELLIGENT-B2B-PROSPECTING-SALES-AUTOMATION-SaaS

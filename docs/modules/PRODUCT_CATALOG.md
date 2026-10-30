@@ -1,0 +1,2 @@
+# M02 Catálogo inteligente
+Objetivo: fuente comercial verificable para IA/cotizaciones. Entidades: Product, Service, Category, PriceList, Feature, Document, ImportJob. Entradas: UI/CSV/XLSX validado; salidas: catálogo versionado y referencias. Reglas: precio, condiciones y disponibilidad sólo desde registros aprobados; IA cita IDs y devuelve “sin evidencia” si faltan datos. Seguridad: adjuntos escaneados, permisos y tenant. Aceptación: importación idempotente, errores por fila y ninguna alucinación comercial aceptada.
