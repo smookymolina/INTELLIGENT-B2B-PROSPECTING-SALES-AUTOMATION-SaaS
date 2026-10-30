@@ -62,6 +62,7 @@ model Organization {
   opportunities      Opportunity[]
   opportunity_history OpportunityStageHistory[]
   opportunity_notes  OpportunityNote[]
+  opportunity_tasks  OpportunityTask[]
   opportunity_assignments OpportunityAssignment[]
   quote_settings     QuoteSettings?
   quote_counter      QuoteCounter?
@@ -645,6 +646,7 @@ model Opportunity {
   prospect     Prospect     @relation(fields: [organization_id, prospect_id], references: [organization_id, id], onDelete: Restrict)
   history      OpportunityStageHistory[]
   notes        OpportunityNote[]
+  tasks        OpportunityTask[]
   assignments  OpportunityAssignment[]
   quotes       Quote[]
 
@@ -687,6 +689,29 @@ model OpportunityNote {
 
   @@index([organization_id, opportunity_id, created_at])
   @@map("opportunity_notes")
+}
+
+/// Follow-up task on an opportunity. Visible exactly like the opportunity (sellers only see their own); closed with done/cancelled, never edited or deleted.
+model OpportunityTask {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String    @db.Uuid
+  opportunity_id   String    @db.Uuid
+  title            String
+  due_at           DateTime  @db.Timestamptz(6)
+  state            String    @default("open")
+  assignee_user_id String    @db.Uuid
+  created_by       String    @db.Uuid
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  completed_by     String?   @db.Uuid
+  completed_at     DateTime? @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  opportunity  Opportunity  @relation(fields: [organization_id, opportunity_id], references: [organization_id, id], onDelete: Restrict)
+
+  @@index([organization_id, state, due_at])
+  @@index([organization_id, assignee_user_id, state])
+  @@index([organization_id, opportunity_id])
+  @@map("opportunity_tasks")
 }
 
 /// Why an opportunity went to someone (or to the queue): strategy plus the candidate snapshot, so the decision can be reproduced.

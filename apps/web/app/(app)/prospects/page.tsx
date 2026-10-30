@@ -37,6 +37,7 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
         {manage ? <Link href="/prospects/new">+ Nuevo prospecto</Link> : null}
         {manage ? <Link href="/prospects/import">Importar CSV</Link> : null}
         <Link href="/prospects/suppressions">Lista de no contactar</Link>
+        <a href="/export/prospects" download>Exportar CSV</a>
       </p>
       <form method="get" className="filters" aria-label="Filtros">
         <label>Buscar (nombre o dominio)<input name="q" defaultValue={q} maxLength={100} /></label>

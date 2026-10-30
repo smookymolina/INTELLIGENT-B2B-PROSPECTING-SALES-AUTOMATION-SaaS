@@ -453,6 +453,31 @@ try {
     session.seller = seller;
   });
 
+  await step("P9-02: follow-up tasks from the opportunity page and the task list; a seller only works their own", async () => {
+    const oid = session.oppId;
+    const day = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 16);
+    assert.equal(where(await post("/actions/tasks/create", { opportunityId: oid, title: "Llamar al cliente", dueAt: day(1) }, session.pair)), `/pipeline/${oid}?ok=task`);
+    assert.equal(where(await post("/actions/tasks/create", { opportunityId: oid, title: "Tarea vencida", dueAt: day(-1) }, session.seller.cookie)), `/pipeline/${oid}?ok=task`);
+    assert.equal(where(await post("/actions/tasks/create", { opportunityId: oid, title: "x", dueAt: "mañana" }, session.pair)), `/pipeline/${oid}?error=input`);
+    assert.equal(where(await post("/actions/tasks/create", { opportunityId: "not-a-uuid", title: "x", dueAt: day(1) }, session.pair)), "/tasks?error=notfound");
+    const detail = await html(await get(`/pipeline/${oid}`, session.seller.cookie));
+    assert.ok(detail.includes("Llamar al cliente") && detail.includes("Tarea vencida") && detail.includes("vencida"));
+
+    const mine = await html(await get("/tasks?mine=1", session.seller.cookie));
+    assert.ok(mine.includes("Llamar al cliente") && mine.includes("Tarea vencida"));
+    assert.ok(!(await html(await get("/tasks?overdue=1", session.pair))).includes("Llamar al cliente"), "only overdue ones");
+    assert.ok((await html(await get("/tasks?overdue=1", session.pair))).includes("Tarea vencida"));
+
+    const list = (await api("GET", "/tasks?state=open", session.token)).body.items;
+    const target = list.find((t) => t.title === "Llamar al cliente").id;
+    assert.equal(where(await post(`/actions/tasks/${target}/complete`, { back: `/pipeline/${oid}` }, session.seller.cookie)), `/pipeline/${oid}?ok=taskdone`);
+    assert.equal(where(await post(`/actions/tasks/${target}/complete`, { back: "https://evil.example/" }, session.seller.cookie)), "/tasks?error=conflict", "an off-site back target is ignored; the closed task conflicts");
+    const other = list.find((t) => t.title === "Tarea vencida").id;
+    assert.equal(where(await post(`/actions/tasks/${other}/cancel`, {}, session.seller.cookie)), "/tasks?ok=taskcancelled");
+    assert.equal((await post("/actions/tasks/" + target + "/explode", {}, session.pair)).status, 404); // closed set of operations
+    assert.ok((await html(await get("/tasks?state=done", session.pair))).includes("Llamar al cliente"));
+  });
+
   await step("F10: quotes from approved evidence only, exact totals, discount approval, frozen once sent, acceptance creates the sale", async () => {
     const seller = session.seller;
     const itemSku = (await api("GET", `/catalog/items/${session.itemId}`, session.token)).body.sku;
@@ -650,6 +675,29 @@ try {
     assert.match(where(await get("/", again)) ?? "", /\/login\?error=expired$/, "every other session was revoked");
     assert.equal(where(await fetch(`${WEB}/session/login`, form({ email: meEmail, password, organizationSlug: slug }))), "/login?error=invalid");
     assert.equal(cookieOf(await fetch(`${WEB}/session/login`, form({ email: meEmail, password: next, organizationSlug: slug })))?.raw.includes("HttpOnly"), true);
+  });
+
+  await step("P11-02: CSV exports stream through the BFF, are formula-safe, same-site only and audited", async () => {
+    const pros = await get("/export/prospects", session.pair);
+    assert.equal(pros.status, 200);
+    assert.match(pros.headers.get("content-type") ?? "", /csv; charset/);
+    assert.match(pros.headers.get("content-disposition") ?? "", /attachment; filename="prospects.csv"/);
+    assert.match(pros.headers.get("cache-control") ?? "", /no-store/);
+    const csv = await pros.text();
+    assert.ok(csv.startsWith("id,name,domain,website,country,region,city,industry,status,do_not_contact,created_at\r\n"));
+    assert.ok(csv.includes("Lead Co"), "contains this tenant's prospects");
+    const an = await get("/export/analytics?metric=prospects_created&junk=1", session.pair);
+    assert.equal(an.status, 200);
+    assert.ok((await an.text()).startsWith("id,at,type,title"));
+    assert.equal((await get("/export/analytics?metric=bogus", session.pair)).status, 400);
+    assert.match(where(await get("/export/prospects")) ?? "", /\/login\?error=expired$/, "anonymous visitors are sent to login");
+    const cross = await fetch(WEB + "/export/prospects", { redirect: "manual", headers: { cookie: session.pair, "sec-fetch-site": "cross-site" } });
+    assert.equal(cross.status, 403, "a cross-site navigation cannot trigger an export");
+    assert.equal((await get("/export/analytics?metric=prospects_created", session.seller.cookie)).status, 403);
+    const events = await html(await get("/analytics/events?metric=prospects_created", session.pair));
+    assert.ok(events.includes('href="/export/analytics?metric=prospects_created'));
+    const audited = (await api("GET", "/audit-events?limit=100", session.token)).body.filter((e) => e.action === "export.created");
+    assert.ok(audited.length >= 2, "every export left an audit event");
   });
 
   await step("wrong passwords show a generic error and the account throttle kicks in", async () => {

@@ -8,6 +8,7 @@ import {
   type CreateSuppressionRequest,
   type ProspectDetailDto,
   type ProspectDto,
+  type ProspectExportQuery,
   type ProspectListQuery,
   type ProspectPageDto,
   type SetProspectStatusRequest,
@@ -19,6 +20,7 @@ import { AuditService } from "../audit/audit.service.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import { PrismaService, type Tx } from "../db/prisma.service.js";
 import { ApiException } from "../http/api-exception.js";
+import { EXPORT_MAX_ROWS, toCsv } from "../http/csv.js";
 
 const isUnique = (e: unknown) => (e as { code?: string }).code === "P2002";
 const suppressedByTrigger = (e: unknown) => String((e as { message?: string }).message ?? "").includes("suppressed prospect");
@@ -75,6 +77,28 @@ export class ProspectsService {
       if (q.suppressed) dtos = dtos.filter((d) => d.suppressed === (q.suppressed === "true"));
       const page = dtos.slice(0, q.limit);
       return { items: page, nextCursor: dtos.length > q.limit ? (page[page.length - 1]?.id ?? null) : null };
+    });
+  }
+
+  /** CSV of prospects with the live do-not-contact flag. Capped and audited like every export. */
+  exportCsv(auth: AuthContext, q: ProspectExportQuery): Promise<{ csv: string; truncated: boolean }> {
+    return this.db.withTenant(auth, async (tx) => {
+      const sets = await this.suppressionSets(tx, auth);
+      const rows = await tx.prospect.findMany({
+        where: { organization_id: auth.organizationId, ...(q.status !== "all" ? { status: q.status } : {}), ...(q.country ? { country: q.country } : {}) },
+        orderBy: { id: "asc" },
+        take: EXPORT_MAX_ROWS + 1,
+      });
+      const truncated = rows.length > EXPORT_MAX_ROWS;
+      const kept = rows.slice(0, EXPORT_MAX_ROWS);
+      await this.audit.record(tx, auth, { action: "export.created", resourceType: "prospects", metadata: { status: q.status, country: q.country ?? null, rows: kept.length, truncated } });
+      return {
+        csv: toCsv(
+          ["id", "name", "domain", "website", "country", "region", "city", "industry", "status", "do_not_contact", "created_at"],
+          kept.map((r) => [r.id, r.name, r.domain_key, r.website, r.country, r.region, r.city, r.industry, r.status, prospectDto(r, sets).suppressed, r.created_at.toISOString()]),
+        ),
+        truncated,
+      };
     });
   }
 

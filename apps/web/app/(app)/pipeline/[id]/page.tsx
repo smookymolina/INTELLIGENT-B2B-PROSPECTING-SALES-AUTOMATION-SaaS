@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { OPPORTUNITY_TRANSITIONS, type OpportunityDetailDto, type PoolDto, type PriceListPageDto, type QuotePageDto } from "@prospecting/contracts";
+import { OPPORTUNITY_TRANSITIONS, type OpportunityDetailDto, type PoolDto, type PriceListPageDto, type QuotePageDto, type TaskPageDto } from "@prospecting/contracts";
 import { api } from "../../../../lib/api";
 import { requireSession } from "../../../../lib/auth";
 import { STAGE_LABELS, formatDate } from "../../../../lib/format";
 import { Flash } from "../../../components/flash";
 
+const TASK_LABELS: Record<string, string> = { open: "Abierta", done: "Hecha", cancelled: "Cancelada" };
 const QUOTE_LABELS: Record<string, string> = { draft: "Borrador", sent: "Enviada", accepted: "Aceptada", rejected: "Rechazada", cancelled: "Cancelada" };
 
 export default async function OpportunityPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {
@@ -20,10 +21,11 @@ export default async function OpportunityPage({ params, searchParams }: { params
   const can = (p: string) => (me.permissions as readonly string[]).includes(p);
   const closed = o.stage === "won" || o.stage === "lost";
   const next = OPPORTUNITY_TRANSITIONS[o.stage];
-  const [pool, lists, quotes] = await Promise.all([
+  const [pool, lists, quotes, tasks] = await Promise.all([
     can("crm:manage") ? api<PoolDto>("/routing/pool", { token }) : Promise.resolve(null),
     can("quotes:manage") && !closed ? api<PriceListPageDto>("/catalog/price-lists?status=approved&limit=100", { token }) : Promise.resolve(null),
     can("quotes:read") ? api<QuotePageDto>(`/quotes?opportunityId=${id}&limit=50`, { token }) : Promise.resolve(null),
+    api<TaskPageDto>(`/opportunities/${id}/tasks?state=all&limit=50`, { token }),
   ]);
   return (
     <>
@@ -80,6 +82,41 @@ export default async function OpportunityPage({ params, searchParams }: { params
             <button type="submit">Nueva cotización</button>
           </form>
         ) : <p className="hint">Para cotizar se necesita al menos una lista de precios aprobada.</p>
+      ) : null}
+
+      <h2>Tareas</h2>
+      {tasks.ok && tasks.data.items.length ? (
+        <div className="table-wrap">
+          <table>
+            <caption className="sr">Tareas de la oportunidad</caption>
+            <thead><tr><th scope="col">Vence</th><th scope="col">Tarea</th><th scope="col">Estado</th>{can("crm:work") ? <th scope="col">Acciones</th> : null}</tr></thead>
+            <tbody>
+              {tasks.data.items.map((t) => (
+                <tr key={t.id}>
+                  <td>{formatDate(t.dueAt)}{t.overdue ? " · vencida" : ""}</td><td>{t.title}</td><td>{TASK_LABELS[t.state]}</td>
+                  {can("crm:work") ? (
+                    <td>
+                      {t.state === "open" ? (
+                        <>
+                          <form method="post" action={`/actions/tasks/${t.id}/complete`} className="inline-form"><input type="hidden" name="back" value={`/pipeline/${o.id}`} /><button type="submit">Completar</button></form>
+                          <form method="post" action={`/actions/tasks/${t.id}/cancel`} className="inline-form"><input type="hidden" name="back" value={`/pipeline/${o.id}`} /><button type="submit" className="secondary">Cancelar</button></form>
+                        </>
+                      ) : "—"}
+                    </td>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p className="empty">Sin tareas.</p>}
+      {can("crm:work") && !closed ? (
+        <form method="post" action="/actions/tasks/create" className="inline" aria-label="Nueva tarea">
+          <input type="hidden" name="opportunityId" value={o.id} />
+          <label>Tarea<input name="title" required maxLength={200} /></label>
+          <label>Vence (UTC)<input name="dueAt" type="datetime-local" required /></label>
+          <button type="submit">Agregar tarea</button>
+        </form>
       ) : null}
 
       {can("crm:work") ? (

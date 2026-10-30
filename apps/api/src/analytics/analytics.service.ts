@@ -1,6 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { AnalyticsEventDto, AnalyticsEventPageDto, AnalyticsEventsQuery, AnalyticsOverviewDto, AnalyticsQuery } from "@prospecting/contracts";
+import type { AnalyticsEventDto, AnalyticsEventPageDto, AnalyticsEventsQuery, AnalyticsExportQuery, AnalyticsOverviewDto, AnalyticsQuery } from "@prospecting/contracts";
+import { AuditService } from "../audit/audit.service.js";
 import type { AuthContext } from "../auth/auth.types.js";
+import { EXPORT_MAX_ROWS, toCsv } from "../http/csv.js";
 import { PrismaService, type Tx } from "../db/prisma.service.js";
 
 const DAY = 86_400_000;
@@ -38,7 +40,10 @@ export function resolveWindow(q: { from?: string | undefined; to?: string | unde
 /** Read-only aggregates over the business tables, executed as `app_runtime` so RLS and tenant scoping apply to every number. */
 @Injectable()
 export class AnalyticsService {
-  constructor(@Inject(PrismaService) private readonly db: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly db: PrismaService,
+    @Inject(AuditService) private readonly audit: AuditService,
+  ) {}
 
   overview(auth: AuthContext, q: AnalyticsQuery): Promise<AnalyticsOverviewDto> {
     const w = resolveWindow(q);
@@ -93,6 +98,18 @@ export class AnalyticsService {
         sales: salesGroups.map((g) => ({ currency: g.currency, count: g._count._all, total: (g._sum.total as { toFixed(n: number): string }).toFixed(4), average: (g._avg.total as { toFixed(n: number): string }).toFixed(4) })),
         reconciliation: reconciliation.map((r) => ({ currency: r.currency, salesTotal: r.sales_total, quotesTotal: r.quotes_total, matches: r.sales_total === r.quotes_total })),
       };
+    });
+  }
+
+  /** CSV of the records behind one metric. Capped, formula-safe, and the export itself is audited (who took how many rows of what). */
+  exportEvents(auth: AuthContext, q: AnalyticsExportQuery): Promise<{ csv: string; truncated: boolean }> {
+    const w = resolveWindow(q);
+    return this.db.withTenant(auth, async (tx) => {
+      const rows = await this.rows(tx, auth, q.metric, w, undefined, EXPORT_MAX_ROWS + 1);
+      const truncated = rows.length > EXPORT_MAX_ROWS;
+      const kept = rows.slice(0, EXPORT_MAX_ROWS);
+      await this.audit.record(tx, auth, { action: "export.created", resourceType: "analytics", metadata: { metric: q.metric, from: w.from, to: w.to, rows: kept.length, truncated } });
+      return { csv: toCsv(["id", "at", "type", "title"], kept.map((e) => [e.id, e.at, e.type, e.title])), truncated };
     });
   }
 

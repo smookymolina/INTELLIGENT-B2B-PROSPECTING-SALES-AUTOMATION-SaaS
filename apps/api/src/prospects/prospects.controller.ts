@@ -1,7 +1,9 @@
-import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post, Query, Res } from "@nestjs/common";
+import type { Response } from "express";
 import {
   CreateProspectRequest,
   CreateSuppressionRequest,
+  ProspectExportQuery,
   ProspectListQuery,
   SetProspectStatusRequest,
   UpdateProspectRequest,
@@ -16,6 +18,7 @@ import {
 import type { AuthContext } from "../auth/auth.types.js";
 import { Auth, RequirePermission } from "../auth/decorators.js";
 import { ZodPipe } from "../auth/zod.pipe.js";
+import { sendCsv } from "../http/csv.js";
 import { ProspectsService } from "./prospects.service.js";
 
 const idPipe = () => new ZodPipe(UuidParam);
@@ -35,6 +38,14 @@ export class ProspectsController {
   @RequirePermission("prospects:manage")
   create(@Auth() auth: AuthContext, @Body(new ZodPipe(CreateProspectRequest)) body: CreateProspectRequest): Promise<ProspectDto> {
     return this.prospects.create(auth, body);
+  }
+
+  @Get("export")
+  @RequirePermission("prospects:read")
+  async exportCsv(@Auth() auth: AuthContext, @Query(new ZodPipe(ProspectExportQuery)) q: ProspectExportQuery, @Res({ passthrough: true }) res: Response): Promise<string> {
+    const { csv, truncated } = await this.prospects.exportCsv(auth, q);
+    sendCsv(res, "prospects.csv", truncated);
+    return csv;
   }
 
   @Get("connectors")

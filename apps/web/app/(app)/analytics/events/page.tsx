@@ -28,6 +28,7 @@ export default async function AnalyticsEventsPage({ searchParams }: { searchPara
       <p><Link href="/analytics">← Analítica</Link></p>
       <h1>{TITLES[metric]}</h1>
       <p className="hint">Los registros de negocio detrás de la cifra, con la misma ventana y los mismos filtros.</p>
+      <p><a href={`/export/analytics?${new URLSearchParams({ metric, ...(sp.from && DATE.test(sp.from) ? { from: sp.from } : {}), ...(sp.to && DATE.test(sp.to) ? { to: sp.to } : {}) })}`} download>Exportar CSV (hasta 10 000 filas; queda registrado en auditoría)</a></p>
       {result.data.items.length === 0 ? <p className="empty">Sin registros.</p> : (
         <div className="table-wrap">
           <table>

@@ -281,6 +281,8 @@ export const ProspectListQuery = z.strictObject({
   cursor: z.uuid().optional(),
 });
 export type ProspectListQuery = z.infer<typeof ProspectListQuery>;
+export const ProspectExportQuery = z.strictObject({ status: z.enum(["all", ...PROSPECT_STATUSES]).default("all"), country: country.optional() });
+export type ProspectExportQuery = z.infer<typeof ProspectExportQuery>;
 
 export const CreateSuppressionRequest = z
   .strictObject({ kind: z.enum(["domain", "name"]), value: text(300), reason: text(200) })
@@ -395,6 +397,36 @@ export const OpportunityListQuery = z.strictObject({
 });
 export type OpportunityListQuery = z.infer<typeof OpportunityListQuery>;
 
+/* ---------- Follow-up tasks (P9-02) ---------- */
+
+export const TASK_STATES = ["open", "done", "cancelled"] as const;
+export const CreateTaskRequest = z.strictObject({ title: text(200), dueAt: z.iso.datetime(), assigneeUserId: z.uuid().optional() });
+export type CreateTaskRequest = z.infer<typeof CreateTaskRequest>;
+export const TaskListQuery = z.strictObject({
+  state: z.enum(["all", ...TASK_STATES]).default("open"),
+  assignee: z.union([z.literal("me"), z.uuid()]).optional(),
+  overdue: z.enum(["true", "false"]).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.uuid().optional(),
+});
+export type TaskListQuery = z.infer<typeof TaskListQuery>;
+export const TaskDto = z.object({
+  id: z.uuid(),
+  opportunityId: z.uuid(),
+  opportunityTitle: z.string(),
+  title: z.string(),
+  dueAt: z.iso.datetime(),
+  state: z.enum(TASK_STATES),
+  assigneeUserId: z.uuid(),
+  createdBy: z.uuid(),
+  createdAt: z.iso.datetime(),
+  completedAt: z.iso.datetime().nullable(),
+  overdue: z.boolean(),
+});
+export type TaskDto = z.infer<typeof TaskDto>;
+export const TaskPageDto = z.object({ items: z.array(TaskDto), nextCursor: z.uuid().nullable() });
+export type TaskPageDto = z.infer<typeof TaskPageDto>;
+
 /* ---------- Quotes and sales (P10-01) ---------- */
 
 export const QUOTE_STATUSES = ["draft", "sent", "accepted", "rejected", "cancelled"] as const;
@@ -446,6 +478,12 @@ export const AnalyticsEventsQuery = z
   .strictObject({ ...windowShape, metric: z.enum(ANALYTICS_EVENT_METRICS), limit: z.coerce.number().int().min(1).max(100).default(50), cursor: z.uuid().optional() })
   .refine(validWindow, { message: "from must not be after to, and the window is at most 366 days", path: ["to"] });
 export type AnalyticsEventsQuery = z.infer<typeof AnalyticsEventsQuery>;
+
+/** Exports: same window/filters as the drill-down, without paging (the server caps the rows and says so in a header). */
+export const AnalyticsExportQuery = z
+  .strictObject({ ...windowShape, metric: z.enum(ANALYTICS_EVENT_METRICS) })
+  .refine(validWindow, { message: "from must not be after to, and the window is at most 366 days", path: ["to"] });
+export type AnalyticsExportQuery = z.infer<typeof AnalyticsExportQuery>;
 
 export const UuidParam = z.uuid();
 

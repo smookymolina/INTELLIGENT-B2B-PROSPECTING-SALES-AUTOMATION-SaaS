@@ -43,6 +43,14 @@ export const OPERATIONS: readonly Operation[] = [
   { method: "get", path: "/health/ready", id: "getReadiness", summary: "Readiness probe (the database answers); 503 without detail otherwise", tag: "Health", public: true, success: { status: 200, description: "Ready" }, errors: [503] },
   { method: "get", path: "/health/metrics", id: "getMetrics", summary: "Prometheus metrics (text/plain). 404 unless METRICS_TOKEN is configured and sent as a Bearer token; no tenant data", tag: "Health", public: true, success: { status: 200, description: "Metrics in Prometheus text format" }, errors: [404] },
   {
+    method: "get", path: "/analytics/events/export", id: "exportAnalyticsEvents", summary: "CSV of the records behind one metric (formula-safe, capped; X-Export-Truncated when capped; audited)", tag: "Analytics", permission: "analytics:read",
+    query: C.AnalyticsExportQuery, success: { status: 200, description: "text/csv attachment" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/prospects/export", id: "exportProspects", summary: "CSV of prospects (optional status/country filters; formula-safe, capped; audited)", tag: "Prospecting", permission: "prospects:read",
+    query: C.ProspectExportQuery, success: { status: 200, description: "text/csv attachment" }, errors: [400, 401, 403],
+  },
+  {
     method: "post", path: "/auth/register", id: "register", summary: "Create user, organization and first org_admin session", tag: "Auth", public: true,
     body: C.RegisterRequest, idempotent: true, success: { status: 201, schema: C.SessionDto, description: "Session opened" }, errors: [400, 409, 422],
   },
@@ -327,6 +335,26 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: "post", path: "/leads/{id}/decision", id: "decideLead", summary: "Accept or reject a pending lead (human review)", tag: "Leads", permission: "leads:review",
     pathParams: ["id"], body: C.LeadDecisionRequest, success: { status: 200, schema: C.LeadDto, description: "Lead" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/opportunities/{id}/tasks", id: "createTask", summary: "Create a follow-up task (assignee defaults to the opportunity owner; sellers can only assign themselves)", tag: "CRM", permission: "crm:work",
+    pathParams: ["id"], body: C.CreateTaskRequest, success: { status: 201, schema: C.TaskDto, description: "Created" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/opportunities/{id}/tasks", id: "listOpportunityTasks", summary: "Tasks of one opportunity (due date order, keyset by id)", tag: "CRM", permission: "crm:read",
+    pathParams: ["id"], query: C.TaskListQuery, success: { status: 200, schema: C.TaskPageDto, description: "Tasks" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "get", path: "/tasks", id: "listTasks", summary: "Tasks visible to the caller (sellers: only those of their opportunities); filter by state, assignee, overdue", tag: "CRM", permission: "crm:read",
+    query: C.TaskListQuery, success: { status: 200, schema: C.TaskPageDto, description: "Tasks" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/tasks/{id}/complete", id: "completeTask", summary: "Complete an open task (completion time and user are stamped by the database)", tag: "CRM", permission: "crm:work",
+    pathParams: ["id"], success: { status: 200, schema: C.TaskDto, description: "Completed" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/tasks/{id}/cancel", id: "cancelTask", summary: "Cancel an open task", tag: "CRM", permission: "crm:work",
+    pathParams: ["id"], success: { status: 200, schema: C.TaskDto, description: "Cancelled" }, errors: [400, 401, 403, 404, 409],
   },
   {
     method: "get", path: "/opportunities", id: "listOpportunities", summary: "Opportunities (sellers see only those assigned to them; keyset by id)", tag: "CRM", permission: "crm:read",
