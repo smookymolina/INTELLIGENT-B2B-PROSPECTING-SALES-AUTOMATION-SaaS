@@ -33,3 +33,5 @@
 | 2026-10-30 | Web | W-02 catálogo con escritura | acciones por formularios con lista cerrada de operaciones y Origin check; 13 unitarias; E2E 12 pasos (admin completo + lector forzado → 403); hito 20 % (≈22 %) | COMPLETED |
 | 2026-10-30 | 4 | P4-01 prospectos | migraciones `prospects` + `import_jobs_by_kind`; defecto hallado por la matriz de roles (RLS de import_jobs) corregido; `prospects.int.spec.ts` 22; `test:int` 267/267 | COMPLETED |
 | 2026-10-30 | Web | W-03, W-04, W-F4 | precios, importaciones y prospectos en la web; `test:e2e` 15 pasos (incluye lector con peticiones forzadas); rebalanceo de pesos de la interfaz; hito 30 % (≈31 %) | COMPLETED |
+| 2026-10-30 | 5/8 | P5-01 scoring + P8-01 leads | migraciones `scoring_and_leads` (+ RLS/triggers); motor y clasificador puros con 8 unitarias; `scoring-leads.int.spec.ts`; `test:int` 296/296; tres errores propios corregidos en pruebas (conteo, tipos SQL, caso de baja) | COMPLETED |
+| 2026-10-30 | Web | W-F5 | scoring, atributos, respuestas y leads en la web; `test:e2e` 17 pasos; hito 40 % (≈40 %) | COMPLETED |

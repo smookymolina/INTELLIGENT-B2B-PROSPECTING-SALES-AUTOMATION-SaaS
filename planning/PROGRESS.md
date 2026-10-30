@@ -1,6 +1,6 @@
 # Progreso hacia "software operable" (100 %)
 
-Fecha: 2026-10-30 (recalculado tras P4-01 + W-03/W-04/W-F4). **Estimación ponderada, no medida**: los pesos son esfuerzo relativo estimado por el Tech Lead (no historial de velocidad). "Operable" = un cliente real puede registrarse, cargar catálogo, prospectar, contactar por canales oficiales, gestionar leads/cotizaciones y operar en producción con la interfaz web.
+Fecha: 2026-10-30 (recalculado tras P5-01 + P8-01 + W-F5). **Estimación ponderada, no medida**: los pesos son esfuerzo relativo estimado por el Tech Lead (no historial de velocidad). "Operable" = un cliente real puede registrarse, cargar catálogo, prospectar, contactar por canales oficiales, gestionar leads/cotizaciones y operar en producción con la interfaz web.
 
 ## Regla de conteo
 
@@ -15,16 +15,16 @@ Sólo suma lo entregado **con pruebas ejecutadas** (y documentado). Lo que depen
 | F2 Identidad/tenancy/RBAC/RLS | 6 | 92 % | 5,5 | falta CI remoto, `saas_admin` (bloqueado), revisión |
 | F3 Empresa y catálogo | 6 | 90 % | 5,4 | falta sólo adjuntos (bloqueado) |
 | F4 Prospección | 8 | 60 % | 4,8 | P4-01: prospectos, procedencia, dedupe, lista de no contactar, importación CSV. Falta (bloqueado por proveedor): conectores de búsqueda geolocalizada |
-| F5 Enriquecimiento y scoring | 6 | 0 % | 0 | |
+| F5 Enriquecimiento y scoring | 6 | 65 % | 3,9 | P5-01: atributos verificables, modelo versionado, puntuación explicable. Falta (bloqueado): enriquecimiento con proveedores y merge reversible |
 | F6 IA | 6 | 0 % | 0 | requiere proveedor de modelos |
 | F7 Campañas y canales | 10 | 0 % | 0 | requiere proveedores/credenciales/consentimiento |
-| F8 Intención y leads | 5 | 0 % | 0 | |
+| F8 Intención y leads | 5 | 80 % | 4,0 | P8-01: leads por regla/intención con revisión humana, clasificador por reglas. Falta (bloqueado): clasificación con IA y recepción por canales |
 | F9 CRM y routing | 6 | 0 % | 0 | |
 | F10 Cotización y ventas | 6 | 0 % | 0 | |
 | F11 Analítica | 4 | 0 % | 0 | |
 | F12 SaaS, hardening y producción | 10 | 0 % | 0 | |
-| Interfaz web (transversal) | 20 | 47,5 % | 9,5 | W-01, W-02, W-03 (precios), W-04 (importación) y prospectos; faltan empresa, miembros/org, endurecimiento y los módulos nuevos |
-| **Total** | **98** | | **30,1** | **≈ 31 %** |
+| Interfaz web (transversal) | 20 | 55 % | 11,0 | W-01…W-04, prospectos y scoring/leads; faltan empresa, miembros/org, endurecimiento y CRM/cotizaciones |
+| **Total** | **98** | | **39,5** | **≈ 40 %** |
 
 ## Qué puede frenar el avance (decisiones humanas, no técnicas)
 

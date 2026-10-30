@@ -242,6 +242,74 @@ export const OPERATIONS: readonly Operation[] = [
     pathParams: ["id"], success: { status: 204, description: "Removed" }, errors: [400, 401, 403, 404],
   },
   {
+    method: "get", path: "/prospects/{id}/attributes", id: "listAttributes", summary: "Enrichment values with provenance; conflicting values are flagged", tag: "Scoring", permission: "prospects:read",
+    pathParams: ["id"], success: { status: 200, schema: C.AttributeListDto, description: "Attributes" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/prospects/{id}/attributes", id: "addAttribute", summary: "Add an unverified value (never overwrites an existing one)", tag: "Scoring", permission: "prospects:manage",
+    pathParams: ["id"], body: C.CreateAttributeRequest, success: { status: 201, schema: C.AttributeDto, description: "Created" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/prospects/{id}/attributes/{attributeId}/decision", id: "decideAttribute", summary: "Verify (rejects the other values of that key) or reject a value", tag: "Scoring", permission: "prospects:manage",
+    pathParams: ["id", "attributeId"], body: C.AttributeDecisionRequest, success: { status: 200, schema: C.AttributeDto, description: "Decided" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "get", path: "/scoring/model", id: "getScoringModel", summary: "Approved and draft scoring model versions", tag: "Scoring", permission: "prospects:read",
+    success: { status: 200, schema: C.ScoringModelDto, description: "Model" }, errors: [401, 403],
+  },
+  {
+    method: "put", path: "/scoring/model/draft", id: "saveScoringDraft", summary: "Create or replace the open draft (rules are transparent and validated)", tag: "Scoring", permission: "scoring:manage",
+    body: C.SaveScoringDraftRequest, success: { status: 200, schema: C.ScoringModelDto, description: "Model" }, errors: [400, 401, 403],
+  },
+  {
+    method: "post", path: "/scoring/model/approve", id: "approveScoringModel", summary: "Approve the draft; the previous version is superseded", tag: "Scoring", permission: "scoring:approve",
+    success: { status: 200, schema: C.ScoringModelDto, description: "Model" }, errors: [401, 403, 409],
+  },
+  {
+    method: "post", path: "/scoring/recompute", id: "recomputeScores", summary: "Score every non-suppressed prospect with the approved model", tag: "Scoring", permission: "prospects:manage",
+    success: { status: 200, schema: C.RecomputeDto, description: "Counts" }, errors: [401, 403, 409],
+  },
+  {
+    method: "get", path: "/prospects/{id}/score", id: "getProspectScore", summary: "Latest explainable score", tag: "Scoring", permission: "prospects:read",
+    pathParams: ["id"], success: { status: 200, schema: C.ProspectScoreDto, description: "Score" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/prospects/{id}/score", id: "scoreProspect", summary: "Compute and store a score with the approved model", tag: "Scoring", permission: "prospects:manage",
+    pathParams: ["id"], success: { status: 201, schema: C.ScoreResultDto, description: "Score" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/prospects/{id}/replies", id: "assessReply", summary: "Classify a pasted reply by explicit rules; unsubscribe suppresses, positive intent opens a lead for review", tag: "Leads", permission: "prospects:manage",
+    pathParams: ["id"], body: C.AssessReplyRequest, success: { status: 201, schema: C.IntentAssessmentDto, description: "Assessment" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "get", path: "/prospects/{id}/replies", id: "listReplyAssessments", summary: "Classification history of a prospect", tag: "Leads", permission: "prospects:read",
+    pathParams: ["id"], success: { status: 200, schema: C.IntentAssessmentListDto, description: "Assessments" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "get", path: "/leads/settings", id: "getLeadSettings", summary: "Minimum score for rule-created leads (null until configured)", tag: "Leads", permission: "leads:read",
+    success: { status: 200, schema: C.LeadSettingsDto, description: "Settings" }, errors: [401, 403],
+  },
+  {
+    method: "put", path: "/leads/settings", id: "setLeadSettings", summary: "Set the minimum score (org_admin)", tag: "Leads", permission: "scoring:approve",
+    body: C.SetLeadSettingsRequest, success: { status: 200, schema: C.LeadSettingsDto, description: "Settings" }, errors: [400, 401, 403],
+  },
+  {
+    method: "post", path: "/leads/evaluate", id: "evaluateLeads", summary: "Create pending leads for qualified, non-suppressed prospects scoring at or above the threshold (idempotent)", tag: "Leads", permission: "leads:review",
+    success: { status: 200, schema: C.EvaluateLeadsDto, description: "Counts" }, errors: [401, 403, 409],
+  },
+  {
+    method: "get", path: "/leads", id: "listLeads", summary: "Leads (keyset by id)", tag: "Leads", permission: "leads:read",
+    query: C.LeadListQuery, success: { status: 200, schema: C.LeadPageDto, description: "Page" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/leads/{id}", id: "getLead", summary: "One lead with its evidence", tag: "Leads", permission: "leads:read",
+    pathParams: ["id"], success: { status: 200, schema: C.LeadDto, description: "Lead" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/leads/{id}/decision", id: "decideLead", summary: "Accept or reject a pending lead (human review)", tag: "Leads", permission: "leads:review",
+    pathParams: ["id"], body: C.LeadDecisionRequest, success: { status: 200, schema: C.LeadDto, description: "Lead" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
     method: "get", path: "/memberships", id: "listMemberships", summary: "Members of the caller's organization", tag: "Memberships", permission: "members:read",
     success: { status: 200, schema: z.array(C.MemberDto), description: "Members" }, errors: [401, 403],
   },

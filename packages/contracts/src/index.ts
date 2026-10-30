@@ -11,17 +11,17 @@ export type HealthStatus = Readonly<{
 export const MEMBERSHIP_ROLES = ["org_admin", "campaign_manager", "sales_manager", "seller", "analyst", "viewer"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
-export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove"] as const;
+export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove", "scoring:manage", "scoring:approve", "leads:read", "leads:review"] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 /** Single source of truth for role -> permission. `saas_admin` is platform-level and intentionally absent (ADR-011). */
 export const ROLE_PERMISSIONS: Readonly<Record<MembershipRole, readonly Permission[]>> = {
   org_admin: PERMISSIONS,
-  campaign_manager: ["organization:read", "members:read", "catalog:read", "prospects:read", "prospects:manage", "suppressions:manage"],
-  sales_manager: ["organization:read", "members:read", "catalog:read", "catalog:manage", "prospects:read", "prospects:manage", "suppressions:manage"],
+  campaign_manager: ["organization:read", "members:read", "catalog:read", "prospects:read", "prospects:manage", "suppressions:manage", "leads:read"],
+  sales_manager: ["organization:read", "members:read", "catalog:read", "catalog:manage", "prospects:read", "prospects:manage", "suppressions:manage", "scoring:manage", "leads:read", "leads:review"],
   seller: ["organization:read", "catalog:read", "prospects:read"],
-  analyst: ["organization:read", "catalog:read", "prospects:read"],
-  viewer: ["organization:read", "catalog:read", "prospects:read"],
+  analyst: ["organization:read", "catalog:read", "prospects:read", "leads:read"],
+  viewer: ["organization:read", "catalog:read", "prospects:read", "leads:read"],
 };
 
 export function hasPermission(role: MembershipRole, permission: Permission): boolean {
@@ -297,6 +297,59 @@ export const ProspectImportRow = z.strictObject({
   industry: text(100).nullish(),
 });
 export type ProspectImportRow = z.infer<typeof ProspectImportRow>;
+
+/* ---------- Attributes, scoring, intent and leads (P5-01, P8-01) ---------- */
+
+export const ATTRIBUTE_KEY = /^[a-z][a-z0-9_]{0,39}$/;
+export const CONFIDENCES = ["low", "medium", "high"] as const;
+export const CreateAttributeRequest = z.strictObject({ key: z.string().regex(ATTRIBUTE_KEY, "lower-case letters, digits and _ (max 40)"), value: text(200), confidence: z.enum(CONFIDENCES) });
+export type CreateAttributeRequest = z.infer<typeof CreateAttributeRequest>;
+export const AttributeDecisionRequest = z.strictObject({ decision: z.enum(["verify", "reject"]) });
+export type AttributeDecisionRequest = z.infer<typeof AttributeDecisionRequest>;
+
+export const SCORE_FIELDS = ["country", "industry", "city", "region", "status", "has_domain"] as const;
+export const SCORE_OPS = ["eq", "neq", "in", "gte", "lte", "exists", "missing"] as const;
+/** One transparent rule. `field` rules read prospect columns; `attribute` rules read VERIFIED attributes only. */
+export const ScoreRule = z
+  .strictObject({
+    id: z.string().regex(/^[a-z][a-z0-9_-]{0,39}$/, "lower-case id"),
+    label: text(100),
+    source: z.enum(["field", "attribute"]),
+    name: z.string().min(1).max(40),
+    op: z.enum(SCORE_OPS),
+    value: z.union([z.string().max(100), z.number().finite(), z.array(z.string().max(100)).min(1).max(20)]).optional(),
+    points: z.number().int().min(-100).max(100),
+  })
+  .superRefine((r, ctx) => {
+    const bad = (message: string, path: string) => ctx.addIssue({ code: "custom", message, path: [path] });
+    if (r.source === "field" && !(SCORE_FIELDS as readonly string[]).includes(r.name)) bad("unknown prospect field", "name");
+    if (r.source === "attribute" && !ATTRIBUTE_KEY.test(r.name)) bad("invalid attribute key", "name");
+    if (r.op === "exists" || r.op === "missing") {
+      if (r.value !== undefined) bad("this operator takes no value", "value");
+    } else if (r.op === "in") {
+      if (!Array.isArray(r.value)) bad("a list of values is required", "value");
+    } else if (r.op === "gte" || r.op === "lte") {
+      if (typeof r.value !== "number") bad("a number is required", "value");
+    } else if (r.value === undefined || Array.isArray(r.value)) bad("a single value is required", "value");
+  });
+export type ScoreRule = z.infer<typeof ScoreRule>;
+export const SaveScoringDraftRequest = z
+  .strictObject({ rules: z.array(ScoreRule).max(50) })
+  .refine((v) => new Set(v.rules.map((r) => r.id)).size === v.rules.length, { message: "rule ids must be unique", path: ["rules"] });
+export type SaveScoringDraftRequest = z.infer<typeof SaveScoringDraftRequest>;
+
+export const SetLeadSettingsRequest = z.strictObject({ minScore: z.number().int().min(-1000).max(1000) });
+export type SetLeadSettingsRequest = z.infer<typeof SetLeadSettingsRequest>;
+export const LeadListQuery = z.strictObject({
+  state: z.enum(["all", "pending_review", "accepted", "rejected"]).default("all"),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.uuid().optional(),
+});
+export type LeadListQuery = z.infer<typeof LeadListQuery>;
+export const LeadDecisionRequest = z.strictObject({ decision: z.enum(["accept", "reject"]), note: text(300).nullish() });
+export type LeadDecisionRequest = z.infer<typeof LeadDecisionRequest>;
+export const AssessReplyRequest = z.strictObject({ text: z.string().trim().min(1).max(4000) });
+export type AssessReplyRequest = z.infer<typeof AssessReplyRequest>;
 
 export const UuidParam = z.uuid();
 
@@ -578,6 +631,88 @@ export const ProspectImportResultDto = ProspectImportJobDto.extend({
 export type ProspectImportResultDto = z.infer<typeof ProspectImportResultDto>;
 export const ProspectImportJobPageDto = z.object({ items: z.array(ProspectImportJobDto), nextCursor: z.uuid().nullable() });
 export type ProspectImportJobPageDto = z.infer<typeof ProspectImportJobPageDto>;
+
+export const AttributeDto = z.object({
+  id: z.uuid(),
+  key: z.string(),
+  value: z.string(),
+  confidence: z.enum(CONFIDENCES),
+  source: z.enum(["manual", "csv_import"]),
+  status: z.enum(["unverified", "verified", "rejected"]),
+  /** True when another non-rejected value exists for the same key: a human must verify one. */
+  conflict: z.boolean(),
+  createdAt: z.iso.datetime(),
+  decidedAt: z.iso.datetime().nullable(),
+});
+export type AttributeDto = z.infer<typeof AttributeDto>;
+export const AttributeListDto = z.object({ items: z.array(AttributeDto) });
+export type AttributeListDto = z.infer<typeof AttributeListDto>;
+
+export const ScoringVersionDto = z.object({
+  id: z.uuid(),
+  version: z.number().int(),
+  state: z.enum(["draft", "approved", "superseded"]),
+  rules: z.array(ScoreRule),
+  createdAt: z.iso.datetime(),
+  approvedAt: z.iso.datetime().nullable(),
+});
+export type ScoringVersionDto = z.infer<typeof ScoringVersionDto>;
+export const ScoringModelDto = z.object({ approved: ScoringVersionDto.nullable(), draft: ScoringVersionDto.nullable() });
+export type ScoringModelDto = z.infer<typeof ScoringModelDto>;
+export const ScoreBreakdownDto = z.object({ ruleId: z.string(), label: z.string(), matched: z.boolean(), points: z.number().int(), evidence: z.string().nullable() });
+export type ScoreBreakdownDto = z.infer<typeof ScoreBreakdownDto>;
+export const ScoreResultDto = z.object({ id: z.uuid(), prospectId: z.uuid(), modelVersion: z.number().int(), total: z.number().int(), breakdown: z.array(ScoreBreakdownDto), computedAt: z.iso.datetime() });
+export type ScoreResultDto = z.infer<typeof ScoreResultDto>;
+/** `stale` = the latest score was computed with a model version that is no longer the approved one. */
+export const ProspectScoreDto = z.object({ result: ScoreResultDto.nullable(), stale: z.boolean() });
+export type ProspectScoreDto = z.infer<typeof ProspectScoreDto>;
+export const RecomputeDto = z.object({ computed: z.number().int(), skippedSuppressed: z.number().int(), modelVersion: z.number().int() });
+export type RecomputeDto = z.infer<typeof RecomputeDto>;
+
+export const LeadSettingsDto = z.object({ minScore: z.number().int().nullable() });
+export type LeadSettingsDto = z.infer<typeof LeadSettingsDto>;
+export const EvaluateLeadsDto = z.object({
+  created: z.number().int(),
+  alreadyOpen: z.number().int(),
+  belowThreshold: z.number().int(),
+  noScore: z.number().int(),
+  suppressed: z.number().int(),
+  previouslyRejected: z.number().int(),
+});
+export type EvaluateLeadsDto = z.infer<typeof EvaluateLeadsDto>;
+export const LEAD_STATES = ["pending_review", "accepted", "rejected"] as const;
+export const LeadDto = z.object({
+  id: z.uuid(),
+  prospect: z.object({ id: z.uuid(), name: z.string(), domain: z.string().nullable() }),
+  origin: z.enum(["rule", "intent"]),
+  state: z.enum(LEAD_STATES),
+  minScore: z.number().int().nullable(),
+  scoreTotal: z.number().int().nullable(),
+  intentClass: z.string().nullable(),
+  reviewNote: z.string().nullable(),
+  reviewedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+});
+export type LeadDto = z.infer<typeof LeadDto>;
+export const LeadPageDto = z.object({ items: z.array(LeadDto), nextCursor: z.uuid().nullable() });
+export type LeadPageDto = z.infer<typeof LeadPageDto>;
+
+export const INTENT_CLASSES = ["purchase", "quote", "info", "call", "future", "no_interest", "unsubscribe", "auto_reply", "irrelevant", "review"] as const;
+export const IntentAssessmentDto = z.object({
+  id: z.uuid(),
+  prospectId: z.uuid(),
+  class: z.enum(INTENT_CLASSES),
+  ambiguous: z.boolean(),
+  matched: z.array(z.object({ class: z.string(), phrase: z.string() })),
+  classifierVersion: z.string(),
+  excerpt: z.string(),
+  createdAt: z.iso.datetime(),
+  /** Side effects of this classification (unsubscribe always wins; positive intent opens a lead for HUMAN review). */
+  effects: z.object({ suppressionCreated: z.boolean(), leadId: z.uuid().nullable() }),
+});
+export type IntentAssessmentDto = z.infer<typeof IntentAssessmentDto>;
+export const IntentAssessmentListDto = z.object({ items: z.array(IntentAssessmentDto) });
+export type IntentAssessmentListDto = z.infer<typeof IntentAssessmentListDto>;
 
 /** Uniform error envelope for every non-2xx response. `details` is null unless the error carries structured data. */
 export const ProblemDto = z.object({ code: z.string(), message: z.string(), details: z.unknown().nullable(), request_id: z.uuid() });

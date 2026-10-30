@@ -51,6 +51,12 @@ model Organization {
   prospects          Prospect[]
   prospect_sources   ProspectSource[]
   suppressions       Suppression[]
+  prospect_attributes ProspectAttribute[]
+  scoring_versions   ScoringModelVersion[]
+  score_results      ScoreResult[]
+  lead_settings      LeadSettings?
+  leads              Lead[]
+  intent_assessments IntentAssessment[]
 
   @@map("organizations")
 }
@@ -401,6 +407,10 @@ model Prospect {
 
   organization Organization     @relation(fields: [organization_id], references: [id], onDelete: Restrict)
   sources      ProspectSource[]
+  attributes   ProspectAttribute[]
+  score_results ScoreResult[]
+  leads        Lead[]
+  assessments  IntentAssessment[]
 
   @@unique([organization_id, id])
   @@unique([organization_id, dedupe_key])
@@ -439,4 +449,125 @@ model Suppression {
 
   @@unique([organization_id, kind, value_key])
   @@map("suppressions")
+}
+
+/// Enrichment value with provenance. Append-only apart from the human decision (verify/reject). Only VERIFIED values are scored.
+model ProspectAttribute {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String    @db.Uuid
+  prospect_id     String    @db.Uuid
+  key             String
+  value           String
+  value_key       String
+  confidence      String
+  source          String
+  status          String    @default("unverified")
+  created_by      String    @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  decided_by      String?   @db.Uuid
+  decided_at      DateTime? @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  prospect     Prospect     @relation(fields: [organization_id, prospect_id], references: [organization_id, id], onDelete: Restrict)
+
+  @@unique([prospect_id, key, value_key])
+  @@index([organization_id, prospect_id])
+  @@map("prospect_attributes")
+}
+
+/// Rule-based scoring model, versioned like the catalog: one draft, approved versions are immutable.
+model ScoringModelVersion {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String    @db.Uuid
+  version         Int
+  state           String    @default("draft")
+  rules           Json
+  created_by      String    @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  approved_by     String?   @db.Uuid
+  approved_at     DateTime? @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  results      ScoreResult[]
+
+  @@unique([organization_id, version])
+  @@map("scoring_model_versions")
+}
+
+/// Append-only, explainable score: the breakdown names every rule, whether it matched and the evidence used.
+model ScoreResult {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String   @db.Uuid
+  prospect_id      String   @db.Uuid
+  model_version_id String   @db.Uuid
+  total            Int
+  breakdown        Json
+  computed_by      String   @db.Uuid
+  computed_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization        @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  prospect     Prospect            @relation(fields: [organization_id, prospect_id], references: [organization_id, id], onDelete: Restrict)
+  model        ScoringModelVersion @relation(fields: [model_version_id], references: [id], onDelete: Restrict)
+
+  @@index([organization_id, prospect_id, computed_at(sort: Desc)])
+  @@map("score_results")
+}
+
+/// Explicit threshold for rule-created leads. There is no default: until an org_admin sets it, no lead can be created by rule.
+model LeadSettings {
+  organization_id String   @id @db.Uuid
+  min_score       Int
+  updated_by      String   @db.Uuid
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@map("lead_settings")
+}
+
+/// A lead exists only because a rule matched (score >= threshold) or a reply was classified as positive intent; a human reviews it.
+/// open_key = prospect id while the lead is pending/accepted (NULL when rejected) => at most one open lead per prospect (idempotent creation).
+model Lead {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String    @db.Uuid
+  prospect_id     String    @db.Uuid
+  origin          String
+  state           String    @default("pending_review")
+  open_key        String?
+  score_result_id String?   @db.Uuid
+  assessment_id   String?   @db.Uuid
+  min_score       Int?
+  review_note     String?
+  reviewed_by     String?   @db.Uuid
+  reviewed_at     DateTime? @db.Timestamptz(6)
+  created_by      String    @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  prospect     Prospect     @relation(fields: [organization_id, prospect_id], references: [organization_id, id], onDelete: Restrict)
+
+  @@unique([organization_id, open_key])
+  @@index([organization_id, state])
+  @@map("leads")
+}
+
+/// Rule-based classification of a pasted reply (no channel integration yet). Explainable: stores the matched phrases and classifier version.
+model IntentAssessment {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id    String   @db.Uuid
+  prospect_id        String   @db.Uuid
+  excerpt            String
+  text_hash          String
+  classifier_version String
+  class              String
+  matched            Json
+  ambiguous          Boolean
+  created_by         String   @db.Uuid
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  prospect     Prospect     @relation(fields: [organization_id, prospect_id], references: [organization_id, id], onDelete: Restrict)
+
+  @@index([organization_id, prospect_id, created_at(sort: Desc)])
+  @@map("intent_assessments")
 }

@@ -14,6 +14,17 @@ export const OK: Record<string, string> = {
   unprice: "Precio eliminado.",
   cloned: "Lista clonada como borrador.",
   clone: "Lista clonada como borrador.",
+  attribute: "Valor agregado como no verificado.",
+  decided: "Decisión registrada.",
+  scored: "Puntuación calculada con el modelo aprobado.",
+  replied: "Respuesta clasificada.",
+  draftsaved: "Borrador del modelo guardado.",
+  modelapproved: "Modelo aprobado: los nuevos cálculos usan esta versión.",
+  recomputed: "Puntuaciones recalculadas.",
+  evaluated: "Evaluación de leads completada.",
+  threshold: "Umbral guardado.",
+  leadaccepted: "Lead aceptado.",
+  leadrejected: "Lead rechazado.",
 };
 export const ERR: Record<string, string> = {
   input: "Revisa los datos ingresados.",

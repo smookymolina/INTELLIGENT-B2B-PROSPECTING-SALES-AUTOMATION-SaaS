@@ -12,6 +12,12 @@
 
 Pendientes: proveedor cloud, pagos, proveedor de identidad, retención, DPA/aviso de privacidad, jurisdicciones y SLAs.
 
+## Fases 5 y 8
+
+| ID | Decisión | Estado | Motivo |
+|---|---|---|---|
+| ADR-024 | Scoring por reglas transparentes y versionadas (aprobación sólo `org_admin`, inmutable), sólo atributos verificados puntúan, conflictos no sobrescriben; leads únicamente por regla con umbral explícito o por intención positiva, siempre con revisión humana, idempotentes y bloqueados para suprimidos; clasificador por diccionario `rules-v1` con ambigüedad → humano; baja prevalece; sin defaults inventados; permisos `scoring:manage/approve`, `leads:read/review` (sellers sin leads hasta F9) | Aprobada | ADR-004 (lead sólo por regla + evidencia), explicabilidad y cumplimiento |
+
 ## Fase 4
 
 | ID | Decisión | Estado | Motivo |

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { ProspectDetailDto } from "@prospecting/contracts";
+import type { AttributeListDto, IntentAssessmentListDto, ProspectDetailDto, ProspectScoreDto } from "@prospecting/contracts";
 import { api } from "../../../../lib/api";
 import { requireSession } from "../../../../lib/auth";
 import { formatDate } from "../../../../lib/format";
@@ -8,6 +8,12 @@ import { Flash } from "../../../components/flash";
 
 const LABELS: Record<string, string> = { candidate: "Candidato", qualified: "Calificado", disqualified: "Descalificado" };
 const SOURCE: Record<string, string> = { manual: "Captura manual", csv_import: "Importación CSV" };
+const ATTR_STATUS: Record<string, string> = { unverified: "Sin verificar", verified: "Verificado", rejected: "Rechazado" };
+const CONF: Record<string, string> = { low: "Baja", medium: "Media", high: "Alta" };
+const INTENT: Record<string, string> = {
+  purchase: "Compra", quote: "Cotización", info: "Información", call: "Llamada", future: "Futuro", no_interest: "Sin interés", unsubscribe: "Baja (no contactar)",
+  auto_reply: "Respuesta automática", irrelevant: "Irrelevante", review: "Requiere revisión humana",
+};
 
 export default async function ProspectPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {
   const { token, me } = await requireSession();
@@ -19,6 +25,11 @@ export default async function ProspectPage({ params, searchParams }: { params: P
   if (!result.ok) throw new Error("The prospect could not be loaded");
   const p = result.data;
   const manage = me.permissions.includes("prospects:manage");
+  const [attrs, score, replies] = await Promise.all([
+    api<AttributeListDto>(`/prospects/${id}/attributes`, { token }),
+    api<ProspectScoreDto>(`/prospects/${id}/score`, { token }),
+    api<IntentAssessmentListDto>(`/prospects/${id}/replies`, { token }),
+  ]);
   return (
     <>
       <p><Link href="/prospects">← Prospectos</Link></p>
@@ -41,6 +52,68 @@ export default async function ProspectPage({ params, searchParams }: { params: P
           <tbody>{p.sources.map((s) => <tr key={s.id}><td>{SOURCE[s.type] ?? s.type}</td><td>{s.ref ? <code>{s.ref.slice(0, 8)}…</code> : "—"}</td><td>{formatDate(s.collectedAt)}</td></tr>)}</tbody>
         </table>
       </div>
+      <h2>Puntuación</h2>
+      {score.ok && score.data.result ? (
+        <>
+          <p><strong>{score.data.result.total}</strong> puntos · modelo v{score.data.result.modelVersion} · {formatDate(score.data.result.computedAt)}{score.data.stale ? " · desactualizada (hay un modelo más nuevo)" : ""}</p>
+          <div className="table-wrap">
+            <table>
+              <caption className="sr">Desglose de la puntuación</caption>
+              <thead><tr><th scope="col">Regla</th><th scope="col">Coincide</th><th scope="col">Puntos</th><th scope="col">Evidencia</th></tr></thead>
+              <tbody>{score.data.result.breakdown.map((b) => <tr key={b.ruleId}><td>{b.label}</td><td>{b.matched ? "Sí" : "No"}</td><td>{b.points}</td><td>{b.evidence ? <code>{b.evidence.slice(0, 40)}</code> : "—"}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </>
+      ) : <p className="empty">Sin puntuación todavía.</p>}
+      {manage ? <form method="post" action={`/actions/prospects/${p.id}/score`} className="inline-form"><button type="submit" className="secondary">Calcular puntuación</button></form> : null}
+
+      <h2>Atributos de enriquecimiento</h2>
+      <p className="hint">Los valores nuevos nunca sobrescriben a los existentes: un valor distinto para la misma clave queda como conflicto hasta que una persona verifica uno. Sólo los verificados puntúan.</p>
+      {attrs.ok && attrs.data.items.length ? (
+        <div className="table-wrap">
+          <table>
+            <caption className="sr">Atributos</caption>
+            <thead><tr><th scope="col">Clave</th><th scope="col">Valor</th><th scope="col">Confianza</th><th scope="col">Estado</th>{manage ? <th scope="col">Decisión</th> : null}</tr></thead>
+            <tbody>
+              {attrs.data.items.map((a) => (
+                <tr key={a.id}>
+                  <td><code>{a.key}</code></td><td>{a.value}{a.conflict ? <span className="badge archived"> conflicto</span> : null}</td><td>{CONF[a.confidence]}</td><td>{ATTR_STATUS[a.status]}</td>
+                  {manage ? (
+                    <td>
+                      <form method="post" action={`/actions/prospects/${p.id}/decision`} className="inline">
+                        <input type="hidden" name="attributeId" value={a.id} />
+                        {a.status !== "verified" ? <button type="submit" name="decision" value="verify">Verificar</button> : null}
+                        {a.status !== "rejected" ? <button type="submit" name="decision" value="reject" className="secondary">Rechazar</button> : null}
+                      </form>
+                    </td>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p className="empty">Sin atributos.</p>}
+      {manage ? (
+        <form method="post" action={`/actions/prospects/${p.id}/attribute`} className="inline">
+          <label>Clave (minúsculas y _)<input name="key" required maxLength={40} pattern="[a-z][a-z0-9_]{0,39}" placeholder="employees" /></label>
+          <label>Valor<input name="value" required maxLength={200} /></label>
+          <label>Confianza<select name="confidence"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select></label>
+          <button type="submit">Agregar</button>
+        </form>
+      ) : null}
+
+      <h2>Respuestas del prospecto</h2>
+      <p className="hint">Pega una respuesta recibida: se clasifica con reglas explícitas (sin IA). Una solicitud de baja agrega al prospecto a la lista de no contactar; una intención positiva abre un lead para revisión humana; lo ambiguo queda para revisión.</p>
+      {replies.ok && replies.data.items.length ? (
+        <ul>{replies.data.items.map((r) => <li key={r.id}><strong>{INTENT[r.class] ?? r.class}</strong>{r.ambiguous ? " (ambigua)" : ""} · {formatDate(r.createdAt)} · <em>«{r.excerpt.slice(0, 120)}»</em>{r.matched.length ? <> · frases: {r.matched.map((m) => m.phrase).join(", ")}</> : null}{r.effects.leadId ? " · abrió un lead" : ""}{r.effects.suppressionCreated ? " · lista de no contactar" : ""}</li>)}</ul>
+      ) : <p className="empty">Sin respuestas registradas.</p>}
+      {manage ? (
+        <form method="post" action={`/actions/prospects/${p.id}/reply`}>
+          <label>Texto de la respuesta<textarea name="text" required rows={4} maxLength={4000} /></label>
+          <button type="submit">Clasificar</button>
+        </form>
+      ) : null}
+
       {manage ? (
         <>
           <h2>Estado</h2>

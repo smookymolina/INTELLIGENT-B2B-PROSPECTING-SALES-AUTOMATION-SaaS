@@ -1,0 +1,11 @@
+# Atributos, puntuación y leads (P5-01, P8-01)
+
+Contrato: `docs/api/openapi.v1.json` (tags *Scoring* y *Leads*). Tenant de la sesión.
+
+- **Atributos** (`/prospects/{id}/attributes`): clave `[a-z][a-z0-9_]{0,39}`, valor ≤ 200, confianza low/medium/high, fuente `manual`. Quedan `unverified`; una persona los **verifica** (los otros valores vivos de esa clave pasan a `rejected`, no se borran) o **rechaza**. Un valor distinto para la misma clave aparece con `conflict: true`. La auditoría registra la clave, nunca el valor.
+- **Modelo** (`/scoring/model`): reglas `{id, label, source: field|attribute, name, op: eq|neq|in|gte|lte|exists|missing, value, points -100..100}` (≤ 50). Campos: country, industry, city, region, status, has_domain. Un borrador abierto; `approve` (sólo `org_admin`) reemplaza la versión aprobada, que es inmutable (trigger). Los datos desconocidos nunca satisfacen una comparación; sólo atributos `verified` puntúan.
+- **Puntuación** (`POST/GET /prospects/{id}/score`, `POST /scoring/recompute`): total = suma de puntos de reglas que coinciden; el desglose lista todas las reglas con su evidencia (`field:…` o `attribute:<id>`). Historial append-only; `stale` indica que hay un modelo aprobado más nuevo. `recompute` omite prospectos suprimidos (máx. 1000).
+- **Umbral** (`/leads/settings`): explícito, sólo `org_admin`; sin él, `/leads/evaluate` responde 409.
+- **Leads** (`/leads`): por regla (`evaluate`: prospectos calificados, no suprimidos, con puntuación vigente ≥ umbral y sin lead abierto; un rechazo no se recrea con la misma puntuación) o por intención (respuesta clasificada compra/cotización/llamada/información sin ambigüedad). Siempre nacen `pending_review`; `decision` accept/reject una sola vez. Un lead de un prospecto suprimido no puede crearse ni aceptarse (trigger), y una supresión nueva cierra los pendientes.
+- **Respuestas** (`POST/GET /prospects/{id}/replies`): texto pegado ≤ 4000 → clase (purchase, quote, info, call, future, no_interest, unsubscribe, auto_reply, review), frases coincidentes y versión del clasificador; `effects` indica si agregó una supresión o abrió un lead.
+- **Interfaz:** `/scoring` (modelo y editor de reglas por línea), `/leads` (umbral, evaluación, revisión), y secciones de puntuación, atributos y respuestas en `/prospects/{id}`.

@@ -329,6 +329,79 @@ try {
     assert.equal((await api("GET", `/catalog/price-lists/${priceList}`, session.token)).body.status, "approved");
   });
 
+  await step("F5/F8: scoring model, verified attributes, explainable score, lead threshold, evaluation and human review through the forms", async () => {
+    const rules = "mx; 30; field:country; eq; MX; País objetivo\nsize; 40; attribute:employees; gte; 50; Empresa mediana o grande";
+    assert.equal(where(await post("/actions/scoring/draft", { rules: "esto no es una regla" }, session.pair)), "/scoring?error=input");
+    assert.equal(where(await post("/actions/scoring/draft", { rules }, session.pair)), "/scoring?ok=draftsaved");
+    assert.equal(where(await post("/actions/scoring/approve", {}, session.pair)), "/scoring?ok=modelapproved");
+    const model = await html(await get("/scoring", session.pair));
+    assert.ok(model.includes("Versión 1") && model.includes("País objetivo"));
+
+    const dom = `lead-${randomUUID().slice(0, 6)}.example`;
+    const created = await api("POST", "/prospects", session.token, { name: "Lead Co", domain: dom, country: "MX" });
+    const pid = created.body.id;
+    assert.equal((await api("POST", `/prospects/${pid}/status`, session.token, { status: "qualified" })).status, 200);
+    assert.equal(where(await post(`/actions/prospects/${pid}/attribute`, { key: "employees", value: "200", confidence: "high" }, session.pair)), `/prospects/${pid}?ok=attribute`);
+    assert.equal(where(await post(`/actions/prospects/${pid}/attribute`, { key: "Bad Key", value: "1", confidence: "low" }, session.pair)), `/prospects/${pid}?error=input`);
+    const attrId = (await api("GET", `/prospects/${pid}/attributes`, session.token)).body.items[0].id;
+    assert.equal(where(await post(`/actions/prospects/${pid}/score`, {}, session.pair)), `/prospects/${pid}?ok=scored`);
+    assert.ok(!(await html(await get(`/prospects/${pid}`, session.pair))).includes("70</strong> puntos"), "an unverified attribute must not score");
+    assert.equal(where(await post(`/actions/prospects/${pid}/decision`, { attributeId: attrId, decision: "verify" }, session.pair)), `/prospects/${pid}?ok=decided`);
+    await post(`/actions/prospects/${pid}/score`, {}, session.pair);
+    const detail = await html(await get(`/prospects/${pid}`, session.pair));
+    assert.ok(detail.includes("70</strong> puntos") && detail.includes("País objetivo") && detail.includes("Empresa mediana o grande") && detail.includes("Verificado"));
+
+    assert.equal(where(await post("/actions/leads/evaluate", {}, session.pair)), "/leads?error=conflict"); // no threshold yet
+    assert.equal(where(await post("/actions/scoring/settings", { minScore: "abc" }, session.pair)), "/leads?error=input");
+    assert.equal(where(await post("/actions/scoring/settings", { minScore: "50" }, session.pair)), "/leads?ok=threshold");
+    assert.equal(where(await post("/actions/leads/evaluate", {}, session.pair)), "/leads?created=1&ok=evaluated");
+    assert.equal(where(await post("/actions/leads/evaluate", {}, session.pair)), "/leads?created=0&ok=evaluated"); // idempotent
+    const leads = await html(await get("/leads", session.pair));
+    assert.ok(leads.includes("Lead Co") && leads.includes("Pendiente de revisión") && leads.includes("puntuación 70 ≥ umbral 50"));
+    const leadId = (await api("GET", "/leads?state=pending_review", session.token)).body.items[0].id;
+    assert.equal(where(await post(`/actions/leads/${leadId}`, { decision: "accept", note: "buen perfil" }, session.pair)), "/leads?ok=leadaccepted");
+    assert.equal(where(await post(`/actions/leads/${leadId}`, { decision: "reject" }, session.pair)), "/leads?error=conflict"); // already reviewed
+    assert.ok((await html(await get("/leads?state=accepted", session.pair))).includes("Aceptado"));
+
+    // replies: positive intent opens a lead, an unsubscribe request wins
+    const other = (await api("POST", "/prospects", session.token, { name: "Reply Co", domain: `reply-${randomUUID().slice(0, 6)}.example` })).body.id;
+    assert.equal(where(await post(`/actions/prospects/${other}/reply`, { text: "Hola, ¿me envían una cotización?" }, session.pair)), `/prospects/${other}?ok=replied`);
+    assert.ok((await html(await get(`/prospects/${other}`, session.pair))).includes("Cotización") && (await html(await get(`/prospects/${other}`, session.pair))).includes("abrió un lead"));
+    assert.equal((await api("GET", "/leads?state=pending_review", session.token)).body.items.length, 1);
+    await post(`/actions/prospects/${other}/reply`, { text: "Por favor darme de baja, no me contacten" }, session.pair);
+    const after = await html(await get(`/prospects/${other}`, session.pair));
+    assert.ok(after.includes("Baja (no contactar)") && after.includes("lista de no contactar"));
+    assert.equal((await api("GET", "/leads?state=pending_review", session.token)).body.items.length, 0); // the open lead was closed
+    session.leadId = leadId;
+  });
+
+  await step("F5/F8: viewers and sellers cannot change scoring or review leads, even with forced requests", async () => {
+    const admin = await api("GET", "/me", session.token);
+    const slug = admin.body.organization.slug;
+    async function login(role) {
+      const email = `${role}-${randomUUID().slice(0, 8)}@example.test`;
+      const inv = await api("POST", "/invitations", session.token, { email, role });
+      const reg = await fetch(`${API}/auth/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password, displayName: role, organizationName: `${role} ${randomUUID().slice(0, 4)}` }) });
+      await api("POST", "/invitations/accept", (await reg.json()).token, { token: inv.body.token });
+      return cookieOf(await fetch(`${WEB}/session/login`, form({ email, password, organizationSlug: slug }))).pair;
+    }
+    const viewer = await login("viewer");
+    const seller = await login("seller");
+
+    const scoring = await html(await get("/scoring", viewer));
+    assert.ok(!scoring.includes('action="/actions/scoring/draft"') && !scoring.includes('action="/actions/scoring/approve"') && !scoring.includes("Recalcular"));
+    const leads = await html(await get("/leads", viewer));
+    assert.ok(leads.includes("Lead Co") && !leads.includes("Evaluar reglas") && !leads.includes('action="/actions/scoring/settings"'));
+    assert.match(await html(await get("/leads", seller)), /no tiene acceso a los leads/);
+
+    assert.equal(where(await post("/actions/scoring/approve", {}, viewer)), "/scoring?error=forbidden");
+    assert.equal(where(await post("/actions/scoring/settings", { minScore: "1" }, viewer)), "/leads?error=forbidden");
+    assert.equal(where(await post("/actions/leads/evaluate", {}, viewer)), "/leads?error=forbidden");
+    assert.equal(where(await post(`/actions/leads/${session.leadId}`, { decision: "reject" }, viewer)), "/leads?error=forbidden");
+    assert.equal(where(await post("/actions/scoring/draft", { rules: "x; 1; field:city; exists; ; y" }, seller)), "/scoring?error=forbidden");
+    assert.equal((await api("GET", "/leads/settings", session.token)).body.minScore, 50);
+  });
+
   await step("wrong passwords show a generic error and the account throttle kicks in", async () => {
     const wrong = await fetch(`${WEB}/session/login`, form({ email, password: "definitely wrong password" }));
     assert.equal(wrong.headers.get("location"), "/login?error=invalid");
