@@ -1,7 +1,8 @@
-import { Injectable, type OnModuleDestroy } from "@nestjs/common";
+import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
 import type { MembershipRole } from "@prospecting/contracts";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "../generated/prisma/client.js";
+import { assertDbRoles, type RoleRow } from "./role-guard.js";
 
 export type Tx = Prisma.TransactionClient;
 
@@ -9,13 +10,22 @@ export type Tx = Prisma.TransactionClient;
 export type TenantContext = Readonly<{ organizationId: string; userId: string; role: MembershipRole }>;
 
 @Injectable()
-export class PrismaService implements OnModuleDestroy {
+export class PrismaService implements OnModuleInit, OnModuleDestroy {
   private readonly client: PrismaClient;
 
   constructor() {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) throw new Error("DATABASE_URL is required");
     this.client = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  }
+
+  /** Fail fast if the database roles break the isolation invariants (see role-guard.ts). */
+  async onModuleInit(): Promise<void> {
+    const rows = await this.client.$queryRaw<RoleRow[]>`
+      SELECT 'session' AS who, r.rolsuper, r.rolbypassrls, r.rolcanlogin FROM pg_roles r WHERE r.rolname = session_user
+      UNION ALL
+      SELECT 'runtime' AS who, r.rolsuper, r.rolbypassrls, r.rolcanlogin FROM pg_roles r WHERE r.rolname = 'app_runtime'`;
+    for (const warning of assertDbRoles(rows)) new Logger("PrismaService").warn(warning);
   }
 
   /** Runs `fn` in one transaction as the unprivileged `app_runtime` role with the tenant context set (RLS applies). */

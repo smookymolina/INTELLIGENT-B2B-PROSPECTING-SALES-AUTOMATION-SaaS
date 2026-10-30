@@ -21,12 +21,12 @@
 
 - Fase 2: IN_REVIEW. P2-01…P2-09, P2-11, P2-12, P2-13, P2-14a COMPLETED (101/101 pruebas de integración, `npm run check` exit 0). Pendientes: P2-10 (CI remoto), P2-14b `saas_admin` BLOCKED (decisión humana), revisión independiente.
 
-## Siguiente, en orden
+## Siguiente, en orden (vigente 2026-10-30)
 
-1. Objetivo del usuario: llegar a ≈50 % con commit en cada 10 % (hecho: 20 %, 30 %, 40 %, 50 %). Siguiente: analítica básica (F11), endurecimiento de la web (W-07: CSP con nonces, a11y, pruebas de navegador) y empresa/miembros en la web (W-05/W-06); lo demás depende de decisiones humanas (proveedores, nube, IdP, jurisdicciones).
-2. Cerrar Fase 2: obtener evidencia de CI remoto (requiere push autorizado), decisión sobre `saas_admin` y revisión independiente; entonces COMPLETED y arrancar Fase 3 (empresa/catálogo).
-3. Fase 3: perfil de empresa y catálogo con importación validada.
-4. Fases 4–12 conforme a `planning/MASTER_ROADMAP.md`; no se activan proveedores externos sin credenciales, aprobación y cumplimiento.
+1. Estado y métricas vigentes: `context/CURRENT_STATUS.md` (las líneas «Progreso global» de arriba son historial por bloque, no el estado actual).
+2. Trabajo local restante (sin decisión humana): cierre de documentación/consistencia, PDF de cotización local, retención y derechos del titular sobre contactos/consentimientos (requiere decisión de plazos), fusión de duplicados de prospectos.
+3. Desbloqueos humanos, por impacto: producción (nube/IdP), proveedores de correo/WhatsApp, proveedor de IA, privacidad/retención, adjuntos/pagos, push para CI remoto, Playwright, `saas_admin`, revisión independiente.
+4. Ningún proveedor externo se activa sin credenciales, aprobación y cumplimiento.
 
 ## Bloqueos/decisiones humanas
 

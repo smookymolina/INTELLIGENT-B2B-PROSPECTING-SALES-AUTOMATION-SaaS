@@ -2,6 +2,12 @@
 
 Fecha: 2026-10-30 (recalculado tras P11-01). **Estimación ponderada, no medida**: los pesos son esfuerzo relativo estimado por el Tech Lead (no historial de velocidad). "Operable" = un cliente real puede registrarse, cargar catálogo, prospectar, contactar por canales oficiales, gestionar leads/cotizaciones y operar en producción con la interfaz web.
 
+## Dos métricas (revisión independiente, 2026-10-30)
+
+- **Interno ≈ 70 %** (esta tabla). Una revisión independiente que aplicó más estrictamente el tope de «mock/sandbox cuenta máx. 50 %» obtuvo **≈ 60 %** (rango 55–65 %); la diferencia está en F4, F5, F8, F10, F11 y la web, donde ella puntuó más bajo por depender de reportes internos. Se informa el rango **60–70 %**.
+- **Operable real ≈ 30 %** (rango 25–35 %): exige proveedores reales, nube, cumplimiento y revisión independiente, todavía inexistentes.
+- Acción: cada porcentaje de fase debe citar su evidencia; «COMPLETED» sólo con prueba ejecutada; CI remoto y proveedor real se reportan aparte.
+
 ## Regla de conteo
 
 Sólo suma lo entregado **con pruebas ejecutadas** (y documentado). Lo que dependa de un proveedor externo (datos, IA, canales, nube) no suma hasta que exista y se pruebe; las fases con proveedor se puntúan sólo por su dominio interno. Hitos de commit: 20 %, 30 %, 40 % y 50 %.

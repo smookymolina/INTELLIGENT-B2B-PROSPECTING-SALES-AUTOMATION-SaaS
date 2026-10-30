@@ -1,7 +1,33 @@
 # Estado actual
 
-Fecha: 2026-10-30. Fase 1: **COMPLETED**. Fase 2 (identidad, tenancy, RBAC, RLS): **IN_REVIEW**. Fase 3 (perfil de empresa y catálogo): **IN_REVIEW** (P3-01…P3-04 y P3-06 completados, P3-05 BLOCKED; 245/245 pruebas de integración; progreso global ≈70 % (incluye Fases 4, 5, 8, 9 y 10 internas `planning/PHASE_4_EXECUTION.md`, `planning/PHASE_5_8_EXECUTION.md`, `planning/PHASE_9_10_EXECUTION.md` e interfaz web con E2E de 15 pasos; ver `planning/WEB_EXECUTION.md`), ver `planning/PROGRESS.md`; ver `planning/PHASE_3_EXECUTION.md`). Git local en `main`, sin commits ni push; sin proveedores externos ni credenciales reales.
+Fecha: 2026-10-30. **Fuente única del estado vigente**; el historial por bloque está en `logs/DEVELOPMENT_LOG.md` y el detalle por fase en `planning/PHASE_*_EXECUTION.md`. Git local en `main` (último commit `a827792`); **sin push, sin CI remoto, sin proveedores externos, sin despliegue**.
 
-Evidencia local: `npm run check` exit 0; `npm run db:test:setup -- --reset && npm run test:int` → 101/101 contra PostgreSQL 18 (8 migraciones desde cero). Cubre aislamiento tenant (BD y HTTP), RBAC, auditoría append-only, throttle de login distribuido, contrato de errores/request id/idempotencia, OpenAPI con paridad de rutas, invitaciones y cambio de organización. Detalle: `planning/PHASE_2_EXECUTION.md`.
+## Avance (estimación ponderada, no medición; método en `planning/PROGRESS.md`)
 
-Pendiente para COMPLETED: CI remoto (requiere push autorizado), decisión humana sobre `saas_admin` (BLOCKED, ver `docs/security/SAAS_ADMIN_DECISION.md`) y revisión independiente (`planning/CODEX_AUDIT_TASK.md`). Siguiente fase tras el cierre: 3 — empresa y catálogo.
+| Métrica | Valor | Qué significa |
+|---|---|---|
+| Interno (dominio implementado y probado en local) | ≈ 70 % (revisión independiente: ≈ 60 %; usar rango 60–70 %) | incluye lo que depende de proveedores sólo por su dominio interno |
+| Operable real (cliente real en producción) | ≈ 30 % (rango 25–35 %) | exige proveedores reales, nube, cumplimiento y revisión independiente, que no existen |
+
+## Evidencia local vigente
+
+`npm run check` exit 0 · `docker compose config --quiet` exit 0 · `npm run test:int` 393/393 (24 archivos, PostgreSQL 18, migraciones desde cero) · unitarias 36 API + 16 web · `npm run test:e2e` 30 pasos sobre API compilada + Next real. Esto es **local**: el CI remoto nunca se ejecutó.
+
+## Por fase
+
+- **Completo en local** (con sus límites): F1 infraestructura; F2 identidad/RLS (IN_REVIEW: falta CI remoto, `saas_admin`, revisión independiente); F3 empresa/catálogo (adjuntos BLOCKED); F9 CRM + tareas; F10 cotizaciones (sin PDF/firma/pagos); F11 analítica + exportación CSV.
+- **Dominio interno sin proveedor real**: F4 prospección (sin búsqueda externa), F5 scoring (sin enriquecimiento externo), F6 IA (sólo adaptador `mock`, tarifas sintéticas), F7 campañas (sólo canal `sandbox`), F8 leads por reglas (sin recepción por canal).
+- **Parcial**: F12 (sesiones/contraseña, readiness, métricas; faltan nube, respaldo, retención, derechos del titular); web (W-07 parcial: CSP con nonces hecha; auditoría a11y en navegador real y Playwright pendientes).
+
+## Bloqueos (decisión humana concreta)
+
+1. Proveedor de datos/geografía → fuente, región, presupuesto, términos.
+2. Correo y WhatsApp oficiales → cuentas, dominio verificado, plantillas, política de consentimiento.
+3. Producción → nube, región, IdP, objetivos de disponibilidad, responsable operativo.
+4. Privacidad → jurisdicciones, aviso, retención, proceso de derechos.
+5. Adjuntos/cotizaciones → almacenamiento, antivirus, PDF, firma, pagos.
+6. Autorizar push (CI remoto), política `saas_admin` (`docs/security/SAAS_ADMIN_DECISION.md`), revisión independiente (`planning/CODEX_AUDIT_TASK.md`), instalar Playwright (W-07).
+
+## Riesgos conocidos
+
+`app_runtime` depende de que todo acceso pase por `PrismaService` (no usar credenciales privilegiadas en producción) · `mock` y `sandbox` no validan calidad, coste ni entrega reales (se activan sólo con `AI_PROVIDER` / `EMAIL_PROVIDER`; sin ellos responden 503) · sin revisión legal ni de seguridad independiente.
