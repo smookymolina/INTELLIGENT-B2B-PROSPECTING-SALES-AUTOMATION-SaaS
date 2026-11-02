@@ -35,3 +35,7 @@ Sólo suma lo entregado **con pruebas ejecutadas** (y documentado). Lo que depen
 ## Qué puede frenar el avance (decisiones humanas, no técnicas)
 
 Proveedor cloud/IdP/pagos, vertical e ICP inicial, jurisdicciones y retención, aviso de privacidad, cuentas de proveedores de datos/IA/canales, almacenamiento y antivirus de adjuntos, política de `saas_admin`. Sin ellas F7, F12 y partes de F4–F6 no pueden cerrarse.
+
+## Orden de trabajo (2026-11-02)
+Frontend al final: el avance siguiente se mide sobre backend/operación; la interfaz (peso 20) se completa en la última etapa.
+Auditoría 2026-11-02: backend verificado en vivo (≈154 rutas, 0 pendientes graves); porcentajes sin cambio — interno ≈ 70 % (rango 60–70), operable ≈ 30 %. Detalle en `context/CURRENT_STATUS.md`.

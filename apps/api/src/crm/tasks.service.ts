@@ -55,6 +55,7 @@ export class TasksService {
 
   list(auth: AuthContext, q: TaskListQuery, opportunityId?: string): Promise<TaskPageDto> {
     return this.db.withTenant(auth, async (tx) => {
+      if (opportunityId && !(await tx.opportunity.findFirst({ where: { id: opportunityId, organization_id: auth.organizationId }, select: { id: true } }))) throw new NotFoundException();
       const now = new Date();
       const assignee = q.assignee === "me" ? auth.userId : q.assignee;
       const cursor = q.cursor ? await tx.opportunityTask.findFirst({ where: { id: q.cursor, organization_id: auth.organizationId }, select: { id: true, due_at: true } }) : null;

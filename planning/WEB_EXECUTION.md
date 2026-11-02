@@ -20,3 +20,6 @@ Estado: **IN_PROGRESS** (inicio 2026-10-30). Documento: `docs/modules/WEB_APP.md
 ## Límites conocidos
 
 Sin pruebas de componentes ni de navegador real todavía (W-07); el E2E actual verifica HTML, cabeceras y flujos por HTTP. Sin diseño visual validado con usuarios. Sin internacionalización (todo en es-MX).
+
+## Nota de orden (2026-11-02)
+La interfaz web se ejecuta **al final** del proyecto, tras cerrar y auditar el backend. W-07 restante (auditoría a11y en navegador real, Playwright) y cualquier módulo nuevo de UI (p. ej. descarga del PDF de cotización) quedan diferidos a esa etapa.

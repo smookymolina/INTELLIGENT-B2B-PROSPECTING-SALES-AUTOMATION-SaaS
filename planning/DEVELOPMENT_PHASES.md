@@ -12,3 +12,6 @@
 | 12 | billing, seguridad, operación | 9–11 |
 
 Estados permitidos: NOT_STARTED, IN_PROGRESS, BLOCKED, IN_REVIEW, COMPLETED.
+
+## Orden de ejecución (decisión 2026-11-02): frontend al final
+Todas las fases de dominio y operación (backend) se cierran y se auditan antes de continuar con la interfaz. La interfaz web es la última fase en ejecutarse; hasta entonces sólo se mantiene compatible con la API. Ver `AGENTS.md` y `planning/WEB_EXECUTION.md`.

@@ -122,7 +122,7 @@ describe("visibility and rights", () => {
     expect((await api.call("GET", "/tasks", { token: a.token })).body.items).toHaveLength(2);
     expect((await api.call("GET", "/tasks?assignee=me", { token: s2.token })).body.items.map((t: { id: string }) => t.id)).toEqual([t2.id]);
     expect((await addTask(s1.token, o2)).status).toBe(404); // not theirs: invisible
-    expect((await api.call("GET", `/opportunities/${o2}/tasks`, { token: s1.token })).body.items).toEqual([]);
+    expect((await api.call("GET", `/opportunities/${o2}/tasks`, { token: s1.token })).status).toBe(404);
     expect((await api.call("POST", `/tasks/${t2.id}/complete`, { token: s1.token })).status).toBe(404);
     expect((await addTask(s1.token, o1, { assigneeUserId: s2.userId })).status).toBe(403); // sellers assign only themselves
     expect((await api.call("POST", `/tasks/${t1.id}/complete`, { token: s1.token })).status).toBe(200);
