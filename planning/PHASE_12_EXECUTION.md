@@ -15,9 +15,13 @@ Fecha: 2026-10-30. Alcance: sólo lo que no depende de nube, IdP, jurisdicciones
 
 ## Pendiente (no resuelto aquí)
 
-Recuperación de contraseña por correo (requiere canal), MFA/IdP (decisión de proveedor), logs estructurados con redacción, Dockerfiles de producción (no verificables sin construir imágenes), respaldo/restauración, retención y derechos del titular (siguiente bloque).
+Recuperación de contraseña por correo (requiere canal), MFA/IdP (decisión de proveedor), logs estructurados con redacción, respaldo/restauración, retención y derechos del titular (siguiente bloque).
 
 ## P12-03 Guarda de roles de base de datos (COMPLETED, 2026-10-30)
 
 Al arrancar, `PrismaService.onModuleInit` verifica con `pg_roles` que `app_runtime` existe y es NOLOGIN, no SUPERUSER y no BYPASSRLS (si no, la API no arranca). Si la **conexión** es SUPERUSER/BYPASSRLS se advierte en desarrollo y, con `REQUIRE_UNPRIVILEGED_DB_ROLE=1` (obligatorio en producción), la API se niega a arrancar: así, aunque algún código omitiera `SET LOCAL ROLE`, no habría credencial capaz de saltarse RLS. Evidencia: `role-guard.spec.ts` (3), `roles.int.spec.ts` (2: el rol real cumple; el modo producción rechaza una conexión privilegiada). Pendiente (operación): crear en producción un rol de login de mínimo privilegio con `GRANT app_runtime` y ejecutar las migraciones con otro rol distinto.
 
+
+## P12-04 Contenedores (COMPLETED en local, 2026-10-31)
+
+`Dockerfile` multi-etapa (`migrate`, `api`, `web`; Node 24 alpine, usuario `node`, dependencias de producción), `docker-compose.yml` con perfil `app` (`read_only`, `cap_drop ALL`, `no-new-privileges`, healthcheck sobre `/v1/health/ready`), `scripts/db-provision-login-role.mjs` y `StructuredLogger` (JSON con redacción, activo con `NODE_ENV=production` o `LOG_FORMAT=json`). Evidencia: build de las tres imágenes; pila healthy con el rol `app_login` (no superusuario, sin BYPASSRLS) y `REQUIRE_UNPRIVILEGED_DB_ROLE=1`; registro y `GET /prospects` sobre esa conexión; web `/login` 200 con CSP por nonce. Pendiente: imágenes grandes (≈1,6 GB, sin optimizar), sin escaneo de vulnerabilidades ni registro de imágenes, TLS/proxy inverso, respaldo/restauración, gestor de secretos.

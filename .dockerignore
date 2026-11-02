@@ -1,0 +1,16 @@
+**/node_modules
+**/.next
+**/dist
+**/coverage
+apps/api/src/generated
+.git
+.env
+.env.*
+!.env.example
+*.log
+logs
+planning
+context
+docs
+agents
+promptmaestro.txt

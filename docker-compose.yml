@@ -24,6 +24,53 @@ services:
       timeout: 3s
       retries: 20
     restart: unless-stopped
+  # Full stack: `docker compose --profile app up --build`. Secrets come from .env (see .env.example); the API and the migrate step refuse to start if they are missing or too short.
+  migrate:
+    profiles: ["app"]
+    build: { context: ., target: migrate }
+    environment:
+      DATABASE_URL: postgresql://app:app@postgres:5432/prospecting?schema=public
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+  api:
+    profiles: ["app"]
+    build: { context: ., target: api }
+    environment:
+      DATABASE_URL: postgresql://app_login:${APP_DB_PASSWORD:-}@postgres:5432/prospecting?schema=public
+      REDIS_URL: redis://redis:6379
+      HMAC_SECRET: ${HMAC_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/v1/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+  web:
+    profiles: ["app"]
+    build: { context: ., target: web }
+    environment:
+      API_URL: http://api:3001
+      # Plain-HTTP local run of a production build; remove behind TLS so the session cookie is Secure.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+    ports: ["3000:3000"]
+    depends_on:
+      api: { condition: service_healthy }
+    read_only: true
+    tmpfs: ["/tmp", "/app/apps/web/.next/cache"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
 volumes:
   postgres_data:
   redis_data:
