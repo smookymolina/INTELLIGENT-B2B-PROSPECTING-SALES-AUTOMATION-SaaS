@@ -12,12 +12,14 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=@prospecting/contracts && npm run build --workspace=@prospecting/api && npm run build --workspace=@prospecting/web",
+    "build": "npm run build --workspace=@prospecting/contracts && npm run build --workspace=@prospecting/api && npm run build --workspace=@prospecting/mcp && npm run build --workspace=@prospecting/web",
+    "backup": "node scripts/backup.mjs",
+    "backup:verify": "node scripts/restore-verify.mjs",
     "dev": "npm run dev --workspace=@prospecting/web",
     "dev:api": "npm run dev --workspace=@prospecting/api",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run build --workspace=@prospecting/contracts && npm run typecheck --workspace=@prospecting/api && npm run typecheck --workspace=@prospecting/web",
+    "typecheck": "npm run build --workspace=@prospecting/contracts && npm run typecheck --workspace=@prospecting/api && npm run typecheck --workspace=@prospecting/mcp && npm run typecheck --workspace=@prospecting/web",
     "check": "npm run db:generate && npm run lint && npm run typecheck && npm run openapi:check && npm run test && npm run build",
     "db:generate": "npm run db:generate --workspace=@prospecting/api",
     "db:test:setup": "node scripts/db-test-setup.mjs",

@@ -51,6 +51,7 @@ model Organization {
   prospects               Prospect[]
   prospect_sources        ProspectSource[]
   prospect_merges         ProspectMerge[]
+  message_drafts          MessageDraft[]
   suppressions            Suppression[]
   prospect_attributes     ProspectAttribute[]
   scoring_versions        ScoringModelVersion[]
@@ -76,6 +77,9 @@ model Organization {
   quotes                  Quote[]
   quote_lines             QuoteLine[]
   sales                   Sale[]
+  retention_policies      RetentionPolicy[]
+  privacy_requests        PrivacyRequest[]
+  erased_addresses        ErasedAddress[]
 
   @@map("organizations")
 }
@@ -907,6 +911,7 @@ model Contact {
   display_name    String?
   source          String
   status          String   @default("active")
+  restricted_from String?
   created_by      String   @db.Uuid
   created_at      DateTime @default(now()) @db.Timestamptz(6)
   updated_at      DateTime @updatedAt @db.Timestamptz(6)
@@ -914,7 +919,9 @@ model Contact {
   organization Organization   @relation(fields: [organization_id], references: [id], onDelete: Restrict)
   prospect     Prospect       @relation(fields: [organization_id, prospect_id], references: [organization_id, id], onDelete: Restrict)
   consents     ConsentEvent[]
+  drafts       MessageDraft[]
   attempts     SendAttempt[]
+  privacy_requests PrivacyRequest[]
 
   @@unique([organization_id, id])
   @@unique([organization_id, channel, address_key])
@@ -1007,4 +1014,80 @@ model ProspectMerge {
   @@index([organization_id, survivor_id])
   @@index([organization_id, duplicate_id])
   @@map("prospect_merges")
+}
+
+/// Personalised email / WhatsApp-template drafts awaiting a human decision. Content is immutable (trigger); nothing here sends. 
+model MessageDraft {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String    @db.Uuid
+  contact_id      String    @db.Uuid
+  channel         String
+  subject         String?
+  body            String
+  evidence_refs   String[]
+  status          String    @default("pending_review")
+  author_kind     String    @default("human")
+  created_by      String    @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  decided_by      String?   @db.Uuid
+  decided_at      DateTime? @db.Timestamptz(6)
+  decision_note   String?
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  contact      Contact      @relation(fields: [organization_id, contact_id], references: [organization_id, id], onDelete: Restrict, map: "message_drafts_contact_fkey")
+
+  @@unique([organization_id, id])
+  @@index([organization_id, status, id])
+  @@index([organization_id, contact_id])
+  @@map("message_drafts")
+}
+
+/// P12-04: per-organization retention. No row = nothing is purged. Classes: import_jobs, sessions, invitations. org_admin only.
+model RetentionPolicy {
+  organization_id String   @db.Uuid
+  data_class      String
+  retention_days  Int
+  updated_by      String   @db.Uuid
+  updated_at      DateTime @updatedAt @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@id([organization_id, data_class])
+  @@map("retention_policies")
+}
+
+/// Data-subject request about a contact (access / restrict / erase). open -> completed|rejected only; closed rows are frozen by trigger.
+model PrivacyRequest {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String    @db.Uuid
+  contact_id      String    @db.Uuid
+  kind            String
+  status          String    @default("open")
+  requested_by    String    @db.Uuid
+  requested_at    DateTime  @default(now()) @db.Timestamptz(6)
+  due_at          DateTime  @db.Timestamptz(6)
+  completed_by    String?   @db.Uuid
+  completed_at    DateTime? @db.Timestamptz(6)
+  note            String?
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  contact      Contact      @relation(fields: [organization_id, contact_id], references: [organization_id, id], onDelete: Restrict)
+
+  @@index([organization_id, status, requested_at])
+  @@index([organization_id, contact_id])
+  @@map("privacy_requests")
+}
+
+/// Irreversible fingerprint (org-salted SHA-256 of the lowercase address) of every erased contact: the address can never be registered again.
+model ErasedAddress {
+  organization_id String   @db.Uuid
+  address_hash    String
+  contact_id      String   @db.Uuid
+  erased_by       String   @db.Uuid
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@id([organization_id, address_hash])
+  @@map("erased_addresses")
 }

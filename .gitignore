@@ -9,3 +9,5 @@ coverage/
 !.gitkeep
 
 apps/api/src/generated/
+
+backups/

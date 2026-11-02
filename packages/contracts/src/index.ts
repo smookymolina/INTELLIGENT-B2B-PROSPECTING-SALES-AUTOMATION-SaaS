@@ -11,7 +11,7 @@ export type HealthStatus = Readonly<{
 export const MEMBERSHIP_ROLES = ["org_admin", "campaign_manager", "sales_manager", "seller", "analyst", "viewer"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
-export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove", "scoring:manage", "scoring:approve", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "quotes:approve", "analytics:read", "ai:use", "ai:manage", "campaigns:read", "campaigns:manage", "campaigns:approve"] as const;
+export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove", "scoring:manage", "scoring:approve", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "quotes:approve", "analytics:read", "ai:use", "ai:manage", "campaigns:read", "campaigns:manage", "campaigns:approve", "privacy:manage"] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 /** Single source of truth for role -> permission. `saas_admin` is platform-level and intentionally absent (ADR-011). */
@@ -499,7 +499,14 @@ export const ATTEMPT_STATES = ["queued", "sent", "skipped", "failed", "cancelled
 export const UNSUBSCRIBE_PLACEHOLDER = "{{unsubscribe_url}}";
 const campaignBody = z.string().trim().min(1).max(5000).refine((v) => v.includes(UNSUBSCRIBE_PLACEHOLDER), { message: "the body must include {{unsubscribe_url}}" });
 
-export const AddContactRequest = z.strictObject({ address: email, displayName: text(120).optional(), source: text(300).min(3) });
+export const E164 = /^\+[1-9][0-9]{7,14}$/;
+export const AddContactRequest = z
+  .strictObject({ channel: z.enum(["email", "whatsapp"]).default("email"), address: z.string().trim().min(1).max(254), displayName: text(120).optional(), source: text(300).min(3) })
+  .superRefine((v, ctx) => {
+    if (v.channel === "whatsapp" ? !E164.test(v.address) : !z.email().safeParse(v.address).success) {
+      ctx.addIssue({ code: "custom", path: ["address"], message: v.channel === "whatsapp" ? "a WhatsApp number must be E.164 (+ and 8-15 digits)" : "a valid email address is required" });
+    }
+  });
 export type AddContactRequest = z.infer<typeof AddContactRequest>;
 /** Consent is only ever recorded by a person, with the evidence of how and when it was given or withdrawn. Nothing is defaulted. */
 export const RecordConsentRequest = z.strictObject({ event: z.enum(["granted", "withdrawn"]), evidence: text(500).min(3), occurredAt: z.iso.datetime() });
@@ -507,11 +514,11 @@ export type RecordConsentRequest = z.infer<typeof RecordConsentRequest>;
 export const ContactDto = z.object({
   id: z.uuid(),
   prospectId: z.uuid(),
-  channel: z.literal("email"),
+  channel: z.enum(["email", "whatsapp"]),
   address: z.string(),
   displayName: z.string().nullable(),
   source: z.string(),
-  status: z.enum(["active", "opted_out", "bounced"]),
+  status: z.enum(["active", "opted_out", "bounced", "restricted", "erased"]),
   consent: z.enum(["granted", "withdrawn", "none"]),
   consentAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
@@ -1176,3 +1183,114 @@ export const ProspectMergeDto = z.object({
 export type ProspectMergeDto = z.infer<typeof ProspectMergeDto>;
 export const ProspectMergeListDto = z.object({ items: z.array(ProspectMergeDto) });
 export type ProspectMergeListDto = z.infer<typeof ProspectMergeListDto>;
+
+/* ---------- P12-04 privacy: retention policy and data-subject requests ---------- */
+/** Only classes that are safe to purge. Never: audit, consent ledger, suppressions, accepted quotes/sales (legal evidence). */
+export const RETENTION_CLASSES = ["import_jobs", "sessions", "invitations"] as const;
+export const RetentionClass = z.enum(RETENTION_CLASSES);
+export type RetentionClass = z.infer<typeof RetentionClass>;
+export const RetentionPolicyEntry = z.strictObject({ dataClass: RetentionClass, retentionDays: z.number().int().min(30).max(3650) });
+export const SetRetentionRequest = z.strictObject({ policies: z.array(RetentionPolicyEntry).min(1).max(RETENTION_CLASSES.length) });
+export type SetRetentionRequest = z.infer<typeof SetRetentionRequest>;
+export const RetentionPolicyDto = z.object({
+  policies: z.array(z.object({ dataClass: RetentionClass, retentionDays: z.number().int(), updatedBy: z.uuid(), updatedAt: z.iso.datetime() })),
+  /** Classes that can be configured; without an explicit policy nothing is purged. */
+  available: z.array(RetentionClass),
+});
+export type RetentionPolicyDto = z.infer<typeof RetentionPolicyDto>;
+export const RetentionRunRequest = z.strictObject({ dryRun: z.boolean().default(true) });
+export type RetentionRunRequest = z.infer<typeof RetentionRunRequest>;
+export const RetentionRunDto = z.object({
+  dryRun: z.boolean(),
+  ranAt: z.iso.datetime(),
+  classes: z.array(z.object({ dataClass: RetentionClass, retentionDays: z.number().int(), cutoff: z.iso.datetime(), eligible: z.number().int(), deleted: z.number().int() })),
+  /** Classes without a policy: untouched. */
+  skipped: z.array(RetentionClass),
+});
+export type RetentionRunDto = z.infer<typeof RetentionRunDto>;
+
+export const PRIVACY_KINDS = ["access", "restrict", "erase"] as const;
+export const CreatePrivacyRequest = z.strictObject({ contactId: z.uuid(), kind: z.enum(PRIVACY_KINDS) });
+export type CreatePrivacyRequest = z.infer<typeof CreatePrivacyRequest>;
+export const PrivacyNoteRequest = z.strictObject({ note: text(500).min(3) });
+export type PrivacyNoteRequest = z.infer<typeof PrivacyNoteRequest>;
+export const PrivacyListQuery = z.strictObject({ status: z.enum(["open", "completed", "rejected"]).optional() });
+export type PrivacyListQuery = z.infer<typeof PrivacyListQuery>;
+export const PrivacyRequestDto = z.object({
+  id: z.uuid(),
+  contactId: z.uuid(),
+  kind: z.enum(PRIVACY_KINDS),
+  status: z.enum(["open", "completed", "rejected"]),
+  requestedBy: z.uuid(),
+  requestedAt: z.iso.datetime(),
+  /** Informational (30 days by default); nothing happens automatically when it passes. */
+  dueAt: z.iso.datetime(),
+  completedBy: z.uuid().nullable(),
+  completedAt: z.iso.datetime().nullable(),
+  note: z.string().nullable(),
+  /** Only on the response that completes an `access` request: the data package (no secrets). Not stored. */
+  accessPackage: z.record(z.string(), z.unknown()).nullable().optional(),
+});
+export type PrivacyRequestDto = z.infer<typeof PrivacyRequestDto>;
+export const PrivacyRequestListDto = z.object({ items: z.array(PrivacyRequestDto) });
+export type PrivacyRequestListDto = z.infer<typeof PrivacyRequestListDto>;
+
+/* ---------- personalised message drafts (P7-03): content for a human to review, never a send ---------- */
+export const DRAFT_CHANNELS = ["email", "whatsapp"] as const;
+export const DRAFT_STATUSES = ["pending_review", "approved", "rejected"] as const;
+export const DRAFT_LIMITS = { email: { subjectMax: 200, bodyMax: 5000 }, whatsapp: { bodyMax: 1024 } } as const;
+const noNul = (v: string) => !v.includes("\u0000");
+export const CreateDraftRequest = z
+  .strictObject({
+    contactId: z.uuid(),
+    channel: z.enum(DRAFT_CHANNELS),
+    subject: z.string().trim().min(1).max(DRAFT_LIMITS.email.subjectMax).refine(noNul, "NUL is not allowed").optional(),
+    body: z.string().trim().min(1).max(DRAFT_LIMITS.email.bodyMax).refine(noNul, "NUL is not allowed"),
+    evidenceRefs: z.array(z.string().min(1).max(100)).max(20),
+  })
+  .superRefine((v, ctx) => {
+    if (v.channel === "email" && v.subject === undefined) ctx.addIssue({ code: "custom", path: ["subject"], message: "an email draft needs a subject" });
+    if (v.channel === "whatsapp" && v.subject !== undefined) ctx.addIssue({ code: "custom", path: ["subject"], message: "a WhatsApp draft has no subject" });
+    if (v.channel === "whatsapp" && v.body.length > DRAFT_LIMITS.whatsapp.bodyMax) ctx.addIssue({ code: "custom", path: ["body"], message: `a WhatsApp body is at most ${DRAFT_LIMITS.whatsapp.bodyMax} characters` });
+  });
+export type CreateDraftRequest = z.infer<typeof CreateDraftRequest>;
+export const DraftListQuery = z.strictObject({
+  status: z.enum(DRAFT_STATUSES).optional(),
+  contactId: z.uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.uuid().optional(),
+});
+export type DraftListQuery = z.infer<typeof DraftListQuery>;
+export const RejectDraftRequest = z.strictObject({ note: z.string().trim().min(1).max(500).refine(noNul, "NUL is not allowed") });
+export type RejectDraftRequest = z.infer<typeof RejectDraftRequest>;
+export const MessageDraftDto = z.object({
+  id: z.uuid(),
+  contactId: z.uuid(),
+  channel: z.enum(DRAFT_CHANNELS),
+  subject: z.string().nullable(),
+  body: z.string(),
+  evidenceRefs: z.array(z.string()),
+  status: z.enum(DRAFT_STATUSES),
+  authorKind: z.enum(["human", "mcp"]),
+  createdBy: z.uuid(),
+  createdAt: z.iso.datetime(),
+  decidedBy: z.uuid().nullable(),
+  decidedAt: z.iso.datetime().nullable(),
+  decisionNote: z.string().nullable(),
+});
+export type MessageDraftDto = z.infer<typeof MessageDraftDto>;
+export const MessageDraftPageDto = z.object({ items: z.array(MessageDraftDto), nextCursor: z.uuid().nullable() });
+export type MessageDraftPageDto = z.infer<typeof MessageDraftPageDto>;
+const channelEligibility = z.object({ eligible: z.boolean(), reasons: z.array(z.string()) });
+export const OutreachContextDto = z.object({
+  contactId: z.uuid(),
+  channels: z.object({ email: channelEligibility, whatsapp: channelEligibility }),
+  contact: z.object({ displayName: z.string().nullable(), addressMasked: z.string(), channel: z.enum(DRAFT_CHANNELS), source: z.string() }),
+  prospect: z.object({ name: z.string(), industry: z.string().nullable(), country: z.string().nullable(), city: z.string().nullable() }),
+  evidence: z.array(z.object({ ref: z.string(), kind: z.string(), summary: z.string() })),
+  constraints: z.object({
+    email: z.object({ subjectMax: z.number().int(), bodyMax: z.number().int() }),
+    whatsapp: z.object({ bodyMax: z.number().int(), templateOnly: z.boolean(), note: z.string() }),
+  }),
+});
+export type OutreachContextDto = z.infer<typeof OutreachContextDto>;

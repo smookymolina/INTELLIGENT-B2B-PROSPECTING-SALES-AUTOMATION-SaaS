@@ -11,7 +11,7 @@ Fecha: 2026-10-30. **Fuente única del estado vigente**; el historial por bloque
 
 ## Evidencia local vigente
 
-`npm run check` exit 0 · `docker compose config --quiet` exit 0 · `npm run test:int` 398/398 (25 archivos, PostgreSQL 18, migraciones desde cero) · unitarias 45 API + 16 web · `npm run test:e2e` 30 pasos sobre API compilada + Next real. Esto es **local**: el CI remoto nunca se ejecutó.
+`npm run check` exit 0 · `docker compose config --quiet` exit 0 · `npm run test:int` 426/426 (27 archivos, PostgreSQL 18, migraciones desde cero) · unitarias 48 API + 12 MCP + 16 web · `npm run test:e2e` 30 pasos sobre API compilada + Next real. Esto es **local**: el CI remoto nunca se ejecutó.
 
 ## Por fase
 
@@ -36,3 +36,6 @@ Fecha: 2026-10-30. **Fuente única del estado vigente**; el historial por bloque
 Revisión por módulos con agentes y pruebas en vivo (≈154 rutas): sin 500 residuales, aislamiento y permisos correctos, aritmética de cotizaciones exacta. **Sin verificar en vivo** por falta de proveedor: `POST /ai/analyze` (mock) y `dispatch` de campañas (sandbox); sólo cubiertos por pruebas automáticas. **Observaciones abiertas** (decisión de negocio): (resuelta 2026-11-02: `send` responde 409 si la oportunidad no puede pasar a `quote_sent`); el CSV de catálogo acepta nombres que empiezan por `=` (no hay export de catálogo). Esta auditoría no cambia los porcentajes: el avance interno se confirma en la parte alta del rango (≈ 70 %); operable real sigue ≈ 30 %.
 
 Fusión de duplicados de prospectos (P5-02): enlace reversible y no destructivo (`prospect_merges`, triggers contra cadenas/dobles fusiones; listas y exportación ocultan el duplicado; nada se mueve ni se borra). Endpoints `POST /prospects/{id}/merge`, `GET /prospects/{id}/merges`, `POST /prospects/{id}/merges/{mergeId}/revert`.
+
+## Ola de agentes (2026-11-02)
+Nuevo: borradores de mensajes (`/message-drafts`, `/contacts/{id}/outreach-context`; correo y WhatsApp E.164, siempre `pending_review`, sin envío), servidor MCP `apps/mcp` (3 herramientas, contenido de terceros marcado `untrustedData`; 20 pruebas con la API real), privacidad (`/privacy/*`: retención sin plazos por defecto, acceso/restricción/borrado del titular con huella HMAC y borradores redactados), respaldo/restauración (`npm run backup`, `npm run backup:verify`; sin cifrar, sin copia externa, sin Redis). Auditorías Q1 (seguridad) y Q2 (15/15 rutas nuevas en vivo): 4 hallazgos medios corregidos. **Aceptado/pendiente:** el aprobador de un borrador puede ser quien lo creó (usar para el MCP un usuario `campaign_manager`, que no tiene `campaigns:approve`); `x-client-kind` es solo etiqueta; el chequeo de re-alta tras borrado usa una marca de transacción (protege contra descuidos, no contra un `app_runtime` malicioso). WhatsApp no tiene proveedor ni plantillas aprobadas: solo borradores. Porcentajes: interno ≈ 72 % (66–72), operable ≈ 33 % (28–35).

@@ -30,10 +30,10 @@ export async function evaluateContacts(
   organizationId: string,
   campaign: { id: string; min_days_between: number },
   sets: SuppressionSets,
-  opts: { contactIds?: string[]; ignoreOwnAttempts?: boolean } = {},
+  opts: { contactIds?: string[]; ignoreOwnAttempts?: boolean; channel?: "email" | "whatsapp" } = {},
 ): Promise<Map<string, ExclusionReason | null>> {
   const contacts = await tx.contact.findMany({
-    where: { organization_id: organizationId, channel: "email", ...(opts.contactIds ? { id: { in: opts.contactIds } } : {}) },
+    where: { organization_id: organizationId, channel: opts.channel ?? "email", ...(opts.contactIds ? { id: { in: opts.contactIds } } : {}) },
     select: { id: true, status: true, prospect_id: true },
   });
   const ids = contacts.map((c) => c.id);
@@ -53,7 +53,7 @@ export async function evaluateContacts(
   for (const c of contacts) {
     const p = byProspect.get(c.prospect_id);
     let reason: ExclusionReason | null = null;
-    if (c.status === "opted_out") reason = "opted_out";
+    if (c.status === "opted_out" || c.status === "restricted" || c.status === "erased") reason = "opted_out"; // restricted/erased: do-not-contact, reported under the same reason
     else if (c.status === "bounced") reason = "bounced";
     else if (consent.get(c.id)?.event !== "granted") reason = "no_consent";
     else if (!p || p.status === "disqualified" || prospectDto(p, sets).suppressed) reason = "suppressed";

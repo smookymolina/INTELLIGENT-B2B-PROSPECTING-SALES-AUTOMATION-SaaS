@@ -79,7 +79,7 @@ export const OPERATIONS: readonly Operation[] = [
     body: C.SetAiBudgetRequest, success: { status: 200, schema: C.AiUsageDto, description: "Usage with the new limit" }, errors: [400, 401, 403],
   },
   {
-    method: "post", path: "/prospects/{id}/contacts", id: "addContact", summary: "Add an email contact to a prospect (source required; no consent is implied)", tag: "Campaigns", permission: "prospects:manage",
+    method: "post", path: "/prospects/{id}/contacts", id: "addContact", summary: "Add an email (default) or WhatsApp (E.164) contact to a prospect; a contact has one channel (source required; no consent is implied)", tag: "Campaigns", permission: "prospects:manage",
     pathParams: ["id"], body: C.AddContactRequest, success: { status: 201, schema: C.ContactDto, description: "Created" }, errors: [400, 401, 403, 404, 409],
   },
   {
@@ -589,8 +589,68 @@ export const OPERATIONS: readonly Operation[] = [
     body: C.AcceptInvitationRequest, success: { status: 200, schema: C.AcceptedInvitationDto, description: "Membership created (or already present)" }, errors: [400, 401, 404],
   },
   {
+    method: "put", path: "/privacy/retention", id: "setRetention", summary: "Set per-class retention days (org_admin). No default: without a policy nothing is purged", tag: "Privacy", permission: "privacy:manage",
+    body: C.SetRetentionRequest, success: { status: 200, schema: C.RetentionPolicyDto, description: "Policies" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/privacy/retention", id: "getRetention", summary: "Current retention policies", tag: "Privacy", permission: "privacy:manage",
+    success: { status: 200, schema: C.RetentionPolicyDto, description: "Policies" }, errors: [401, 403],
+  },
+  {
+    method: "post", path: "/privacy/retention/run", id: "runRetention", summary: "Purge expired rows of the classes that have a policy; dryRun (default) only reports", tag: "Privacy", permission: "privacy:manage",
+    body: C.RetentionRunRequest, success: { status: 200, schema: C.RetentionRunDto, description: "Report" }, errors: [400, 401, 403],
+  },
+  {
+    method: "post", path: "/privacy/requests", id: "createPrivacyRequest", summary: "Open a data-subject request (access, restrict, erase) about a contact", tag: "Privacy", permission: "privacy:manage",
+    body: C.CreatePrivacyRequest, success: { status: 201, schema: C.PrivacyRequestDto, description: "Created" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/privacy/requests", id: "listPrivacyRequests", summary: "Data-subject requests, newest first", tag: "Privacy", permission: "privacy:manage",
+    query: C.PrivacyListQuery, success: { status: 200, schema: C.PrivacyRequestListDto, description: "Requests" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/privacy/requests/{id}", id: "getPrivacyRequest", summary: "One data-subject request", tag: "Privacy", permission: "privacy:manage",
+    pathParams: ["id"], success: { status: 200, schema: C.PrivacyRequestDto, description: "Request" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/privacy/requests/{id}/complete", id: "completePrivacyRequest", summary: "Apply the request atomically: access returns the package, restrict blocks all sending, erase anonymizes irreversibly. 409 if not open", tag: "Privacy", permission: "privacy:manage",
+    pathParams: ["id"], success: { status: 200, schema: C.PrivacyRequestDto, description: "Completed" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/privacy/requests/{id}/reject", id: "rejectPrivacyRequest", summary: "Reject an open request with a reason", tag: "Privacy", permission: "privacy:manage",
+    pathParams: ["id"], body: C.PrivacyNoteRequest, success: { status: 200, schema: C.PrivacyRequestDto, description: "Rejected" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/privacy/contacts/{id}/lift-restriction", id: "liftContactRestriction", summary: "Lift a restriction (org_admin, audited with its reason); erased contacts can never be restored", tag: "Privacy", permission: "privacy:manage",
+    pathParams: ["id"], body: C.PrivacyNoteRequest, success: { status: 200, schema: C.ContactDto, description: "Contact" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
     method: "get", path: "/audit-events", id: "listAuditEvents", summary: "Most recent audit events of the caller's organization", tag: "Audit", permission: "audit:read",
     query: C.AuditQuery, success: { status: 200, schema: z.array(C.AuditEventDto), description: "Events" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/contacts/{id}/outreach-context", id: "getOutreachContext", summary: "What a drafter may use for one contact: per-channel eligibility, masked contact, prospect basics, approved evidence and length limits (no internal notes)", tag: "Drafts", permission: "campaigns:read",
+    pathParams: ["id"], success: { status: 200, schema: C.OutreachContextDto, description: "Context" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/message-drafts", id: "createMessageDraft", summary: "Create a personalised email or WhatsApp-template draft for human review (needs an eligible contact and approved evidence; never sends)", tag: "Drafts", permission: "campaigns:manage",
+    body: C.CreateDraftRequest, success: { status: 201, schema: C.MessageDraftDto, description: "Created, pending review" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/message-drafts", id: "listMessageDrafts", summary: "Drafts (keyset by id), filterable by status and contact", tag: "Drafts", permission: "campaigns:read",
+    query: C.DraftListQuery, success: { status: 200, schema: C.MessageDraftPageDto, description: "Page" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/message-drafts/{id}", id: "getMessageDraft", summary: "One draft", tag: "Drafts", permission: "campaigns:read",
+    pathParams: ["id"], success: { status: 200, schema: C.MessageDraftDto, description: "Draft" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/message-drafts/{id}/approve", id: "approveMessageDraft", summary: "Approve a pending draft (re-checks eligibility; org_admin, sales_manager). Approving never sends", tag: "Drafts", permission: "campaigns:approve",
+    pathParams: ["id"], success: { status: 200, schema: C.MessageDraftDto, description: "Approved" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/message-drafts/{id}/reject", id: "rejectMessageDraft", summary: "Reject a pending draft with a note", tag: "Drafts", permission: "campaigns:approve",
+    pathParams: ["id"], body: C.RejectDraftRequest, success: { status: 200, schema: C.MessageDraftDto, description: "Rejected" }, errors: [400, 401, 403, 404, 409],
   },
 ];
 
