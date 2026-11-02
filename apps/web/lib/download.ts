@@ -33,3 +33,22 @@ export async function proxyCsv(request: Request, apiPath: string, allowed: reado
   }
   return new Response(res.body, { status: 200, headers });
 }
+
+/** Streams one API PDF (quote) through the BFF: same-site navigation only, session required, never cached, no query forwarded. */
+export async function proxyPdf(request: Request, apiPath: string): Promise<Response> {
+  if (!sameSiteNavigation(request.headers)) return new Response("Forbidden", { status: 403 });
+  const token = await readSessionToken();
+  if (!token) return see("/login?error=expired");
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase()}${apiPath}`, { cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(30_000), headers: { authorization: `Bearer ${token}`, accept: "application/pdf" } });
+  } catch {
+    return new Response("Service unavailable", { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+  if (res.status === 401) return see("/login?error=expired");
+  if (!res.ok) return new Response("The document could not be created", { status: res.status === 403 ? 403 : res.status === 404 ? 404 : 502, headers: { "Cache-Control": "no-store" } });
+  const headers = new Headers({ "Content-Type": "application/pdf", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
+  const disposition = res.headers.get("content-disposition");
+  headers.set("Content-Disposition", disposition && /^attachment/i.test(disposition) ? disposition : 'attachment; filename="cotizacion.pdf"');
+  return new Response(res.body, { status: 200, headers });
+}

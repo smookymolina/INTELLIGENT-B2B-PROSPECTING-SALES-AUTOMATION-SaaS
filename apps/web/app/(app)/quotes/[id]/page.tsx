@@ -24,6 +24,7 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
       <p><Link href={`/pipeline/${q.opportunityId}`}>← Oportunidad</Link></p>
       <h1>Cotización {q.label} <span className={`badge ${q.status === "accepted" ? "approved" : q.status === "draft" ? "draft" : "archived"}`}>{STATUS[q.status]}</span></h1>
       <Flash sp={sp} />
+      <p><a href={`/export/quotes/${q.id}/pdf`} download>Descargar PDF</a> <span className="hint">(cotización {q.label}; los importes se calculan en el servidor)</span></p>
       <p>Moneda <strong>{q.currency}</strong> · vigente hasta {q.validUntil ?? "sin fecha"} · impuesto {q.taxRate ? `${q.taxRate} %` : "ninguno"}{q.sentAt ? ` · enviada ${formatDate(q.sentAt)}` : ""}</p>
       {q.notes ? <p className="hint">Condiciones: {q.notes}</p> : null}
       {draft && q.requiresDiscountApproval ? <p role="alert" className="notice error">{q.discountApproved ? "Descuentos aprobados." : "Hay descuentos sobre el límite: un administrador debe aprobarlos antes de enviar."}</p> : null}

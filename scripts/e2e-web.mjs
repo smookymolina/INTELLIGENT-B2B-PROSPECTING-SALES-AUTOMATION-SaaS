@@ -487,7 +487,8 @@ try {
 
     const made = await post("/actions/quotes/create", { opportunityId: session.oppId, priceListId: listId, taxRate: "16" }, seller.cookie);
     const qid = /^\/quotes\/([0-9a-f-]{36})\?ok=quote$/.exec(where(made))?.[1];
-    assert.ok(qid, `unexpected redirect ${where(made)}`);
+    session.qid = qid;
+    assert.ok(qid,`unexpected redirect ${where(made)}`);
     assert.equal(where(await post(`/actions/quotes/${qid}/line`, { sku: draftSku, quantity: "1" }, seller.cookie)), `/quotes/${qid}?error=conflict`); // no approved evidence
     assert.equal(where(await post(`/actions/quotes/${qid}/line`, { sku: itemSku, quantity: "0" }, seller.cookie)), `/quotes/${qid}?error=input`);
     assert.equal(where(await post(`/actions/quotes/${qid}/line`, { sku: itemSku, quantity: "2" }, seller.cookie)), `/quotes/${qid}?ok=lineadded`);
@@ -779,6 +780,94 @@ try {
 
     assert.match(await html(await get("/campaigns", session.seller.cookie)), /no tiene acceso a las campañas/);
     assert.ok(!(await html(await get("/", session.seller.cookie))).includes('href="/campaigns"'));
+  });
+
+  await step("W-08: the quote PDF is streamed through the BFF (same origin, no-store) and needs a session", async () => {
+    const link = `/export/quotes/${session.qid}/pdf`;
+    assert.ok((await html(await get(`/quotes/${session.qid}`, session.pair))).includes(`href="${link}"`), "the quote page offers the download");
+    const res = await get(link, session.pair);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-type"), "application/pdf");
+    assert.match(res.headers.get("cache-control") ?? "", /no-store/);
+    assert.match(res.headers.get("content-disposition") ?? "", /^attachment/);
+    assert.equal(res.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(Buffer.from(await res.arrayBuffer()).subarray(0, 5).toString("latin1"), "%PDF-");
+    const anon = await get(link);
+    assert.match(anon.headers.get("location") ?? "", /\/login\?error=expired$/);
+    assert.equal((await fetch(WEB + link, { redirect: "manual", headers: { cookie: session.pair, "sec-fetch-site": "cross-site" } })).status, 403);
+    assert.equal((await get("/export/quotes/not-an-id/pdf", session.pair)).status, 404);
+    assert.equal((await get(`/export/quotes/${randomUUID()}/pdf`, session.pair)).status, 404);
+  });
+
+  await step("W-09: duplicates are hidden behind a survivor, listed with history, chains are refused and the merge can be undone", async () => {
+    const mk = async (name) => (await api("POST", "/prospects", session.token, { name, domain: "dup-" + randomUUID().slice(0, 6) + ".example" })).body;
+    const [a, b, c] = [await mk("Superviviente Dup"), await mk("Duplicado Oculto"), await mk("Tercero Dup")];
+    const back = (x) => "/prospects/" + x.id;
+    let page = await html(await get(back(a), session.pair));
+    assert.ok(page.includes("Duplicados") && page.includes("Sin fusiones registradas") && page.includes("Duplicado Oculto"));
+    assert.equal(where(await post(`/actions/prospects/${a.id}/merge`, { duplicateId: b.id, reason: "" }, session.pair)), back(a) + "?error=input");
+    assert.equal(where(await post(`/actions/prospects/${a.id}/merge`, { duplicateId: a.id, reason: "mismo" }, session.pair)), back(a) + "?error=mergeself");
+    assert.equal(where(await post(`/actions/prospects/${a.id}/merge`, { duplicateId: b.id, reason: "Mismo dominio y razón social" }, session.pair)), back(a) + "?ok=merged");
+    page = await html(await get(back(a), session.pair));
+    assert.ok(page.includes("Mismo dominio y razón social") && page.includes("Sobreviviente") && page.includes("Deshacer"));
+    const dup = await html(await get(back(b), session.pair));
+    assert.ok(dup.includes("duplicado oculto") && dup.includes(`href="${back(a)}"`), "the hidden duplicate links to its survivor");
+    assert.equal(where(await post(`/actions/prospects/${a.id}/merge`, { duplicateId: b.id, reason: "otra vez" }, session.pair)), back(a) + "?error=mergeduplicate");
+    assert.equal(where(await post(`/actions/prospects/${c.id}/merge`, { duplicateId: a.id, reason: "cadena" }, session.pair)), back(c) + "?error=mergechain");
+    assert.match(await html(await get(back(c) + "?error=mergechain", session.pair)), /cadenas de fusión/);
+    const viewer = await inviteAndLogin("viewer");
+    const vpage = await html(await get(back(a), viewer.cookie));
+    assert.ok(vpage.includes("Duplicados") && !vpage.includes("Ocultar duplicado") && !vpage.includes("/revert"));
+    const mergeId = (await api("GET", `/prospects/${a.id}/merges`, session.token)).body.items[0].id;
+    assert.equal(where(await post(`/actions/prospects/${a.id}/merge`, { duplicateId: c.id, reason: "forzada" }, viewer.cookie)), back(a) + "?error=forbidden");
+    assert.equal(where(await post(`/actions/prospects/${a.id}/revert`, { mergeId }, viewer.cookie)), back(a) + "?error=forbidden");
+    assert.equal((await post(`/actions/prospects/${a.id}/explode`, {}, session.pair)).status, 404);
+    assert.equal(where(await post(`/actions/prospects/${a.id}/revert`, { mergeId: "nope" }, session.pair)), back(a) + "?error=input");
+    assert.equal(where(await post(`/actions/prospects/${a.id}/revert`, { mergeId }, session.pair)), back(a) + "?ok=mergereverted");
+    assert.equal(where(await post(`/actions/prospects/${a.id}/revert`, { mergeId }, session.pair)), back(a) + "?error=mergereverted");
+    assert.ok(!(await html(await get(back(b), session.pair))).includes("duplicado oculto"), "after the undo the duplicate is a normal prospect again");
+  });
+
+  await step("W-10: manual message drafts are reviewed by an approver; nothing is sent; a viewer is blocked", async () => {
+    const p = (await api("POST", "/prospects", session.token, { name: "Borrador Co", domain: "borrador-" + randomUUID().slice(0, 6) + ".example" })).body;
+    assert.equal(where(await post("/actions/contacts/add", { prospectId: p.id, address: "ventas@" + p.domain, source: "Formulario web 2026-09-01" }, session.pair)), "/prospects/" + p.id + "?ok=contactadded");
+    const cid = (await api("GET", "/prospects/" + p.id + "/contacts", session.token)).body.items[0].id;
+    const when = new Date(Date.now() - 3_600_000).toISOString().slice(0, 16);
+    await post("/actions/contacts/" + cid + "/consent", { prospectId: p.id, event: "granted", evidence: "Casilla marcada en el formulario", occurredAt: when }, session.pair);
+    assert.ok((await html(await get("/prospects/" + p.id, session.pair))).includes(`href="/drafts/new?contactId=${cid}"`), "each contact links to Preparar mensaje");
+    const ctx = await html(await get(`/drafts/new?contactId=${cid}`, session.pair));
+    assert.ok(ctx.includes("Elegibilidad por canal") && ctx.includes("enmascarada") && ctx.includes("se envía automáticamente") && ctx.includes("sólo borrador"));
+    assert.ok(!ctx.includes("ventas@" + p.domain), "the address is masked");
+    assert.equal((await get(`/drafts/new?contactId=${randomUUID()}`, session.pair)).status, 404);
+    assert.equal((await get("/drafts/new?contactId=zzz", session.pair)).status, 404);
+    assert.equal(where(await post("/actions/drafts/create", { contactId: cid, channel: "email", subject: "", body: "Hola" }, session.pair)), `/drafts/new?contactId=${cid}&error=input`);
+    assert.equal(where(await post("/actions/drafts/create", { contactId: cid, channel: "fax", subject: "x", body: "Hola" }, session.pair)), `/drafts/new?contactId=${cid}&error=input`);
+    const made = await post("/actions/drafts/create", { contactId: cid, channel: "email", subject: "Propuesta E2E", body: "Hola, ¿platicamos de logística?" }, session.pair);
+    const did = /^\/drafts\/([0-9a-f-]{36})\?ok=draftcreated$/.exec(where(made) ?? "")?.[1];
+    assert.ok(did, "unexpected redirect " + where(made));
+    let page = await html(await get("/drafts", session.pair));
+    assert.ok(page.includes("Propuesta E2E") && page.includes("Pendiente de revisión") && page.includes(`href="/drafts/${did}"`));
+    assert.ok(!(await html(await get("/drafts?state=approved", session.pair))).includes("Propuesta E2E"));
+    page = await html(await get(`/drafts/${did}`, session.pair));
+    assert.ok(page.includes("Persona") && page.includes("Propuesta E2E") && page.includes("no se envía automáticamente") && page.includes("Aprobar") && page.includes("Rechazar"));
+    const viewer = await inviteAndLogin("viewer");
+    assert.ok(!(await html(await get(`/drafts/${did}`, viewer.cookie))).includes("Aprobar"));
+    assert.ok(!(await html(await get(`/drafts/new?contactId=${cid}`, viewer.cookie))).includes("Crear borrador para revisión"));
+    assert.equal(where(await post(`/actions/drafts/${did}/approve`, {}, viewer.cookie)), `/drafts/${did}?error=forbidden`);
+    assert.equal(where(await post(`/actions/drafts/${did}/reject`, { note: "x" }, viewer.cookie)), `/drafts/${did}?error=forbidden`);
+    assert.equal(where(await post("/actions/drafts/create", { contactId: cid, channel: "email", subject: "s", body: "b" }, viewer.cookie)), `/drafts/new?contactId=${cid}&error=forbidden`);
+    assert.equal((await post(`/actions/drafts/${did}/send`, {}, session.pair)).status, 404, "there is no send operation");
+    assert.equal(where(await post(`/actions/drafts/${did}/reject`, { note: "" }, session.pair)), `/drafts/${did}?error=input`);
+    assert.equal(where(await post(`/actions/drafts/${did}/reject`, { note: "Falta personalizar" }, session.pair)), `/drafts/${did}?ok=draftrejected`);
+    page = await html(await get(`/drafts/${did}`, session.pair));
+    assert.ok(page.includes("Rechazado") && page.includes("Falta personalizar") && !page.includes("Nota del rechazo"));
+    assert.equal(where(await post(`/actions/drafts/${did}/approve`, {}, session.pair)), `/drafts/${did}?error=draftineligible`);
+    const m2 = await post("/actions/drafts/create", { contactId: cid, channel: "email", subject: "Segundo", body: "Cuerpo dos" }, session.pair);
+    const did2 = /^\/drafts\/([0-9a-f-]{36})\?ok=draftcreated$/.exec(where(m2) ?? "")?.[1];
+    assert.equal(where(await post(`/actions/drafts/${did2}/approve`, {}, session.pair)), `/drafts/${did2}?ok=draftapproved`);
+    assert.equal((await api("GET", `/message-drafts/${did2}`, session.token)).body.status, "approved");
+    assert.ok((await html(await get("/drafts?state=approved", session.pair))).includes("Segundo"));
+    assert.ok((await html(await get("/", session.pair))).includes('href="/drafts"'));
   });
 
   await step("wrong passwords show a generic error and the account throttle kicks in", async () => {

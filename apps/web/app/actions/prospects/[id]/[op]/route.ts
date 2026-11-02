@@ -1,8 +1,9 @@
 import { actionContext, failureCode, isResponse, orNull, redirectWith, text } from "../../../../../lib/actions";
 import { api } from "../../../../../lib/api";
+import { mergeFailureCode } from "../../../../../lib/outreach";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const OPS = new Set(["update", "status", "attribute", "decision", "score", "reply"]);
+const OPS = new Set(["update", "status", "attribute", "decision", "score", "reply", "merge", "revert"]);
 
 /** Closed set of operations on one prospect; anything else is a 404 so URLs cannot reach other API routes. */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; op: string }> }): Promise<Response> {
@@ -14,6 +15,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const f = ctx.form;
   const token = ctx.token;
 
+  if (op === "merge" || op === "revert") {
+    const other = text(f, op === "merge" ? "duplicateId" : "mergeId", 36);
+    if (!UUID.test(other)) return redirectWith(back, "error", "input");
+    const done = op === "merge"
+      ? await api(`/prospects/${id}/merge`, { method: "POST", token, body: { duplicateId: other, reason: text(f, "reason", 200) } })
+      : await api(`/prospects/${id}/merges/${other}/revert`, { method: "POST", token });
+    return done.ok ? redirectWith(back, "ok", op === "merge" ? "merged" : "mergereverted") : redirectWith(back, "error", mergeFailureCode(done));
+  }
   let result;
   let ok = "updated";
   if (op === "status") {

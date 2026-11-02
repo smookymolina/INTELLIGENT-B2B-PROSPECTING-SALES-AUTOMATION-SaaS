@@ -23,3 +23,12 @@ Sin pruebas de componentes ni de navegador real todavía (W-07); el E2E actual v
 
 ## Nota de orden (2026-11-02)
 La interfaz web se ejecuta **al final** del proyecto, tras cerrar y auditar el backend. W-07 restante (auditoría a11y en navegador real, Playwright) y cualquier módulo nuevo de UI (p. ej. descarga del PDF de cotización) quedan diferidos a esa etapa.
+
+## Etapa de interfaz (2026-11-02)
+| Id | Alcance | Estado | Evidencia |
+|---|---|---|---|
+| W-08 | Descarga del PDF de cotización | COMPLETED | `/export/quotes/[id]/pdf` (BFF, mismo origen); E2E |
+| W-09 | Fusión de duplicados en la ficha (historial, ocultar, deshacer, aviso en el duplicado) | COMPLETED | E2E admin + viewer forzado |
+| W-10 | Borradores: `/drafts`, detalle, aprobar/rechazar, «Preparar mensaje» con contexto y borrador manual | COMPLETED | E2E 33 pasos; unitarias web 20 |
+| W-11 | Privacidad (retención y derechos del titular) | PENDING | siguiente bloque |
+| W-07 | Auditoría de accesibilidad en navegador real, Playwright | PENDING | requiere instalar Playwright/navegador |

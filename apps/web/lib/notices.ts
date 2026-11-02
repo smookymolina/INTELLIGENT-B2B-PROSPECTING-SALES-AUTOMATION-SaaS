@@ -60,6 +60,11 @@ export const OK: Record<string, string> = {
   rolechanged: "Rol actualizado.",
   revoked: "Invitación revocada.",
   inviteaccepted: "Invitación aceptada: ya perteneces a esa organización y puedes cambiar a ella desde el encabezado.",
+  merged: "Duplicado oculto detrás de este prospecto. Nada se borró y puedes deshacerlo.",
+  mergereverted: "Fusión deshecha: el duplicado volvió a aparecer sin cambios.",
+  draftcreated: "Borrador creado y pendiente de revisión. No se envió nada.",
+  draftapproved: "Borrador aprobado. Aprobarlo no lo envía.",
+  draftrejected: "Borrador rechazado con tu nota.",
   switched: "Cambiaste de organización.",
 };
 export const ERR: Record<string, string> = {
@@ -72,6 +77,11 @@ export const ERR: Record<string, string> = {
   forbidden: "Tu rol no permite esta acción.",
   notfound: "No se encontró el elemento.",
   conflict: "El estado actual no permite esta acción (por ejemplo, no hay borrador abierto o el SKU ya existe).",
+  mergechain: "No se permiten cadenas de fusión: deshaz primero la fusión existente de alguno de los dos prospectos.",
+  mergeduplicate: "Ese prospecto ya está fusionado detrás de otro. Deshaz esa fusión primero.",
+  mergereverted: "Esa fusión ya se había deshecho.",
+  mergeself: "Un prospecto no puede fusionarse consigo mismo.",
+  draftineligible: "El contacto no es elegible para ese canal o el borrador ya no está pendiente.",
   expired: "Tu sesión expiró. Inicia sesión de nuevo.",
   rate: "Demasiadas solicitudes. Intenta en unos minutos.",
   toolarge: "El contenido es demasiado grande.",

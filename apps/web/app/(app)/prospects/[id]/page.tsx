@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { AttributeListDto, ContactListDto, IntentAssessmentListDto, ProspectDetailDto, ProspectScoreDto } from "@prospecting/contracts";
+import type { AttributeListDto, ContactListDto, IntentAssessmentListDto, ProspectDetailDto, ProspectMergeListDto, ProspectPageDto, ProspectScoreDto } from "@prospecting/contracts";
 import { api } from "../../../../lib/api";
 import { requireSession } from "../../../../lib/auth";
 import { formatDate } from "../../../../lib/format";
@@ -29,16 +29,25 @@ export default async function ProspectPage({ params, searchParams }: { params: P
   const manage = me.permissions.includes("prospects:manage");
   const canContacts = me.permissions.includes("campaigns:read");
   const contacts = canContacts ? await api<ContactListDto>(`/prospects/${id}/contacts`, { token }) : null;
-  const [attrs, score, replies] = await Promise.all([
+  const [merges, attrs, score, replies] = await Promise.all([
+    api<ProspectMergeListDto>(`/prospects/${id}/merges`, { token }),
     api<AttributeListDto>(`/prospects/${id}/attributes`, { token }),
     api<ProspectScoreDto>(`/prospects/${id}/score`, { token }),
     api<IntentAssessmentListDto>(`/prospects/${id}/replies`, { token }),
   ]);
+  const mergeItems = merges.ok ? merges.data.items : [];
+  const hiddenBehind = mergeItems.find((m) => m.duplicateId === id && m.revertedAt === null) ?? null;
+  const absorbed = new Set(mergeItems.filter((m) => m.survivorId === id && m.revertedAt === null).map((m) => m.duplicateId));
+  const canMerge = manage && hiddenBehind === null;
+  const others = canMerge ? await api<ProspectPageDto>("/prospects?limit=100", { token }) : null;
+  const candidates = others?.ok ? others.data.items.filter((o) => o.id !== id && !absorbed.has(o.id)) : [];
+  const nameOf = new Map(candidates.map((o) => [o.id, o.name]));
   return (
     <>
       <p><Link href="/prospects">← Prospectos</Link></p>
       <h1>{p.name} <span className={`badge ${p.status === "qualified" ? "approved" : p.status === "candidate" ? "draft" : "archived"}`}>{LABELS[p.status]}</span></h1>
       <Flash sp={sp} />
+      {hiddenBehind ? <p role="alert" className="notice error">Este prospecto es un duplicado oculto: está fusionado detrás de <Link href={`/prospects/${hiddenBehind.survivorId}`}>otro prospecto (el sobreviviente)</Link>. {manage ? "Puedes deshacer la fusión desde la sección «Duplicados» de esa ficha." : ""}</p> : null}
       {p.suppressed ? <p role="alert" className="notice error">Está en la lista de no contactar: no puede calificarse ni usarse en campañas.</p> : null}
       <p className="hint">Permiso de contacto: <strong>ninguno</strong>. Calificar un prospecto no concede permiso para contactarlo.</p>
       <dl>
@@ -126,10 +135,11 @@ export default async function ProspectPage({ params, searchParams }: { params: P
             <div className="table-wrap">
               <table>
                 <caption className="sr">Contactos</caption>
-                <thead><tr><th scope="col">Correo</th><th scope="col">Origen</th><th scope="col">Estado</th><th scope="col">Consentimiento</th>{manage ? <th scope="col">Registrar</th> : null}</tr></thead>
+                <thead><tr><th scope="col">Mensaje</th><th scope="col">Correo</th><th scope="col">Origen</th><th scope="col">Estado</th><th scope="col">Consentimiento</th>{manage ? <th scope="col">Registrar</th> : null}</tr></thead>
                 <tbody>
                   {contacts.data.items.map((c) => (
                     <tr key={c.id}>
+                      <td><Link href={`/drafts/new?contactId=${c.id}`}>Preparar mensaje</Link></td>
                       <td>{c.address}{c.displayName ? ` (${c.displayName})` : ""}</td><td>{c.source}</td><td>{CONTACT_STATUS[c.status]}</td>
                       <td>{CONSENT[c.consent]}{c.consentAt ? ` · ${formatDate(c.consentAt)}` : ""}</td>
                       {manage ? (
@@ -161,6 +171,52 @@ export default async function ProspectPage({ params, searchParams }: { params: P
             </form>
           ) : null}
         </>
+      ) : null}
+
+      <h2 id="duplicados">Duplicados</h2>
+      <p className="hint">Ocultar un duplicado detrás de este prospecto no borra ni mueve nada y se puede deshacer. No se permiten cadenas: un prospecto oculto no puede ser sobreviviente ni fusionarse otra vez.</p>
+      {mergeItems.length === 0 ? <p className="empty">Sin fusiones registradas.</p> : (
+        <div className="table-wrap">
+          <table>
+            <caption className="sr">Historial de fusiones</caption>
+            <thead><tr><th scope="col">Fecha</th><th scope="col">Rol de esta ficha</th><th scope="col">Otro prospecto</th><th scope="col">Razón</th><th scope="col">Estado</th>{manage ? <th scope="col">Acción</th> : null}</tr></thead>
+            <tbody>
+              {mergeItems.map((m) => {
+                const survivor = m.survivorId === id;
+                const otherId = survivor ? m.duplicateId : m.survivorId;
+                return (
+                  <tr key={m.id}>
+                    <td>{formatDate(m.mergedAt)}</td><td>{survivor ? "Sobreviviente" : "Duplicado oculto"}</td>
+                    <td><Link href={`/prospects/${otherId}`}>{nameOf.get(otherId) ?? `${otherId.slice(0, 8)}…`}</Link></td><td>{m.reason}</td>
+                    <td>{m.revertedAt ? `Deshecha ${formatDate(m.revertedAt)}` : "Activa"}</td>
+                    {manage ? (
+                      <td>
+                        {m.revertedAt ? "—" : (
+                          <form method="post" action={`/actions/prospects/${p.id}/revert`} className="inline-form">
+                            <input type="hidden" name="mergeId" value={m.id} />
+                            <button type="submit" className="secondary">Deshacer<span className="sr"> fusión del {formatDate(m.mergedAt)}</span></button>
+                          </form>
+                        )}
+                      </td>
+                    ) : null}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {canMerge ? (
+        candidates.length === 0 ? <p className="empty">No hay otros prospectos disponibles para ocultar.</p> : (
+          <form method="post" action={`/actions/prospects/${p.id}/merge`} className="inline" aria-label="Ocultar un duplicado">
+            <label>Prospecto duplicado a ocultar<select name="duplicateId" required defaultValue="">
+              <option value="" disabled>Elige un prospecto</option>
+              {candidates.map((o) => <option key={o.id} value={o.id}>{o.name}{o.domain ? ` (${o.domain})` : ""}</option>)}
+            </select></label>
+            <label>Razón (obligatoria)<input name="reason" required minLength={3} maxLength={200} /></label>
+            <button type="submit">Ocultar duplicado</button>
+          </form>
+        )
       ) : null}
 
       {manage ? (
