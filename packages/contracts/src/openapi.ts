@@ -509,6 +509,10 @@ export const OPERATIONS: readonly Operation[] = [
     pathParams: ["id"], success: { status: 200, schema: C.QuoteDetailDto, description: "Quote" }, errors: [400, 401, 403, 404],
   },
   {
+    method: "get", path: "/quotes/{id}/pdf", id: "downloadQuotePdf", summary: "PDF of the quote (server-computed amounts, no-store, audited)", tag: "Quotes", permission: "quotes:read",
+    pathParams: ["id"], success: { status: 200, description: "application/pdf attachment" }, errors: [400, 401, 403, 404],
+  },
+  {
     method: "patch", path: "/quotes/{id}", id: "updateQuote", summary: "Edit validity, tax rate or notes of a draft", tag: "Quotes", permission: "quotes:manage",
     pathParams: ["id"], body: C.UpdateQuoteRequest, success: { status: 200, schema: C.QuoteDetailDto, description: "Quote" }, errors: [400, 401, 403, 404, 409],
   },

@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post, Put, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post, Put, Query, Res, StreamableFile } from "@nestjs/common";
+import type { Response } from "express";
 import {
   AddQuoteLineRequest,
   CreateQuoteRequest,
@@ -53,6 +54,17 @@ export class QuotesController {
   @RequirePermission("quotes:read")
   get(@Auth() auth: AuthContext, @Param("id", id()) qid: string): Promise<QuoteDetailDto> {
     return this.quotes.get(auth, qid);
+  }
+
+  @Get(":id/pdf")
+  @RequirePermission("quotes:read")
+  async pdf(@Auth() auth: AuthContext, @Param("id", id()) qid: string, @Res({ passthrough: true }) res: Response): Promise<StreamableFile> {
+    const { filename, body } = await this.quotes.pdf(auth, qid);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    return new StreamableFile(body);
   }
 
   @Patch(":id")

@@ -14,6 +14,7 @@ import type {
   SetQuoteSettingsRequest,
   UpdateQuoteRequest,
 } from "@prospecting/contracts";
+import { renderQuotePdf } from "./quote-pdf.js";
 import { AuditService } from "../audit/audit.service.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import { EvidenceService } from "../catalog/evidence.service.js";
@@ -108,6 +109,16 @@ export class QuotesService {
 
   get(auth: AuthContext, id: string): Promise<QuoteDetailDto> {
     return this.db.withTenant(auth, (tx) => this.load(tx, auth, id));
+  }
+
+  /** PDF de lectura de una cotización ya cargada (misma visibilidad RLS que `get`); la descarga queda auditada. */
+  pdf(auth: AuthContext, id: string): Promise<{ filename: string; body: Buffer }> {
+    return this.db.withTenant(auth, async (tx) => {
+      const q = await this.load(tx, auth, id);
+      const org = await tx.organization.findFirstOrThrow({ where: { id: auth.organizationId }, select: { name: true } });
+      await this.audit.record(tx, auth, { action: "quote.pdf_downloaded", resourceType: "quote", resourceId: id, metadata: { number: q.number } });
+      return { filename: `cotizacion-${q.number}.pdf`, body: renderQuotePdf(q, org.name) };
+    });
   }
 
   create(auth: AuthContext, input: CreateQuoteRequest): Promise<QuoteDetailDto> {

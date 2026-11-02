@@ -325,6 +325,30 @@ describe("decisions and sales", () => {
   });
 });
 
+describe("quote PDF", () => {
+  it("downloads a PDF with the server-computed totals, is audited, and is invisible across tenants", async () => {
+    const a = await register("pdf");
+    const w = await world(a);
+    const q = (await newQuote(a.token, w, { taxRate: "16" })).body.id as string;
+    await addLine(a.token, q, w.big.sku, "10", "12.5");
+    const base = await api.app.getUrl();
+    const res = await fetch(`${base}/v1/quotes/${q}/pdf`, { headers: { authorization: `Bearer ${a.token}` } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("application/pdf");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const text = Buffer.from(await res.arrayBuffer()).toString("latin1");
+    expect(text.startsWith("%PDF-1.4")).toBe(true);
+    expect(text).toContain("875.0000"); // total de la línea calculado por el servidor
+    const audit = await owner.query("SELECT count(*)::int AS n FROM audit_events WHERE organization_id = $1 AND action = 'quote.pdf_downloaded' AND resource_id = $2", [a.orgId, q]);
+    expect(audit.rows[0].n).toBe(1);
+
+    const other = await register("pdf-other");
+    const foreign = await fetch(`${base}/v1/quotes/${q}/pdf`, { headers: { authorization: `Bearer ${other.token}` } });
+    expect(foreign.status).toBe(404);
+    expect((await fetch(`${base}/v1/quotes/${q}/pdf`)).status).toBe(401);
+  });
+});
+
 describe("sellers", () => {
   it("quote only their own opportunities and cannot approve discounts or change the limit", async () => {
     const a = await register("seller");

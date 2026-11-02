@@ -11,11 +11,11 @@ Fecha: 2026-10-30. **Fuente única del estado vigente**; el historial por bloque
 
 ## Evidencia local vigente
 
-`npm run check` exit 0 · `docker compose config --quiet` exit 0 · `npm run test:int` 393/393 (24 archivos, PostgreSQL 18, migraciones desde cero) · unitarias 36 API + 16 web · `npm run test:e2e` 30 pasos sobre API compilada + Next real. Esto es **local**: el CI remoto nunca se ejecutó.
+`npm run check` exit 0 · `docker compose config --quiet` exit 0 · `npm run test:int` 400/400 (26 archivos, PostgreSQL 18, migraciones desde cero) · unitarias 43 API + 16 web · `npm run test:e2e` 30 pasos sobre API compilada + Next real. Esto es **local**: el CI remoto nunca se ejecutó.
 
 ## Por fase
 
-- **Completo en local** (con sus límites): F1 infraestructura; F2 identidad/RLS (IN_REVIEW: falta CI remoto, `saas_admin`, revisión independiente); F3 empresa/catálogo (adjuntos BLOCKED); F9 CRM + tareas; F10 cotizaciones (sin PDF/firma/pagos); F11 analítica + exportación CSV.
+- **Completo en local** (con sus límites): F1 infraestructura; F2 identidad/RLS (IN_REVIEW: falta CI remoto, `saas_admin`, revisión independiente); F3 empresa/catálogo (adjuntos BLOCKED); F9 CRM + tareas; F10 cotizaciones (PDF de descarga sí; sin firma/pagos/envío del PDF); F11 analítica + exportación CSV.
 - **Dominio interno sin proveedor real**: F4 prospección (sin búsqueda externa), F5 scoring (sin enriquecimiento externo), F6 IA (sólo adaptador `mock`, tarifas sintéticas), F7 campañas (sólo canal `sandbox`), F8 leads por reglas (sin recepción por canal).
 - **Parcial**: F12 (sesiones/contraseña, readiness, métricas; faltan nube, respaldo, retención, derechos del titular); web (W-07 parcial: CSP con nonces hecha; auditoría a11y en navegador real y Playwright pendientes).
 
