@@ -36,45 +36,46 @@ model Organization {
   created_at DateTime     @default(now()) @db.Timestamptz(6)
   updated_at DateTime     @updatedAt @db.Timestamptz(6)
 
-  memberships Membership[]
-  audit_events AuditEvent[]
-  sessions    Session[]
-  invitations Invitation[]
-  profile     OrganizationProfile?
-  branches    Branch[]
-  catalog_categories CatalogCategory[]
-  catalog_items      CatalogItem[]
-  catalog_versions   CatalogItemVersion[]
-  price_lists        PriceList[]
-  price_entries      PriceListEntry[]
-  import_jobs        ImportJob[]
-  prospects          Prospect[]
-  prospect_sources   ProspectSource[]
-  suppressions       Suppression[]
-  prospect_attributes ProspectAttribute[]
-  scoring_versions   ScoringModelVersion[]
-  score_results      ScoreResult[]
-  lead_settings      LeadSettings?
-  leads              Lead[]
-  intent_assessments IntentAssessment[]
-  routing_settings   RoutingSettings?
-  seller_pool        SellerPoolMember[]
-  opportunities      Opportunity[]
-  opportunity_history OpportunityStageHistory[]
-  opportunity_notes  OpportunityNote[]
-  opportunity_tasks  OpportunityTask[]
-  ai_budget          AiBudget?
-  ai_runs            AiRun[]
-  contacts           Contact[]
-  consent_events     ConsentEvent[]
-  campaigns          Campaign[]
-  send_attempts      SendAttempt[]
+  memberships             Membership[]
+  audit_events            AuditEvent[]
+  sessions                Session[]
+  invitations             Invitation[]
+  profile                 OrganizationProfile?
+  branches                Branch[]
+  catalog_categories      CatalogCategory[]
+  catalog_items           CatalogItem[]
+  catalog_versions        CatalogItemVersion[]
+  price_lists             PriceList[]
+  price_entries           PriceListEntry[]
+  import_jobs             ImportJob[]
+  prospects               Prospect[]
+  prospect_sources        ProspectSource[]
+  prospect_merges         ProspectMerge[]
+  suppressions            Suppression[]
+  prospect_attributes     ProspectAttribute[]
+  scoring_versions        ScoringModelVersion[]
+  score_results           ScoreResult[]
+  lead_settings           LeadSettings?
+  leads                   Lead[]
+  intent_assessments      IntentAssessment[]
+  routing_settings        RoutingSettings?
+  seller_pool             SellerPoolMember[]
+  opportunities           Opportunity[]
+  opportunity_history     OpportunityStageHistory[]
+  opportunity_notes       OpportunityNote[]
+  opportunity_tasks       OpportunityTask[]
+  ai_budget               AiBudget?
+  ai_runs                 AiRun[]
+  contacts                Contact[]
+  consent_events          ConsentEvent[]
+  campaigns               Campaign[]
+  send_attempts           SendAttempt[]
   opportunity_assignments OpportunityAssignment[]
-  quote_settings     QuoteSettings?
-  quote_counter      QuoteCounter?
-  quotes             Quote[]
-  quote_lines        QuoteLine[]
-  sales              Sale[]
+  quote_settings          QuoteSettings?
+  quote_counter           QuoteCounter?
+  quotes                  Quote[]
+  quote_lines             QuoteLine[]
+  sales                   Sale[]
 
   @@map("organizations")
 }
@@ -283,10 +284,10 @@ model CatalogItem {
   created_at       DateTime        @default(now()) @db.Timestamptz(6)
   updated_at       DateTime        @updatedAt @db.Timestamptz(6)
 
-  organization Organization         @relation(fields: [organization_id], references: [id], onDelete: Restrict)
-  versions     CatalogItemVersion[]
+  organization  Organization         @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  versions      CatalogItemVersion[]
   price_entries PriceListEntry[]
-  quote_lines  QuoteLine[]
+  quote_lines   QuoteLine[]
 
   @@unique([organization_id, id])
   @@unique([organization_id, sku_key])
@@ -425,14 +426,16 @@ model Prospect {
   created_at      DateTime       @default(now()) @db.Timestamptz(6)
   updated_at      DateTime       @updatedAt @db.Timestamptz(6)
 
-  organization Organization     @relation(fields: [organization_id], references: [id], onDelete: Restrict)
-  sources      ProspectSource[]
-  attributes   ProspectAttribute[]
-  score_results ScoreResult[]
-  leads        Lead[]
-  assessments  IntentAssessment[]
-  opportunities Opportunity[]
-  contacts      Contact[]
+  organization        Organization        @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  sources             ProspectSource[]
+  attributes          ProspectAttribute[]
+  score_results       ScoreResult[]
+  leads               Lead[]
+  assessments         IntentAssessment[]
+  opportunities       Opportunity[]
+  contacts            Contact[]
+  merges_as_survivor  ProspectMerge[]     @relation("MergeSurvivor")
+  merges_as_duplicate ProspectMerge[]     @relation("MergeDuplicate")
 
   @@unique([organization_id, id])
   @@unique([organization_id, dedupe_key])
@@ -509,7 +512,7 @@ model ScoringModelVersion {
   approved_by     String?   @db.Uuid
   approved_at     DateTime? @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  organization Organization  @relation(fields: [organization_id], references: [id], onDelete: Restrict)
   results      ScoreResult[]
 
   @@unique([organization_id, version])
@@ -568,7 +571,7 @@ model Lead {
   organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
   prospect     Prospect     @relation(fields: [organization_id, prospect_id], references: [organization_id, id], onDelete: Restrict)
 
-  opportunity  Opportunity?
+  opportunity Opportunity?
 
   @@unique([organization_id, id])
   @@unique([organization_id, open_key])
@@ -599,11 +602,11 @@ model IntentAssessment {
 
 /// Routing configuration. No row = manual assignment and no SLA (nothing is assumed).
 model RoutingSettings {
-  organization_id           String   @id @db.Uuid
-  strategy                  String
+  organization_id            String   @id @db.Uuid
+  strategy                   String
   first_response_sla_minutes Int?
-  updated_by                String   @db.Uuid
-  updated_at                DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  updated_by                 String   @db.Uuid
+  updated_at                 DateTime @default(now()) @updatedAt @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
 
@@ -630,27 +633,27 @@ model SellerPoolMember {
 
 /// A sales opportunity born from exactly one ACCEPTED lead. Sellers see only the ones assigned to them (enforced by RLS).
 model Opportunity {
-  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organization_id        String    @db.Uuid
-  lead_id                String    @db.Uuid
-  prospect_id            String    @db.Uuid
-  title                  String
-  stage                  String    @default("new")
-  owner_user_id          String?   @db.Uuid
-  assigned_at            DateTime? @db.Timestamptz(6)
-  expected_value         Decimal?  @db.Decimal(18, 4)
-  currency               String?   @db.Char(3)
-  loss_reason            String?
-  first_response_due_at  DateTime? @db.Timestamptz(6)
-  first_contacted_at     DateTime? @db.Timestamptz(6)
-  closed_at              DateTime? @db.Timestamptz(6)
-  created_by             String    @db.Uuid
-  created_at             DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at             DateTime  @updatedAt @db.Timestamptz(6)
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id       String    @db.Uuid
+  lead_id               String    @db.Uuid
+  prospect_id           String    @db.Uuid
+  title                 String
+  stage                 String    @default("new")
+  owner_user_id         String?   @db.Uuid
+  assigned_at           DateTime? @db.Timestamptz(6)
+  expected_value        Decimal?  @db.Decimal(18, 4)
+  currency              String?   @db.Char(3)
+  loss_reason           String?
+  first_response_due_at DateTime? @db.Timestamptz(6)
+  first_contacted_at    DateTime? @db.Timestamptz(6)
+  closed_at             DateTime? @db.Timestamptz(6)
+  created_by            String    @db.Uuid
+  created_at            DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime  @updatedAt @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
-  lead         Lead         @relation(fields: [organization_id, lead_id], references: [organization_id, id], onDelete: Restrict)
-  prospect     Prospect     @relation(fields: [organization_id, prospect_id], references: [organization_id, id], onDelete: Restrict)
+  organization Organization              @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  lead         Lead                      @relation(fields: [organization_id, lead_id], references: [organization_id, id], onDelete: Restrict)
+  prospect     Prospect                  @relation(fields: [organization_id, prospect_id], references: [organization_id, id], onDelete: Restrict)
   history      OpportunityStageHistory[]
   notes        OpportunityNote[]
   tasks        OpportunityTask[]
@@ -802,24 +805,24 @@ model Quote {
 
 /// Every line is a snapshot built from APPROVED evidence: item version + price entry refs, and the amounts computed with exact decimals.
 model QuoteLine {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organization_id String   @db.Uuid
-  quote_id        String   @db.Uuid
-  position        Int
-  item_id         String   @db.Uuid
-  sku             String
-  item_name       String
-  item_version    Int
-  unit            String?
-  item_ref        String
-  price_ref       String
-  quantity        Decimal  @db.Decimal(18, 4)
-  unit_price      Decimal  @db.Decimal(18, 4)
-  discount_percent Decimal @default(0) @db.Decimal(5, 2)
-  gross           Decimal  @db.Decimal(18, 4)
-  discount_amount Decimal  @db.Decimal(18, 4)
-  line_total      Decimal  @db.Decimal(18, 4)
-  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String   @db.Uuid
+  quote_id         String   @db.Uuid
+  position         Int
+  item_id          String   @db.Uuid
+  sku              String
+  item_name        String
+  item_version     Int
+  unit             String?
+  item_ref         String
+  price_ref        String
+  quantity         Decimal  @db.Decimal(18, 4)
+  unit_price       Decimal  @db.Decimal(18, 4)
+  discount_percent Decimal  @default(0) @db.Decimal(5, 2)
+  gross            Decimal  @db.Decimal(18, 4)
+  discount_amount  Decimal  @db.Decimal(18, 4)
+  line_total       Decimal  @db.Decimal(18, 4)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
   quote        Quote        @relation(fields: [organization_id, quote_id], references: [organization_id, id], onDelete: Restrict)
@@ -908,8 +911,8 @@ model Contact {
   created_at      DateTime @default(now()) @db.Timestamptz(6)
   updated_at      DateTime @updatedAt @db.Timestamptz(6)
 
-  organization Organization    @relation(fields: [organization_id], references: [id], onDelete: Restrict)
-  prospect     Prospect        @relation(fields: [organization_id, prospect_id], references: [organization_id, id], onDelete: Restrict)
+  organization Organization   @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  prospect     Prospect       @relation(fields: [organization_id, prospect_id], references: [organization_id, id], onDelete: Restrict)
   consents     ConsentEvent[]
   attempts     SendAttempt[]
 
@@ -983,4 +986,25 @@ model SendAttempt {
   @@index([organization_id, campaign_id, state])
   @@index([organization_id, contact_id, state])
   @@map("send_attempts")
+}
+
+/// Reversible, non-destructive duplicate link: the duplicate is hidden behind its survivor; no child row moves. Guarded by triggers.
+model ProspectMerge {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String    @db.Uuid
+  survivor_id     String    @db.Uuid
+  duplicate_id    String    @db.Uuid
+  reason          String
+  merged_by       String    @db.Uuid
+  merged_at       DateTime  @default(now()) @db.Timestamptz(6)
+  reverted_by     String?   @db.Uuid
+  reverted_at     DateTime? @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  survivor     Prospect     @relation("MergeSurvivor", fields: [organization_id, survivor_id], references: [organization_id, id], onDelete: Restrict, map: "prospect_merges_survivor_fkey")
+  duplicate    Prospect     @relation("MergeDuplicate", fields: [organization_id, duplicate_id], references: [organization_id, id], onDelete: Restrict, map: "prospect_merges_duplicate_fkey")
+
+  @@index([organization_id, survivor_id])
+  @@index([organization_id, duplicate_id])
+  @@map("prospect_merges")
 }

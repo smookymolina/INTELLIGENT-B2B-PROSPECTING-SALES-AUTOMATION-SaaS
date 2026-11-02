@@ -117,6 +117,7 @@ describe("lines come only from approved evidence, with exact arithmetic", () => 
     const prices = ["0.0001", "19.9999", "1234.5678", "0.3333", "99999.9999"];
     const list = await priceList(a.token, items.map((it, i) => [it, prices[i] as string]));
     const opp = await opportunity(a.token);
+    await qualify(a.token, opp);
     await setLimit(a.token, "100");
     const q = (await newQuote(a.token, { opp, list }, { taxRate: "7.5" })).body.id as string;
     const qtys = ["1", "0.5", "3.3333", "12345.6789", "2"];
@@ -322,6 +323,22 @@ describe("decisions and sales", () => {
     expect((await decide(a.token, expiring, "cancel")).body.status).toBe("cancelled");
     expect((await api.call("GET", "/quotes?status=sent", { token: a.token })).body.items).toEqual([]);
     expect((await api.call("GET", `/quotes?opportunityId=${w.opp}&limit=2`, { token: a.token })).body.items).toHaveLength(2);
+  });
+});
+
+describe("sending needs a compatible opportunity stage", () => {
+  it("refuses (409, nothing changes) when the opportunity cannot move to quote_sent, so a sent quote is always acceptable later", async () => {
+    const a = await register("send-stage");
+    const w = await world(a);
+    const early = await opportunity(a.token); // never qualified: still in its initial stage
+    const q = (await newQuote(a.token, { opp: early, list: w.list })).body.id as string;
+    await addLine(a.token, q, w.big.sku, "1");
+    const before = (await api.call("GET", `/opportunities/${early}`, { token: a.token })).body.stage;
+    expect((await act(a.token, q, "send")).status).toBe(409);
+    expect((await api.call("GET", `/quotes/${q}`, { token: a.token })).body.status).toBe("draft");
+    expect((await api.call("GET", `/opportunities/${early}`, { token: a.token })).body.stage).toBe(before);
+    await qualify(a.token, early);
+    expect((await act(a.token, q, "send")).status).toBe(200);
   });
 });
 

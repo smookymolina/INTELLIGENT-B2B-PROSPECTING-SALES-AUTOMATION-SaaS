@@ -11,7 +11,7 @@ Fecha: 2026-10-30. **Fuente única del estado vigente**; el historial por bloque
 
 ## Evidencia local vigente
 
-`npm run check` exit 0 · `docker compose config --quiet` exit 0 · `npm run test:int` 394/394 (24 archivos, PostgreSQL 18, migraciones desde cero) · unitarias 45 API + 16 web · `npm run test:e2e` 30 pasos sobre API compilada + Next real. Esto es **local**: el CI remoto nunca se ejecutó.
+`npm run check` exit 0 · `docker compose config --quiet` exit 0 · `npm run test:int` 398/398 (25 archivos, PostgreSQL 18, migraciones desde cero) · unitarias 45 API + 16 web · `npm run test:e2e` 30 pasos sobre API compilada + Next real. Esto es **local**: el CI remoto nunca se ejecutó.
 
 ## Por fase
 
@@ -33,4 +33,6 @@ Fecha: 2026-10-30. **Fuente única del estado vigente**; el historial por bloque
 `app_runtime` depende de que todo acceso pase por `PrismaService` (no usar credenciales privilegiadas en producción) · `mock` y `sandbox` no validan calidad, coste ni entrega reales (se activan sólo con `AI_PROVIDER` / `EMAIL_PROVIDER`; sin ellos responden 503) · sin revisión legal ni de seguridad independiente.
 
 ## Auditoría backend (2026-11-02)
-Revisión por módulos con agentes y pruebas en vivo (≈154 rutas): sin 500 residuales, aislamiento y permisos correctos, aritmética de cotizaciones exacta. **Sin verificar en vivo** por falta de proveedor: `POST /ai/analyze` (mock) y `dispatch` de campañas (sandbox); sólo cubiertos por pruebas automáticas. **Observaciones abiertas** (decisión de negocio): `quotes.service.ts` permite enviar una cotización cuya oportunidad no puede pasar a `quote_sent` (luego `accept` da 409); el CSV de catálogo acepta nombres que empiezan por `=` (no hay export de catálogo). Esta auditoría no cambia los porcentajes: el avance interno se confirma en la parte alta del rango (≈ 70 %); operable real sigue ≈ 30 %.
+Revisión por módulos con agentes y pruebas en vivo (≈154 rutas): sin 500 residuales, aislamiento y permisos correctos, aritmética de cotizaciones exacta. **Sin verificar en vivo** por falta de proveedor: `POST /ai/analyze` (mock) y `dispatch` de campañas (sandbox); sólo cubiertos por pruebas automáticas. **Observaciones abiertas** (decisión de negocio): (resuelta 2026-11-02: `send` responde 409 si la oportunidad no puede pasar a `quote_sent`); el CSV de catálogo acepta nombres que empiezan por `=` (no hay export de catálogo). Esta auditoría no cambia los porcentajes: el avance interno se confirma en la parte alta del rango (≈ 70 %); operable real sigue ≈ 30 %.
+
+Fusión de duplicados de prospectos (P5-02): enlace reversible y no destructivo (`prospect_merges`, triggers contra cadenas/dobles fusiones; listas y exportación ocultan el duplicado; nada se mueve ni se borra). Endpoints `POST /prospects/{id}/merge`, `GET /prospects/{id}/merges`, `POST /prospects/{id}/merges/{mergeId}/revert`.

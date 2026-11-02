@@ -47,6 +47,18 @@ export const OPERATIONS: readonly Operation[] = [
     query: C.AnalyticsExportQuery, success: { status: 200, description: "text/csv attachment" }, errors: [400, 401, 403],
   },
   {
+    method: "post", path: "/prospects/{id}/merge", id: "mergeProspects", summary: "Hide a duplicate behind this prospect (non-destructive, reversible, audited; no chains)", tag: "Prospecting", permission: "prospects:manage",
+    pathParams: ["id"], body: C.MergeProspectRequest, success: { status: 201, schema: C.ProspectMergeDto, description: "Merge" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/prospects/{id}/merges", id: "listProspectMerges", summary: "Merges where this prospect is the survivor or the hidden duplicate (history included)", tag: "Prospecting", permission: "prospects:read",
+    pathParams: ["id"], success: { status: 200, schema: C.ProspectMergeListDto, description: "Merges" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/prospects/{id}/merges/{mergeId}/revert", id: "revertProspectMerge", summary: "Undo a merge; the duplicate reappears unchanged", tag: "Prospecting", permission: "prospects:manage",
+    pathParams: ["id", "mergeId"], success: { status: 200, schema: C.ProspectMergeDto, description: "Reverted merge" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
     method: "get", path: "/prospects/export", id: "exportProspects", summary: "CSV of prospects (optional status/country filters; formula-safe, capped; audited)", tag: "Prospecting", permission: "prospects:read",
     query: C.ProspectExportQuery, success: { status: 200, description: "text/csv attachment" }, errors: [400, 401, 403],
   },

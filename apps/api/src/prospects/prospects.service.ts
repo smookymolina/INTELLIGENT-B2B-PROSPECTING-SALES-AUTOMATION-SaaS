@@ -67,6 +67,7 @@ export class ProspectsService {
           organization_id: auth.organizationId,
           ...(q.status !== "all" ? { status: q.status } : {}),
           ...(q.country ? { country: q.country } : {}),
+          merges_as_duplicate: { none: { reverted_at: null } }, // hidden duplicates (see ProspectMergeService)
           ...(needle ? { OR: [{ name_key: { startsWith: needle } }, { domain_key: { startsWith: needle } }] } : {}),
           ...(q.cursor ? { id: { gt: q.cursor } } : {}),
         },
@@ -85,7 +86,7 @@ export class ProspectsService {
     return this.db.withTenant(auth, async (tx) => {
       const sets = await this.suppressionSets(tx, auth);
       const rows = await tx.prospect.findMany({
-        where: { organization_id: auth.organizationId, ...(q.status !== "all" ? { status: q.status } : {}), ...(q.country ? { country: q.country } : {}) },
+        where: { organization_id: auth.organizationId, ...(q.status !== "all" ? { status: q.status } : {}), ...(q.country ? { country: q.country } : {}), merges_as_duplicate: { none: { reverted_at: null } } },
         orderBy: { id: "asc" },
         take: EXPORT_MAX_ROWS + 1,
       });

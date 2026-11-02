@@ -237,7 +237,9 @@ export class QuotesService {
         const quote = await this.lock(tx, auth, id);
         await this.recalc(tx, auth, id); // exact figures right before freezing; the database re-computes and compares them
         await tx.quote.update({ where: { id }, data: { status: "sent" } });
-        await this.advanceOpportunity(tx, quote.opportunity_id, "quote_sent", `Cotización Q-${String(quote.number).padStart(4, "0")} enviada`);
+        if (!(await this.advanceOpportunity(tx, quote.opportunity_id, "quote_sent", `Cotización Q-${String(quote.number).padStart(4, "0")} enviada`))) {
+          throw conflict("The opportunity cannot move to quote_sent from its current stage"); // rolls back: a sent quote must be acceptable later
+        }
         await this.audit.record(tx, auth, { action: "quote.sent", resourceType: "quote", resourceId: id, metadata: { number: quote.number } });
         return this.load(tx, auth, id);
       })

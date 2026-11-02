@@ -284,6 +284,10 @@ export type ProspectListQuery = z.infer<typeof ProspectListQuery>;
 export const ProspectExportQuery = z.strictObject({ status: z.enum(["all", ...PROSPECT_STATUSES]).default("all"), country: country.optional() });
 export type ProspectExportQuery = z.infer<typeof ProspectExportQuery>;
 
+/** Hides `duplicateId` behind the path prospect (the survivor). Non-destructive and reversible; nothing is moved or deleted. */
+export const MergeProspectRequest = z.strictObject({ duplicateId: z.uuid(), reason: text(200) });
+export type MergeProspectRequest = z.infer<typeof MergeProspectRequest>;
+
 export const CreateSuppressionRequest = z
   .strictObject({ kind: z.enum(["domain", "name"]), value: text(300), reason: text(200) })
   .refine((v) => v.kind !== "domain" || normalizeDomain(v.value) !== null, { message: "a domain or URL such as example.com", path: ["value"] });
@@ -1158,3 +1162,17 @@ export const ERROR_CODES = [
   "INTERNAL_ERROR",
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
+
+export const ProspectMergeDto = z.object({
+  id: z.uuid(),
+  survivorId: z.uuid(),
+  duplicateId: z.uuid(),
+  reason: z.string(),
+  mergedBy: z.uuid(),
+  mergedAt: z.iso.datetime(),
+  revertedBy: z.uuid().nullable(),
+  revertedAt: z.iso.datetime().nullable(),
+});
+export type ProspectMergeDto = z.infer<typeof ProspectMergeDto>;
+export const ProspectMergeListDto = z.object({ items: z.array(ProspectMergeDto) });
+export type ProspectMergeListDto = z.infer<typeof ProspectMergeListDto>;
