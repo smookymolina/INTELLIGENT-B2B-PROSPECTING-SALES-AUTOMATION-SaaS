@@ -13,9 +13,9 @@ const TITLES: Record<string, string> = {
 export default async function AnalyticsEventsPage({ searchParams }: { searchParams: Promise<{ metric?: string; from?: string; to?: string; cursor?: string }> }) {
   const { token, me } = await requireSession();
   const sp = await searchParams;
-  if (!me.permissions.includes("analytics:read")) return <p role="alert" className="notice error">Tu rol no tiene acceso a la analítica.</p>;
+  if (!me.permissions.includes("analytics:read")) return <><h1>Registros de analítica</h1><p role="alert" className="notice error">Tu rol no tiene acceso a la analítica.</p></>;
   const metric = pick(sp.metric, ANALYTICS_EVENT_METRICS);
-  if (!metric) return <p role="alert" className="notice error">Métrica desconocida. <Link href="/analytics">Volver</Link></p>;
+  if (!metric) return <><h1>Registros de analítica</h1><p role="alert" className="notice error">Métrica desconocida. <Link href="/analytics">Volver</Link></p></>;
   const query = new URLSearchParams({ metric, limit: "50" });
   if (sp.from && DATE.test(sp.from)) query.set("from", sp.from);
   if (sp.to && DATE.test(sp.to)) query.set("to", sp.to);

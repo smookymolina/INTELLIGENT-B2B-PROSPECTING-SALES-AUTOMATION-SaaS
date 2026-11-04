@@ -3,6 +3,7 @@
 const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  allowedDevOrigins: ["127.0.0.1"], // solo desarrollo: permite recursos /_next/* al abrir el sitio por 127.0.0.1
   async headers() {
     return [
       {

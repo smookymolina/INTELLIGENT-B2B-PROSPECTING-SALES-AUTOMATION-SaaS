@@ -24,7 +24,7 @@ Alcance: entorno local/Compose. No hay nube, IdP ni alertas externas (BLOCKED, v
 4. Si persiste: revisar la primera linea de error del log; no reintentar a ciegas.
 
 ## R2. Redis caido
-Efecto: la API debe seguir sirviendo lecturas y el arranque no debe abortar; las colas (BullMQ) quedan en pausa. Accion: `docker compose up -d redis`, comprobar que `/health/ready` sigue en 200 y que no hay trabajo perdido (los envios se reintentan desde la BD, que es la fuente de verdad).
+Medido (2026-11-04): con Redis detenido (`docker compose stop redis`) la API reinicia y `/health/ready` responde 200. Hoy **ningun codigo de la API usa Redis ni BullMQ** (sin worker ni colas): no hay efecto observable. Cuando se agregue el worker (secuencias `run-due`, `scanDue` de notificaciones) este runbook y su prueba deben actualizarse: el trabajo pendiente vive en la BD, que es la fuente de verdad. Accion actual: `docker compose up -d redis`.
 
 ## R3. Respaldo y restauracion
 - Respaldo: `npm run backup` (genera `backups/<db>-<UTC>.dump` + manifiesto).
@@ -47,7 +47,7 @@ Efecto: la API debe seguir sirviendo lecturas y el arranque no debe abortar; las
 Usar `/privacy/*` (o la pantalla `/privacy`): simular antes de aplicar; el borrado redacta borradores y deja huella HMAC. Los plazos de retencion no tienen valor por defecto: sin decision del cliente no se purga nada.
 
 ## R7. Cambio de rol o salida de un miembro
-Quitar la membresia (`/team`) revoca el acceso a la organizacion; las sesiones se cierran al cambiar la contrasena. Revisar tareas y oportunidades asignadas a esa persona.
+Quitar la membresia (`/team`) revoca el acceso a la organizacion (cubierto por `tenancy`/`roles` en `test:int`). Revisar tareas y oportunidades asignadas a esa persona.
 
 ## Pendiente (BLOCKED por decision humana)
 Planificador de respaldos y copia externa cifrada, monitor y canal de alertas, responsable de guardia, objetivos RTO/RPO de produccion, IdP, nube.
