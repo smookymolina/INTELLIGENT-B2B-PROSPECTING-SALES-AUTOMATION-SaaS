@@ -249,6 +249,18 @@ describe("eligibility cuts the sequence", () => {
     expect([later.contactId, capped.contactId]).toHaveLength(2);
   });
 
+  it("frequency cap: a step sent by one sequence blocks enrolment of the same contact in another campaign", async () => {
+    process.env.EMAIL_PROVIDER = "sandbox";
+    const a = await register("seq-cap-seq");
+    await contact(a.token);
+    const first = await running(a.token);
+    expect((await enroll(a.token, first)).body.enrolled).toBe(1);
+    expect((await runDue(a.token, first)).body).toMatchObject({ sent: 1 });
+    const second = await running(a.token); // min_days_between defaults to 7
+    expect((await enroll(a.token, second)).body).toMatchObject({ enrolled: 0, excluded: { recently_contacted: 1 } });
+    delete process.env.EMAIL_PROVIDER;
+  });
+
   it("pausing holds the sequence, cancelling closes it", async () => {
     const a = await register("seq-pause");
     await contact(a.token);

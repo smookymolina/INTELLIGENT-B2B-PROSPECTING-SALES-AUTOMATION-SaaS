@@ -37,7 +37,8 @@ export async function evaluateContacts(
     select: { id: true, status: true, prospect_id: true },
   });
   const ids = contacts.map((c) => c.id);
-  const [consent, prospects, recent, own] = await Promise.all([
+  const cutoff = new Date(Date.now() - campaign.min_days_between * DAY);
+  const [consent, prospects, recent, own, recentSeq] = await Promise.all([
     latestConsent(tx, organizationId, ids),
     tx.prospect.findMany({ where: { organization_id: organizationId, id: { in: [...new Set(contacts.map((c) => c.prospect_id))] } } }),
     tx.sendAttempt.findMany({
@@ -45,9 +46,11 @@ export async function evaluateContacts(
       select: { contact_id: true },
     }),
     opts.ignoreOwnAttempts ? Promise.resolve([]) : tx.sendAttempt.findMany({ where: { organization_id: organizationId, campaign_id: campaign.id, contact_id: { in: ids } }, select: { contact_id: true } }),
+    // Sequence steps sent by OTHER campaigns count toward the frequency cap too (the contact's own earlier steps do not block its next step).
+    tx.sequenceDelivery.findMany({ where: { organization_id: organizationId, contact_id: { in: ids }, campaign_id: { not: campaign.id }, sent_at: { gte: cutoff } }, select: { contact_id: true } }),
   ]);
   const byProspect = new Map(prospects.map((p) => [p.id, p]));
-  const recentSet = new Set(recent.map((r) => r.contact_id));
+  const recentSet = new Set([...recent, ...recentSeq].map((r) => r.contact_id));
   const ownSet = new Set(own.map((r) => r.contact_id));
   const result = new Map<string, ExclusionReason | null>();
   for (const c of contacts) {
