@@ -868,6 +868,30 @@ try {
     assert.equal((await api("GET", `/message-drafts/${did2}`, session.token)).body.status, "approved");
     assert.ok((await html(await get("/drafts?state=approved", session.pair))).includes("Segundo"));
     assert.ok((await html(await get("/", session.pair))).includes('href="/drafts"'));
+
+    // W-11: privacy (retention, purge simulation, data-subject requests)
+    const priv = await html(await get(`/privacy?contactId=${cid}`, session.pair));
+    assert.ok(priv.includes("Retención de datos") && priv.includes("no se borra nada") && priv.includes(cid));
+    assert.ok((await html(await get("/", session.pair))).includes('href="/privacy"'));
+    const v2 = await inviteAndLogin("viewer");
+    assert.ok(!(await html(await get("/", v2.cookie))).includes('href="/privacy"'));
+    assert.equal(where(await post("/actions/privacy/retention", { days_sessions: "90" }, v2.cookie)), "/privacy?error=forbidden");
+    assert.equal((await post("/actions/privacy/nope", {}, session.pair)).status, 404);
+    assert.equal(where(await post("/actions/privacy/retention", { days_sessions: "5" }, session.pair)), "/privacy?error=input");
+    assert.equal(where(await post("/actions/privacy/retention", { days_sessions: "90" }, session.pair)), "/privacy?ok=retentionsaved");
+    assert.ok((await html(await get("/privacy", session.pair))).includes('value="90"'));
+    assert.match(where(await post("/actions/privacy/run", {}, session.pair)) ?? "", /^\/privacy\?eligible=\d+&ok=retentiondry$/);
+    assert.equal(where(await post("/actions/privacy/create", { contactId: "zzz", kind: "access" }, session.pair)), "/privacy?error=input");
+    assert.equal(where(await post("/actions/privacy/create", { contactId: cid, kind: "access" }, session.pair)), "/privacy?ok=privacycreated");
+    const reqs = (await api("GET", "/privacy/requests?status=open", session.token)).body.items;
+    const rid = reqs[0].id;
+    assert.ok((await html(await get("/privacy", session.pair))).includes("Acceso"));
+    assert.equal(where(await post("/actions/privacy/reject", { id: rid, note: "" }, session.pair)), "/privacy?error=input");
+    const done = await post("/actions/privacy/complete", { id: rid }, session.pair);
+    assert.equal(done.status, 200);
+    assert.match(done.headers.get("content-disposition") ?? "", /attachment/);
+    assert.equal(done.headers.get("cache-control"), "no-store");
+    assert.equal(where(await post("/actions/privacy/complete", { id: rid }, session.pair)), "/privacy?error=conflict");
   });
 
   await step("wrong passwords show a generic error and the account throttle kicks in", async () => {

@@ -139,7 +139,7 @@ export default async function ProspectPage({ params, searchParams }: { params: P
                 <tbody>
                   {contacts.data.items.map((c) => (
                     <tr key={c.id}>
-                      <td><Link href={`/drafts/new?contactId=${c.id}`}>Preparar mensaje</Link></td>
+                      <td><Link href={`/drafts/new?contactId=${c.id}`}>Preparar mensaje</Link>{me.permissions.includes("privacy:manage") ? <> · <Link href={`/privacy?contactId=${c.id}`}>Privacidad</Link></> : null}</td>
                       <td>{c.address}{c.displayName ? ` (${c.displayName})` : ""}</td><td>{c.source}</td><td>{CONTACT_STATUS[c.status]}</td>
                       <td>{CONSENT[c.consent]}{c.consentAt ? ` · ${formatDate(c.consentAt)}` : ""}</td>
                       {manage ? (

@@ -42,3 +42,5 @@ Auditoría 2026-11-02: backend verificado en vivo (≈154 rutas, 0 pendientes gr
 
 ### Ola de agentes 2026-11-02 (arquitectura en `docs/architecture/AGENT_ARCHITECTURE.md`)
 P7-03 borradores personalizados de correo/WhatsApp con aprobación humana (F7 +10 pts); P7-04 servidor MCP acotado a 3 herramientas (sin envío ni aprobación); P12-04 retención configurable y derechos del titular sin plazos por defecto (mecanismo; los plazos son decisión del cliente); P12-05 respaldo y restauración verificados (F12 +16 pts). Total de la tabla 72,9 sobre pesos que suman 98; lectura honesta: **interno ≈ 72 % (rango 66–72)**, **operable ≈ 33 % (rango 28–35)**. No se llega a 100 % sin proveedores reales, nube, plazos legales, CI remoto, revisión independiente y la etapa final de interfaz.
+
+W-11 2026-11-03: interfaz de privacidad completada (E2E 33 pasos OK, typecheck y lint web limpios). Sin cambio de porcentajes: W-11 no tenía peso propio en la tabla; el 90 % no es alcanzable sin proveedores, nube, plazos legales y revisión independiente (ver bloqueos).

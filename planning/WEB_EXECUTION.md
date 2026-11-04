@@ -30,5 +30,5 @@ La interfaz web se ejecuta **al final** del proyecto, tras cerrar y auditar el b
 | W-08 | Descarga del PDF de cotización | COMPLETED | `/export/quotes/[id]/pdf` (BFF, mismo origen); E2E |
 | W-09 | Fusión de duplicados en la ficha (historial, ocultar, deshacer, aviso en el duplicado) | COMPLETED | E2E admin + viewer forzado |
 | W-10 | Borradores: `/drafts`, detalle, aprobar/rechazar, «Preparar mensaje» con contexto y borrador manual | COMPLETED | E2E 33 pasos; unitarias web 20 |
-| W-11 | Privacidad (retención y derechos del titular) | PENDING | siguiente bloque |
+| W-11 | Privacidad (retención, simulación de purga, solicitudes del titular, descarga del paquete de acceso) | COMPLETED | `/privacy` + `/actions/privacy/[op]`; E2E (bloque dentro del paso W-10); enlace desde el contacto |
 | W-07 | Auditoría de accesibilidad en navegador real, Playwright | PENDING | requiere instalar Playwright/navegador |

@@ -65,6 +65,13 @@ export const OK: Record<string, string> = {
   draftcreated: "Borrador creado y pendiente de revisión. No se envió nada.",
   draftapproved: "Borrador aprobado. Aprobarlo no lo envía.",
   draftrejected: "Borrador rechazado con tu nota.",
+  retentionsaved: "Plazos de retención guardados.",
+  retentiondry: "Simulación terminada.",
+  retentionrun: "Purga ejecutada.",
+  privacycreated: "Solicitud abierta.",
+  privacycompleted: "Solicitud completada.",
+  privacyrejected: "Solicitud rechazada con tu motivo.",
+  privacylifted: "Restricción levantada y auditada.",
   switched: "Cambiaste de organización.",
 };
 export const ERR: Record<string, string> = {
