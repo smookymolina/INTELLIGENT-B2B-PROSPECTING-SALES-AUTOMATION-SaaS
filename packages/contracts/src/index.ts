@@ -431,6 +431,41 @@ export type TaskDto = z.infer<typeof TaskDto>;
 export const TaskPageDto = z.object({ items: z.array(TaskDto), nextCursor: z.uuid().nullable() });
 export type TaskPageDto = z.infer<typeof TaskPageDto>;
 
+// F9: in-app notifications (sandbox channel only; no email or WhatsApp).
+export const NOTIFICATION_TYPES = ["task_overdue", "task_due_soon", "lead_assigned", "opportunity_assigned", "sla_breached", "draft_pending_review"] as const;
+export const NotificationType = z.enum(NOTIFICATION_TYPES);
+export type NotificationType = z.infer<typeof NotificationType>;
+export const NotificationListQuery = z.strictObject({
+  unread: z.enum(["true", "false"]).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.uuid().optional(),
+});
+export type NotificationListQuery = z.infer<typeof NotificationListQuery>;
+export const NotificationDto = z.object({
+  id: z.uuid(),
+  type: NotificationType,
+  title: z.string(),
+  body: z.string().nullable(),
+  resourceType: z.string().nullable(),
+  resourceId: z.uuid().nullable(),
+  channel: z.literal("sandbox"),
+  createdAt: z.iso.datetime(),
+  readAt: z.iso.datetime().nullable(),
+});
+export type NotificationDto = z.infer<typeof NotificationDto>;
+export const NotificationPageDto = z.object({ items: z.array(NotificationDto), nextCursor: z.uuid().nullable() });
+export type NotificationPageDto = z.infer<typeof NotificationPageDto>;
+export const NotificationCountDto = z.object({ unread: z.number().int().min(0) });
+export type NotificationCountDto = z.infer<typeof NotificationCountDto>;
+export const NotificationReadAllDto = z.object({ updated: z.number().int().min(0) });
+export type NotificationReadAllDto = z.infer<typeof NotificationReadAllDto>;
+export const NotificationPreferencesDto = z.object({ items: z.array(z.object({ type: NotificationType, enabled: z.boolean() })) });
+export type NotificationPreferencesDto = z.infer<typeof NotificationPreferencesDto>;
+export const UpdateNotificationPreferencesRequest = z.strictObject({
+  preferences: z.array(z.strictObject({ type: NotificationType, enabled: z.boolean() })).min(1).max(NOTIFICATION_TYPES.length),
+});
+export type UpdateNotificationPreferencesRequest = z.infer<typeof UpdateNotificationPreferencesRequest>;
+
 /* ---------- AI gateway (F6, provider-neutral) ---------- */
 
 export const AI_CAPABILITIES = ["offer_brief"] as const;
@@ -1132,6 +1167,45 @@ export const AnalyticsOverviewDto = z.object({
   reconciliation: z.array(z.object({ currency: z.string(), salesTotal: z.string(), quotesTotal: z.string(), matches: z.boolean() })),
 });
 export type AnalyticsOverviewDto = z.infer<typeof AnalyticsOverviewDto>;
+
+/* ---------- Attribution & cohorts (F11) ---------- */
+const attrWindow = { from: z.iso.date().optional(), to: z.iso.date().optional() };
+const attrValid = (v: { from?: string | undefined; to?: string | undefined }) => {
+  if (!v.from || !v.to) return true;
+  const days = (Date.parse(v.to) - Date.parse(v.from)) / 86_400_000;
+  return days >= 0 && days <= 365;
+};
+/** `lookbackDays`: how far before a conversion a sent campaign email still counts as its last touch (default 30). */
+export const AttributionQuery = z
+  .strictObject({ ...attrWindow, lookbackDays: z.coerce.number().int().min(1).max(365).default(30) })
+  .refine(attrValid, { message: "from must not be after to, and the window is at most 366 days", path: ["to"] });
+export type AttributionQuery = z.infer<typeof AttributionQuery>;
+export const CohortsQuery = z.strictObject(attrWindow).refine(attrValid, { message: "from must not be after to, and the window is at most 366 days", path: ["to"] });
+export type CohortsQuery = z.infer<typeof CohortsQuery>;
+const AttrSalesByCurrency = z.array(z.object({ currency: z.string(), count: z.number().int(), total: z.string() }));
+export const AttributionReportDto = z.object({
+  window: z.object({ from: z.string(), to: z.string(), timezone: z.literal("UTC") }),
+  model: z.object({ id: z.literal("last_touch_sent_email"), lookbackDays: z.number().int(), definition: z.string() }),
+  campaigns: z.array(
+    z.object({
+      campaignId: z.string(), name: z.string(), sent: z.number().int(), prospectsReached: z.number().int(),
+      leads: z.number().int(), opportunities: z.number().int(), sales: z.number().int(), salesByCurrency: AttrSalesByCurrency,
+    }),
+  ),
+  unattributed: z.object({ leads: z.number().int(), opportunities: z.number().int(), sales: z.number().int(), salesByCurrency: AttrSalesByCurrency }),
+  /** attributed + unattributed equals the analytics overview funnel for the same window. */
+  totals: z.object({ leads: z.number().int(), opportunities: z.number().int(), sales: z.number().int(), salesByCurrency: AttrSalesByCurrency }),
+});
+export type AttributionReportDto = z.infer<typeof AttributionReportDto>;
+const CohortStep = z.object({ ever: z.number().int(), within30d: z.number().int(), within60d: z.number().int(), within90d: z.number().int() });
+export const CohortsReportDto = z.object({
+  window: z.object({ from: z.string(), to: z.string(), timezone: z.literal("UTC") }),
+  definition: z.string(),
+  cohorts: z.array(z.object({ month: z.string(), prospects: z.number().int(), leads: CohortStep, opportunities: CohortStep, sales: CohortStep })),
+  /** Sum of cohort sizes equals the analytics prospects count for the same window. */
+  totalProspects: z.number().int(),
+});
+export type CohortsReportDto = z.infer<typeof CohortsReportDto>;
 export const AnalyticsEventDto = z.object({ id: z.uuid(), type: z.string(), at: z.iso.datetime(), title: z.string(), path: z.string().nullable() });
 export type AnalyticsEventDto = z.infer<typeof AnalyticsEventDto>;
 export const AnalyticsEventPageDto = z.object({ items: z.array(AnalyticsEventDto), nextCursor: z.uuid().nullable() });
@@ -1294,3 +1368,76 @@ export const OutreachContextDto = z.object({
   }),
 });
 export type OutreachContextDto = z.infer<typeof OutreachContextDto>;
+
+/* ---------- F7 sequences: chained steps + sending window per campaign (sandbox channel only) ---------- */
+const seqNoNul = (v: string) => !v.includes("\u0000");
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$|^24:00$/, "Use HH:MM");
+export const SEQUENCE_STOP_REASONS = [...EXCLUSION_REASONS, "campaign_closed"] as const;
+export const SEQUENCE_ENROLLMENT_STATES = ["active", "completed", "stopped"] as const;
+export const SequenceStepInput = z.strictObject({
+  delayHours: z.number().int().min(0).max(2160),
+  subject: z.string().trim().min(1).max(200).refine(seqNoNul, "NUL is not allowed"),
+  body: z.string().trim().min(1).max(5000).refine(seqNoNul, "NUL is not allowed"),
+});
+export const SaveSequenceRequest = z
+  .strictObject({
+    timezone: z.string().min(1).max(64).refine((tz) => { try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return true; } catch { return false; } }, "Unknown IANA time zone"),
+    windowStart: hhmm,
+    windowEnd: hhmm,
+    weekdays: z.array(z.number().int().min(1).max(7)).min(1).max(7),
+    steps: z.array(SequenceStepInput).min(1).max(10),
+  })
+  .superRefine((v, ctx) => {
+    const m = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+    if (m(v.windowEnd) <= m(v.windowStart)) ctx.addIssue({ code: "custom", path: ["windowEnd"], message: "The window must end after it starts" });
+    if (new Set(v.weekdays).size !== v.weekdays.length) ctx.addIssue({ code: "custom", path: ["weekdays"], message: "Duplicate weekdays" });
+    if ((v.steps[0]?.delayHours ?? 0) !== 0) ctx.addIssue({ code: "custom", path: ["steps", 0, "delayHours"], message: "The first step has no delay" });
+  });
+export type SaveSequenceRequest = z.infer<typeof SaveSequenceRequest>;
+export const SequenceDto = z.object({
+  campaignId: z.uuid(),
+  configured: z.boolean(),
+  timezone: z.string().nullable(),
+  windowStart: z.string().nullable(),
+  windowEnd: z.string().nullable(),
+  weekdays: z.array(z.number().int()),
+  steps: z.array(z.object({ stepNo: z.number().int(), delayHours: z.number().int(), subject: z.string(), body: z.string() })),
+});
+export type SequenceDto = z.infer<typeof SequenceDto>;
+export const EnrollResultDto = z.object({
+  enrolled: z.number().int(),
+  alreadyEnrolled: z.number().int(),
+  excluded: z.object(Object.fromEntries(EXCLUSION_REASONS.map((r) => [r, z.number().int()])) as Record<(typeof EXCLUSION_REASONS)[number], z.ZodNumber>),
+  firstDueAt: z.iso.datetime().nullable(),
+});
+export type EnrollResultDto = z.infer<typeof EnrollResultDto>;
+export const RunDueRequest = z.strictObject({ limit: z.number().int().min(1).max(200).default(50) });
+export type RunDueRequest = z.infer<typeof RunDueRequest>;
+export const RunDueResultDto = z.object({
+  processed: z.number().int(),
+  sent: z.number().int(),
+  deferred: z.number().int(),
+  completed: z.number().int(),
+  stopped: z.record(z.string(), z.number().int()),
+  nextDueAt: z.iso.datetime().nullable(),
+});
+export type RunDueResultDto = z.infer<typeof RunDueResultDto>;
+export const EnrollmentListQuery = z.strictObject({
+  state: z.enum(["all", ...SEQUENCE_ENROLLMENT_STATES]).default("all"),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.uuid().optional(),
+});
+export type EnrollmentListQuery = z.infer<typeof EnrollmentListQuery>;
+export const EnrollmentDto = z.object({
+  id: z.uuid(),
+  contactId: z.uuid(),
+  address: z.string(),
+  state: z.enum(SEQUENCE_ENROLLMENT_STATES),
+  stopReason: z.string().nullable(),
+  nextStep: z.number().int(),
+  nextDueAt: z.iso.datetime().nullable(),
+  deliveries: z.array(z.object({ stepNo: z.number().int(), providerMessageId: z.string(), sentAt: z.iso.datetime() })),
+});
+export type EnrollmentDto = z.infer<typeof EnrollmentDto>;
+export const EnrollmentPageDto = z.object({ items: z.array(EnrollmentDto), nextCursor: z.uuid().nullable() });
+export type EnrollmentPageDto = z.infer<typeof EnrollmentPageDto>;

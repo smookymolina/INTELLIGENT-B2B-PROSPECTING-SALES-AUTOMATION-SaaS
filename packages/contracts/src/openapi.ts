@@ -449,6 +449,30 @@ export const OPERATIONS: readonly Operation[] = [
     pathParams: ["id"], success: { status: 200, schema: C.TaskDto, description: "Cancelled" }, errors: [400, 401, 403, 404, 409],
   },
   {
+    method: "get", path: "/notifications", id: "listNotifications", summary: "The caller's own in-app notifications (newest first, keyset by id; unread filter)", tag: "Notifications", permission: "organization:read",
+    query: C.NotificationListQuery, success: { status: 200, schema: C.NotificationPageDto, description: "Notifications" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "get", path: "/notifications/unread-count", id: "countUnreadNotifications", summary: "Number of unread notifications of the caller", tag: "Notifications", permission: "organization:read",
+    success: { status: 200, schema: C.NotificationCountDto, description: "Unread count" }, errors: [401, 403],
+  },
+  {
+    method: "post", path: "/notifications/read-all", id: "readAllNotifications", summary: "Mark all of the caller's notifications as read", tag: "Notifications", permission: "organization:read",
+    success: { status: 200, schema: C.NotificationReadAllDto, description: "Updated" }, errors: [401, 403],
+  },
+  {
+    method: "post", path: "/notifications/{id}/read", id: "readNotification", summary: "Mark one of the caller's notifications as read (idempotent)", tag: "Notifications", permission: "organization:read",
+    pathParams: ["id"], success: { status: 200, schema: C.NotificationDto, description: "Notification" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "get", path: "/notifications/preferences", id: "getNotificationPreferences", summary: "Per-event-type preferences of the caller (all enabled by default)", tag: "Notifications", permission: "organization:read",
+    success: { status: 200, schema: C.NotificationPreferencesDto, description: "Preferences" }, errors: [401, 403],
+  },
+  {
+    method: "put", path: "/notifications/preferences", id: "setNotificationPreferences", summary: "Enable or disable event types for the caller (audited)", tag: "Notifications", permission: "organization:read",
+    body: C.UpdateNotificationPreferencesRequest, success: { status: 200, schema: C.NotificationPreferencesDto, description: "Preferences" }, errors: [400, 401, 403],
+  },
+  {
     method: "get", path: "/opportunities", id: "listOpportunities", summary: "Opportunities (sellers see only those assigned to them; keyset by id)", tag: "CRM", permission: "crm:read",
     query: C.OpportunityListQuery, success: { status: 200, schema: C.OpportunityPageDto, description: "Page" }, errors: [400, 401, 403],
   },
@@ -557,6 +581,14 @@ export const OPERATIONS: readonly Operation[] = [
     query: C.AnalyticsQuery, success: { status: 200, schema: C.AnalyticsOverviewDto, description: "Metrics" }, errors: [400, 401, 403],
   },
   {
+    method: "get", path: "/attribution/campaigns", id: "getCampaignAttribution", summary: "Last-touch attribution of leads, opportunities and sales to campaigns (explicit model and lookback), reconciled with analytics", tag: "Analytics", permission: "analytics:read",
+    query: C.AttributionQuery, success: { status: 200, schema: C.AttributionReportDto, description: "Attribution" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/attribution/cohorts", id: "getProspectCohorts", summary: "Monthly prospect cohorts: conversion to lead, opportunity and sale by age", tag: "Analytics", permission: "analytics:read",
+    query: C.CohortsQuery, success: { status: 200, schema: C.CohortsReportDto, description: "Cohorts" }, errors: [400, 401, 403],
+  },
+  {
     method: "get", path: "/analytics/events", id: "listAnalyticsEvents", summary: "Drill-down: the business records behind a metric (keyset by id)", tag: "Analytics", permission: "analytics:read",
     query: C.AnalyticsEventsQuery, success: { status: 200, schema: C.AnalyticsEventPageDto, description: "Page of events" }, errors: [400, 401, 403],
   },
@@ -631,6 +663,26 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: "get", path: "/contacts/{id}/outreach-context", id: "getOutreachContext", summary: "What a drafter may use for one contact: per-channel eligibility, masked contact, prospect basics, approved evidence and length limits (no internal notes)", tag: "Drafts", permission: "campaigns:read",
     pathParams: ["id"], success: { status: 200, schema: C.OutreachContextDto, description: "Context" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "get", path: "/campaigns/{id}/sequence", id: "getCampaignSequence", summary: "Sequence of a campaign: sending window, time zone and chained steps", tag: "Sequences", permission: "campaigns:read",
+    pathParams: ["id"], success: { status: 200, schema: C.SequenceDto, description: "Sequence (configured=false when none)" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "put", path: "/campaigns/{id}/sequence", id: "saveCampaignSequence", summary: "Replace the sequence (draft campaigns only, so approval covers the exact content)", tag: "Sequences", permission: "campaigns:manage",
+    pathParams: ["id"], body: C.SaveSequenceRequest, success: { status: 200, schema: C.SequenceDto, description: "Saved" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/campaigns/{id}/sequence/enroll", id: "enrollCampaignSequence", summary: "Enrol every currently eligible contact of a running campaign (consent, opt-out, suppression and frequency cap apply)", tag: "Sequences", permission: "campaigns:manage",
+    pathParams: ["id"], success: { status: 200, schema: C.EnrollResultDto, description: "Enrolment summary" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "post", path: "/campaigns/{id}/sequence/run-due", id: "runDueCampaignSequence", summary: "Process the steps that are due now (sandbox channel). Meant to be called by the worker; eligibility is re-checked per step and sends happen only inside the window", tag: "Sequences", permission: "campaigns:manage",
+    pathParams: ["id"], body: C.RunDueRequest, success: { status: 200, schema: C.RunDueResultDto, description: "Run summary" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/campaigns/{id}/sequence/enrollments", id: "listSequenceEnrollments", summary: "Enrolments with their deliveries (keyset by id)", tag: "Sequences", permission: "campaigns:read",
+    pathParams: ["id"], query: C.EnrollmentListQuery, success: { status: 200, schema: C.EnrollmentPageDto, description: "Page" }, errors: [400, 401, 403, 404],
   },
   {
     method: "post", path: "/message-drafts", id: "createMessageDraft", summary: "Create a personalised email or WhatsApp-template draft for human review (needs an eligible contact and approved evidence; never sends)", tag: "Drafts", permission: "campaigns:manage",

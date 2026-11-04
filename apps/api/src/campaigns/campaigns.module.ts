@@ -10,6 +10,6 @@ import { ContactsService } from "./contacts.service.js";
   imports: [AuditModule, ProspectsModule],
   controllers: [ContactsController, CampaignsController, PublicController],
   providers: [CampaignsService, ContactsService, EmailChannels],
-  exports: [CampaignsService],
+  exports: [CampaignsService, EmailChannels],
 })
 export class CampaignsModule {}

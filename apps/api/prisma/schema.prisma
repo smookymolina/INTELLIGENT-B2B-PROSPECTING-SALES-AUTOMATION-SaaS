@@ -65,12 +65,18 @@ model Organization {
   opportunity_history     OpportunityStageHistory[]
   opportunity_notes       OpportunityNote[]
   opportunity_tasks       OpportunityTask[]
+  notifications           Notification[]
+  notification_preferences NotificationPreference[]
   ai_budget               AiBudget?
   ai_runs                 AiRun[]
   contacts                Contact[]
   consent_events          ConsentEvent[]
   campaigns               Campaign[]
   send_attempts           SendAttempt[]
+  campaign_schedules      CampaignSchedule[]
+  sequence_steps          SequenceStep[]
+  sequence_enrollments    SequenceEnrollment[]
+  sequence_deliveries     SequenceDelivery[]
   opportunity_assignments OpportunityAssignment[]
   quote_settings          QuoteSettings?
   quote_counter           QuoteCounter?
@@ -922,6 +928,8 @@ model Contact {
   drafts       MessageDraft[]
   attempts     SendAttempt[]
   privacy_requests PrivacyRequest[]
+  enrollments  SequenceEnrollment[]
+  deliveries   SequenceDelivery[]
 
   @@unique([organization_id, id])
   @@unique([organization_id, channel, address_key])
@@ -966,6 +974,10 @@ model Campaign {
 
   organization Organization  @relation(fields: [organization_id], references: [id], onDelete: Restrict)
   attempts     SendAttempt[]
+  schedules    CampaignSchedule[]
+  steps        SequenceStep[]
+  enrollments  SequenceEnrollment[]
+  deliveries   SequenceDelivery[]
 
   @@unique([organization_id, id])
   @@index([organization_id, state])
@@ -1090,4 +1102,126 @@ model ErasedAddress {
 
   @@id([organization_id, address_hash])
   @@map("erased_addresses")
+}
+
+/// In-app notification inbox (channel sandbox only). RLS: organization + recipient.
+model Notification {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String    @db.Uuid
+  user_id         String    @db.Uuid
+  type            String
+  title           String
+  body            String?
+  resource_type   String?
+  resource_id     String?   @db.Uuid
+  dedupe_key      String
+  channel         String    @default("sandbox")
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  read_at         DateTime? @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@unique([organization_id, user_id, dedupe_key])
+  @@index([organization_id, user_id, created_at(sort: Desc), id(sort: Desc)])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  organization_id String   @db.Uuid
+  user_id         String   @db.Uuid
+  type            String
+  enabled         Boolean
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@id([organization_id, user_id, type])
+  @@map("notification_preferences")
+}
+
+/// F7 sequences. One schedule (time zone + daily window + weekdays) per campaign, editable only while the campaign is a draft.
+model CampaignSchedule {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String   @db.Uuid
+  campaign_id      String   @unique @db.Uuid
+  timezone         String
+  window_start_min Int
+  window_end_min   Int
+  weekdays         Int[]
+  created_by       String   @db.Uuid
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @updatedAt @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  campaign     Campaign     @relation(fields: [organization_id, campaign_id], references: [organization_id, id], onDelete: Restrict)
+
+  @@unique([organization_id, id])
+  @@map("campaign_schedules")
+}
+
+model SequenceStep {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String   @db.Uuid
+  campaign_id     String   @db.Uuid
+  step_no         Int
+  delay_hours     Int
+  subject         String
+  body            String
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  campaign     Campaign     @relation(fields: [organization_id, campaign_id], references: [organization_id, id], onDelete: Restrict)
+
+  @@unique([campaign_id, step_no])
+  @@index([organization_id, campaign_id])
+  @@map("sequence_steps")
+}
+
+/// State machine in the database: active -> completed | stopped. One enrolment per (campaign, contact).
+model SequenceEnrollment {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String    @db.Uuid
+  campaign_id     String    @db.Uuid
+  contact_id      String    @db.Uuid
+  state           String    @default("active")
+  stop_reason     String?
+  next_step       Int       @default(1)
+  next_due_at     DateTime? @db.Timestamptz(6)
+  created_by      String    @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @updatedAt @db.Timestamptz(6)
+
+  organization Organization       @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  campaign     Campaign           @relation(fields: [organization_id, campaign_id], references: [organization_id, id], onDelete: Restrict)
+  contact      Contact            @relation(fields: [organization_id, contact_id], references: [organization_id, id], onDelete: Restrict)
+  deliveries   SequenceDelivery[]
+
+  @@unique([campaign_id, contact_id])
+  @@unique([organization_id, id])
+  @@index([organization_id, campaign_id, state, next_due_at], map: "sequence_enrollments_due_idx")
+  @@map("sequence_enrollments")
+}
+
+/// Append-only (sandbox provider only). Unique per (enrolment, step): a step is never delivered twice.
+model SequenceDelivery {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id     String   @db.Uuid
+  enrollment_id       String   @db.Uuid
+  campaign_id         String   @db.Uuid
+  contact_id          String   @db.Uuid
+  step_no             Int
+  provider            String
+  provider_message_id String
+  sent_at             DateTime @db.Timestamptz(6)
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization       @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+  enrollment   SequenceEnrollment @relation(fields: [organization_id, enrollment_id], references: [organization_id, id], onDelete: Restrict)
+  campaign     Campaign           @relation(fields: [organization_id, campaign_id], references: [organization_id, id], onDelete: Restrict)
+  contact      Contact            @relation(fields: [organization_id, contact_id], references: [organization_id, id], onDelete: Restrict)
+
+  @@unique([enrollment_id, step_no])
+  @@index([organization_id, contact_id, sent_at])
+  @@index([organization_id, campaign_id])
+  @@map("sequence_deliveries")
 }
