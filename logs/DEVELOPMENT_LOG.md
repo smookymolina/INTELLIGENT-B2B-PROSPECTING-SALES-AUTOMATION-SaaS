@@ -59,3 +59,4 @@
 | 2026-11-02 | Cierre | Verificación integrada | `test:int` 426/426 (27 archivos), unitarias 48 API + 12 MCP + 16 web, MCP 20, `test:e2e` 30 pasos, lint/typecheck/openapi:check limpios, backup+restore OK | COMPLETED |
 | 2026-11-02 | Web | W-08 PDF, W-09 fusión, W-10 borradores | páginas y rutas BFF sin tocar el backend; `test:e2e` 33 pasos, unitarias web 20, build/lint/typecheck limpios | COMPLETED |
 | 2026-11-04 | Cierre 90 % | P7-05 secuencias, P11-03 atribución/cohortes, P9-03 notificaciones, W-07, runbooks, auditoría OWASP | test:int 453/453, unitarias 48+12+20, e2e 33, check exit 0, backup/restore OK; interno ≈74 % (64–75), operable ≈33 % | COMPLETED |
+| 2026-11-04 | A+B plan MVP | CI reproducible, FORCE RLS (27 tablas) + pruebas cross-tenant, worker/cola/DLQ, run-due HTTP eliminado | npm run ci PASSED 9m05s: check 80/80, test:int 489/489, e2e OK, backup/restore OK; interno ~66 % (62-70), operable ~22 % (20-25) | COMPLETED (sin commit) |

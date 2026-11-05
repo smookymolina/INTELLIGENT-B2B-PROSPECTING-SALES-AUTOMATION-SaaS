@@ -12,6 +12,7 @@ import { ProspectsModule } from "./prospects/prospects.module.js";
 import { AiModule } from "./ai/ai.module.js";
 import { CampaignsModule } from "./campaigns/campaigns.module.js";
 import { SequencesModule } from "./sequences/sequences.module.js";
+import { JobsModule } from "./jobs/jobs.module.js";
 import { PrivacyModule } from "./privacy/privacy.module.js";
 import { DraftsModule } from "./drafts/drafts.module.js";
 import { AnalyticsModule } from "./analytics/analytics.module.js";
@@ -28,7 +29,7 @@ import { OrganizationsModule } from "./organizations/organizations.module.js";
 
 // Guards run in order: authentication (session -> tenant context), then RBAC. Routes are private unless marked @Public().
 @Module({
-  imports: [DbModule, HttpSupportModule, HealthModule, AuditModule, AuthModule, OrganizationsModule, MembershipsModule, InvitationsModule, CompanyModule, CatalogModule, PricingModule, ProspectsModule, ScoringModule, CrmModule, NotificationsModule, QuotesModule, AnalyticsModule, AttributionModule, AiModule, CampaignsModule, SequencesModule, DraftsModule, PrivacyModule],
+  imports: [DbModule, HttpSupportModule, HealthModule, AuditModule, AuthModule, OrganizationsModule, MembershipsModule, InvitationsModule, CompanyModule, CatalogModule, PricingModule, ProspectsModule, ScoringModule, CrmModule, NotificationsModule, QuotesModule, AnalyticsModule, AttributionModule, AiModule, CampaignsModule, SequencesModule, JobsModule, DraftsModule, PrivacyModule],
   providers: [
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },

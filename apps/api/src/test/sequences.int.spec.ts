@@ -1,20 +1,24 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import type { MembershipRole } from "@prospecting/contracts";
+import type { MembershipRole, RunDueResultDto } from "@prospecting/contracts";
 import { EmailChannels } from "../campaigns/channels.js";
 import { insideWindow, nextAllowed } from "../sequences/schedule.js";
+import { HttpException } from "@nestjs/common";
 import { SequencesService } from "../sequences/sequences.service.js";
 import { type Api, asRuntime, owner, PASSWORD, seedMember, startApi } from "./harness.js";
 
 /** F7 sequences: chained steps, per-campaign time window/zone, sandbox only. Nothing sends unless approved + launched + eligible + inside the window. */
 let api: Api;
 type Account = { token: string; orgId: string; userId: string };
+const accounts = new Map<string, Account>();
 
 async function register(label: string): Promise<Account> {
   const email = `${label}-${randomUUID().slice(0, 8)}@example.test`;
   const res = await api.call("POST", "/auth/register", { body: { email, password: PASSWORD, displayName: label, organizationName: `Org ${label}` } });
   const me = await api.call("GET", "/me", { token: res.body.token });
-  return { token: res.body.token, orgId: res.body.organization.id, userId: me.body.user.id };
+  const acc = { token: res.body.token as string, orgId: res.body.organization.id as string, userId: me.body.user.id as string };
+  accounts.set(acc.token, acc);
+  return acc;
 }
 async function member(orgId: string, role: MembershipRole) {
   const m = await seedMember(orgId, role);
@@ -65,7 +69,17 @@ async function running(t: string, over: Record<string, unknown> = {}) {
   return id;
 }
 const enroll = (t: string, id: string) => api.call("POST", seqUrl(id, "/enroll"), { token: t });
-const runDue = (t: string, id: string, body?: unknown) => api.call("POST", seqUrl(id, "/run-due"), { token: t, ...(body ? { body } : {}) });
+// There is NO HTTP endpoint that sends: only the worker calls SequencesService.runDue. Tests call it the way the worker does.
+const runDue = async (t: string, id: string, body?: { limit?: number }): Promise<{ status: number; body: RunDueResultDto }> => {
+  const a = accounts.get(t);
+  if (!a) throw new Error("unknown token");
+  try {
+    return { status: 200, body: await api.app.get(SequencesService).runDue({ sessionId: "test-worker", userId: a.userId, organizationId: a.orgId, role: "org_admin", requestId: "test-worker" }, id, body?.limit ?? 50) };
+  } catch (e) {
+    if (e instanceof HttpException) return { status: e.getStatus(), body: null as unknown as RunDueResultDto };
+    throw e;
+  }
+};
 const enrollments = async (t: string, id: string) => (await api.call("GET", seqUrl(id, "/enrollments"), { token: t })).body.items as Array<{ state: string; stopReason: string | null; nextStep: number; nextDueAt: string | null; deliveries: Array<{ stepNo: number }> }>;
 
 beforeAll(async () => {
@@ -284,9 +298,10 @@ describe("roles", () => {
     const viewer = await member(a.orgId, "viewer");
     const manager = await member(a.orgId, "campaign_manager");
     const id = await campaign(a.token);
-    for (const [m, p, body] of [["GET", seqUrl(id)], ["PUT", seqUrl(id), SEQ], ["POST", seqUrl(id, "/enroll")], ["POST", seqUrl(id, "/run-due")], ["GET", seqUrl(id, "/enrollments")]] as Array<[string, string, unknown?]>) {
+    for (const [m, p, body] of [["GET", seqUrl(id)], ["PUT", seqUrl(id), SEQ], ["POST", seqUrl(id, "/enroll")], ["GET", seqUrl(id, "/enrollments")]] as Array<[string, string, unknown?]>) {
       expect((await api.call(m, p, { token: viewer, ...(body ? { body } : {}) })).status, `${m} ${p}`).toBe(403);
     }
+    expect((await api.call("POST", seqUrl(id, "/run-due"), { token: manager })).status).toBe(404); // sending over HTTP does not exist
     expect((await api.call("PUT", seqUrl(id), { token: manager, body: SEQ })).status).toBe(200);
     expect((await api.call("GET", seqUrl(id), { token: manager })).status).toBe(200);
     expect((await api.call("GET", seqUrl(id))).status).toBe(401);
@@ -356,9 +371,10 @@ describe("tenant isolation (RLS) on every new table", () => {
     expect(await insert("INSERT INTO sequence_enrollments (organization_id, campaign_id, contact_id, next_due_at, created_by) VALUES ($1,$2,$3,now(),$4)", [a.orgId, id, k.contactId, b.userId])).toMatch(/row-level security|only a running campaign/);
     expect(await insert("INSERT INTO sequence_deliveries (organization_id, enrollment_id, campaign_id, contact_id, step_no, provider, provider_message_id, sent_at) VALUES ($1,$2,$3,$4,2,'sandbox','m',now())", [a.orgId, e.id, id, k.contactId])).toMatch(/row-level security|current step/);
     // the API agrees: a foreign campaign is a 404
-    for (const [m, p] of [["GET", seqUrl(id)], ["GET", seqUrl(id, "/enrollments")], ["POST", seqUrl(id, "/enroll")], ["POST", seqUrl(id, "/run-due")]] as const) {
+    for (const [m, p] of [["GET", seqUrl(id)], ["GET", seqUrl(id, "/enrollments")], ["POST", seqUrl(id, "/enroll")]] as const) {
       expect((await api.call(m, p, { token: b.token })).status, `${m} ${p}`).toBe(404);
     }
+    expect((await runDue(b.token, id)).status).toBe(404);
     expect((await api.call("PUT", seqUrl(id), { token: b.token, body: SEQ })).status).toBe(404);
   });
 });

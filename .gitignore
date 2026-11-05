@@ -11,3 +11,4 @@ coverage/
 apps/api/src/generated/
 
 backups/
+ci-logs/

@@ -11,7 +11,7 @@ export type HealthStatus = Readonly<{
 export const MEMBERSHIP_ROLES = ["org_admin", "campaign_manager", "sales_manager", "seller", "analyst", "viewer"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
-export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove", "scoring:manage", "scoring:approve", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "quotes:approve", "analytics:read", "ai:use", "ai:manage", "campaigns:read", "campaigns:manage", "campaigns:approve", "privacy:manage"] as const;
+export const PERMISSIONS = ["organization:read", "organization:update", "members:read", "members:manage", "audit:read", "catalog:read", "catalog:manage", "catalog:approve", "prospects:read", "prospects:manage", "suppressions:manage", "suppressions:remove", "scoring:manage", "scoring:approve", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "quotes:approve", "analytics:read", "ai:use", "ai:manage", "campaigns:read", "campaigns:manage", "campaigns:approve", "privacy:manage", "jobs:manage"] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 /** Single source of truth for role -> permission. `saas_admin` is platform-level and intentionally absent (ADR-011). */
@@ -1441,3 +1441,34 @@ export const EnrollmentDto = z.object({
 export type EnrollmentDto = z.infer<typeof EnrollmentDto>;
 export const EnrollmentPageDto = z.object({ items: z.array(EnrollmentDto), nextCursor: z.uuid().nullable() });
 export type EnrollmentPageDto = z.infer<typeof EnrollmentPageDto>;
+
+/* ---------- Worker job queue (PostgreSQL-backed; admin view of retries and the dead-letter queue) ---------- */
+export const JOB_STATES = ["queued", "running", "succeeded", "failed", "dead"] as const;
+export type JobState = (typeof JOB_STATES)[number];
+export const JOB_TYPES = ["sequence.run_due", "notifications.scan_due"] as const;
+export type JobType = (typeof JOB_TYPES)[number];
+export const JobListQuery = z.strictObject({
+  state: z.enum(["all", ...JOB_STATES]).default("dead"),
+  type: z.enum(JOB_TYPES).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.uuid().optional(),
+});
+export type JobListQuery = z.infer<typeof JobListQuery>;
+export const JobDto = z.object({
+  id: z.uuid(),
+  type: z.enum(JOB_TYPES),
+  state: z.enum(JOB_STATES),
+  attempts: z.number().int(),
+  maxAttempts: z.number().int(),
+  runAfter: z.iso.datetime(),
+  /** Redacted (no addresses, tokens or secrets) and truncated. */
+  lastError: z.string().nullable(),
+  lastErrorAt: z.iso.datetime().nullable(),
+  finishedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+});
+export type JobDto = z.infer<typeof JobDto>;
+export const JobPageDto = z.object({ items: z.array(JobDto), nextCursor: z.uuid().nullable() });
+export type JobPageDto = z.infer<typeof JobPageDto>;
+export const JobStatsDto = z.object({ byState: z.record(z.enum(JOB_STATES), z.number().int()) });
+export type JobStatsDto = z.infer<typeof JobStatsDto>;

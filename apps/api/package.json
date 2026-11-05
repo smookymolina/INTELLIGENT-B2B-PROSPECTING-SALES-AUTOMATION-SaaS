@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node \"../../node_modules/tsx/dist/cli.mjs\" watch --env-file-if-exists=../../.env src/main.ts",
+    "worker": "node \"../../node_modules/tsx/dist/cli.mjs\" --env-file-if-exists=../../.env src/worker/main.ts",
+    "worker:dev": "node \"../../node_modules/tsx/dist/cli.mjs\" watch --env-file-if-exists=../../.env src/worker/main.ts",
     "build": "node \"../../node_modules/typescript/bin/tsc\" -p tsconfig.json",
     "typecheck": "node \"../../node_modules/typescript/bin/tsc\" --noEmit -p tsconfig.json",
     "lint": "node \"../../node_modules/eslint/bin/eslint.js\" src --max-warnings=0",

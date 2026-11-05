@@ -677,8 +677,16 @@ export const OPERATIONS: readonly Operation[] = [
     pathParams: ["id"], success: { status: 200, schema: C.EnrollResultDto, description: "Enrolment summary" }, errors: [400, 401, 403, 404, 409],
   },
   {
-    method: "post", path: "/campaigns/{id}/sequence/run-due", id: "runDueCampaignSequence", summary: "Process the steps that are due now (sandbox channel). Meant to be called by the worker; eligibility is re-checked per step and sends happen only inside the window", tag: "Sequences", permission: "campaigns:manage",
-    pathParams: ["id"], body: C.RunDueRequest, success: { status: 200, schema: C.RunDueResultDto, description: "Run summary" }, errors: [400, 401, 403, 404, 409],
+    method: "get", path: "/admin/jobs", id: "listJobs", summary: "Worker jobs of the organization (default: the dead-letter queue). Errors are redacted; keyset by id", tag: "Jobs", permission: "jobs:manage",
+    query: C.JobListQuery, success: { status: 200, schema: C.JobPageDto, description: "Page" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/admin/jobs/stats", id: "jobStats", summary: "Job counts by state for the organization", tag: "Jobs", permission: "jobs:manage",
+    success: { status: 200, schema: C.JobStatsDto, description: "Counts" }, errors: [401, 403],
+  },
+  {
+    method: "post", path: "/admin/jobs/{id}/requeue", id: "requeueJob", summary: "Put a dead or failed job back in the queue with a fresh attempt budget (audited). The job re-runs the same idempotent work", tag: "Jobs", permission: "jobs:manage",
+    pathParams: ["id"], success: { status: 200, schema: C.JobDto, description: "Requeued job" }, errors: [400, 401, 403, 404, 409],
   },
   {
     method: "get", path: "/campaigns/{id}/sequence/enrollments", id: "listSequenceEnrollments", summary: "Enrolments with their deliveries (keyset by id)", tag: "Sequences", permission: "campaigns:read",

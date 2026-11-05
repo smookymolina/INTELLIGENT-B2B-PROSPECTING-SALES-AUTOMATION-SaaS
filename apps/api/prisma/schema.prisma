@@ -66,6 +66,7 @@ model Organization {
   opportunity_notes       OpportunityNote[]
   opportunity_tasks       OpportunityTask[]
   notifications           Notification[]
+  jobs                    Job[]
   notification_preferences NotificationPreference[]
   ai_budget               AiBudget?
   ai_runs                 AiRun[]
@@ -1224,4 +1225,32 @@ model SequenceDelivery {
   @@index([organization_id, contact_id, sent_at])
   @@index([organization_id, campaign_id])
   @@map("sequence_deliveries")
+}
+
+/// Worker queue (PostgreSQL-backed). Claimed via jobs_claim (FOR UPDATE SKIP LOCKED + lease). last_error is redacted. See docs/infrastructure/WORKER.md.
+model Job {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String    @db.Uuid
+  type            String
+  dedupe_key      String
+  payload         Json      @default("{}")
+  state           String    @default("queued")
+  attempts        Int       @default(0)
+  max_attempts    Int       @default(5)
+  run_after       DateTime  @default(now()) @db.Timestamptz(6)
+  locked_by       String?
+  locked_until    DateTime? @db.Timestamptz(6)
+  last_error      String?
+  last_error_at   DateTime? @db.Timestamptz(6)
+  started_at      DateTime? @db.Timestamptz(6)
+  finished_at     DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@unique([organization_id, type, dedupe_key])
+  @@index([state, run_after])
+  @@index([organization_id, state, created_at(sort: Desc), id(sort: Desc)])
+  @@map("jobs")
 }

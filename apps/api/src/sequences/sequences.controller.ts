@@ -1,12 +1,10 @@
 import { Body, Controller, Get, HttpCode, Inject, Param, Post, Put, Query } from "@nestjs/common";
 import {
   EnrollmentListQuery,
-  RunDueRequest,
   SaveSequenceRequest,
   UuidParam,
   type EnrollmentPageDto,
   type EnrollResultDto,
-  type RunDueResultDto,
   type SequenceDto,
 } from "@prospecting/contracts";
 import type { AuthContext } from "../auth/auth.types.js";
@@ -39,12 +37,7 @@ export class SequencesController {
     return this.sequences.enroll(auth, cid);
   }
 
-  @Post("run-due")
-  @HttpCode(200)
-  @RequirePermission("campaigns:manage")
-  runDue(@Auth() auth: AuthContext, @Param("id", id()) cid: string, @Body(new ZodPipe(RunDueRequest.default({ limit: 50 }))) body: RunDueRequest): Promise<RunDueResultDto> {
-    return this.sequences.runDue(auth, cid, body.limit);
-  }
+  // No send endpoint on purpose: steps are sent only by the worker (jobs/worker.service.ts) calling SequencesService.runDue.
 
   @Get("enrollments")
   @RequirePermission("campaigns:read")

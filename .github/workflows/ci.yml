@@ -11,17 +11,22 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:18-alpine
         env:
-          POSTGRES_DB: prospecting
+          POSTGRES_DB: postgres
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U app -d prospecting" --health-interval 5s --health-timeout 3s --health-retries 20
+          --health-cmd "pg_isready -U app -d postgres" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      CI_DB_ADMIN_URL: postgresql://app:app@localhost:5432/postgres
+      # Backup/restore use `docker compose exec postgres`, which does not exist with a service container.
+      # It is verified locally by `npm run ci` (see docs/infrastructure/CI.md).
+      CI_SKIP_BACKUP: "1"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -29,8 +34,13 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --no-audit
-      - run: npm run check
-      - name: Migrations + tenant isolation tests (real PostgreSQL)
-        run: npm run db:test:setup && npm run test:int
-      - name: End-to-end (compiled API + Next.js production server)
-        run: npm run test:e2e
+      # Same script as local: isolated DB, migrations, check, test:int, build, test:e2e (+ backup locally).
+      - name: CI (npm run ci)
+        run: npm run ci
+      - name: Upload stage logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: ci-logs/
+          if-no-files-found: ignore

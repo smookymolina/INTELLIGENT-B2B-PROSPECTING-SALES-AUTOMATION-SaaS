@@ -49,5 +49,8 @@ Usar `/privacy/*` (o la pantalla `/privacy`): simular antes de aplicar; el borra
 ## R7. Cambio de rol o salida de un miembro
 Quitar la membresia (`/team`) revoca el acceso a la organizacion (cubierto por `tenancy`/`roles` en `test:int`). Revisar tareas y oportunidades asignadas a esa persona.
 
+## R8. Worker de secuencias y notificaciones
+Detalle en `docs/infrastructure/WORKER.md`. Sintomas: secuencias que no avanzan, `worker_queue_jobs{state="dead"} > 0` o `worker_last_tick_timestamp_seconds` sin cambiar. Pasos: (1) comprobar que el proceso `npm run worker` esta vivo y que `DATABASE_URL` apunta a la BD correcta; (2) `GET /admin/jobs/stats` y `GET /admin/jobs` (DLQ, error redactado); (3) corregir la causa y `POST /admin/jobs/{id}/requeue`; (4) un trabajo atascado en `running` se recupera solo al vencer el lease (`WORKER_LEASE_SECONDS`). Nunca editar `jobs` a mano; el envio sigue siendo sandbox.
+
 ## Pendiente (BLOCKED por decision humana)
 Planificador de respaldos y copia externa cifrada, monitor y canal de alertas, responsable de guardia, objetivos RTO/RPO de produccion, IdP, nube.
