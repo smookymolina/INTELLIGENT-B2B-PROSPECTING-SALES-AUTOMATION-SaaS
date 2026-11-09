@@ -28,5 +28,9 @@
     "openapi:check": "npm run build --workspace=@prospecting/contracts && node scripts/openapi.mjs --check",
     "test:e2e": "node scripts/e2e-web.mjs",
     "ci": "node scripts/ci.mjs"
+  },
+  "overrides": {
+    "undici": ">=6.29.1",
+    "brace-expansion": ">=5.0.11"
   }
 }

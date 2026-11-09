@@ -32,7 +32,7 @@ export default async function PipelinePage({ searchParams }: { searchParams: Pro
         <button type="submit">Filtrar</button>
       </form>
       <p>Total: <strong>{summary.data.total}</strong></p>
-      <div className="board">
+      <div className="board" role="region" aria-label="Tablero del pipeline" tabIndex={0}>
         {OPPORTUNITY_STAGES.map((stage) => {
           const items = list.data.items.filter((o) => o.stage === stage);
           return (

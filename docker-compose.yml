@@ -56,6 +56,48 @@ services:
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
     restart: unless-stopped
+  worker:
+    profiles: ["app"]
+    build: { context: ., target: api }
+    command: ["node", "dist/worker/main.js"]
+    environment:
+      DATABASE_URL: postgresql://app_login:${APP_DB_PASSWORD:-}@postgres:5432/prospecting?schema=public
+      REDIS_URL: redis://redis:6379
+      HMAC_SECRET: ${HMAC_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      WORKER_METRICS_FILE: /metrics/worker.prom
+    volumes: ["worker_metrics:/metrics"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+  node-exporter:
+    profiles: ["monitoring"]
+    image: prom/node-exporter:v1.9.1
+    command: ["--collector.textfile.directory=/metrics", "--collector.disable-defaults", "--collector.textfile"]
+    volumes: ["worker_metrics:/metrics:ro"]
+    restart: unless-stopped
+  prometheus:
+    profiles: ["monitoring"]
+    image: prom/prometheus:v3.5.0
+    volumes:
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports: ["127.0.0.1:9090:9090"]
+    restart: unless-stopped
+  alertmanager:
+    profiles: ["monitoring"]
+    image: prom/alertmanager:v0.28.1
+    # Alertmanager no expande variables: el entrypoint sustituye el URL placeholder por ALERT_WEBHOOK_URL.
+    entrypoint: ["/bin/sh", "-c", "sed \"s|http://127.0.0.1:9/null|$${ALERT_WEBHOOK_URL}|\" /etc/alertmanager/alertmanager.yml > /tmp/am.yml && exec /bin/alertmanager --config.file=/tmp/am.yml --storage.path=/tmp/am"]
+    environment:
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-http://127.0.0.1:9/null}
+    volumes: ["./infra/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro"]
+    ports: ["127.0.0.1:9093:9093"]
+    restart: unless-stopped
   web:
     profiles: ["app"]
     build: { context: ., target: web }
@@ -72,5 +114,6 @@ services:
     security_opt: ["no-new-privileges:true"]
     restart: unless-stopped
 volumes:
+  worker_metrics:
   postgres_data:
   redis_data:

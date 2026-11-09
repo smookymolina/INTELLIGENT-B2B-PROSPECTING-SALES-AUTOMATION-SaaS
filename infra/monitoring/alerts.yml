@@ -1,0 +1,41 @@
+# Reglas de alerta de Prometheus sobre las métricas reales de GET /health/metrics (API) y del worker.
+# Validar con: promtool check rules infra/monitoring/alerts.yml  (o `npm run alerts:check`, validación estructural sin promtool).
+groups:
+  - name: prospecting-api
+    rules:
+      - alert: ApiDown
+        expr: up{job="prospecting-api"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "La API no responde al scrape", runbook: "docs/infrastructure/RUNBOOKS.md" }
+      - alert: ApiHighErrorRate
+        expr: sum(rate(http_requests_total{status="5xx"}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 1) > 0.05
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: "Más del 5 % de respuestas 5xx en 5 min" }
+      - alert: ApiSlowRoutes
+        expr: sum by (route) (rate(http_request_duration_seconds_sum[5m])) / clamp_min(sum by (route) (rate(http_requests_total[5m])), 0.001) > 1
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "Latencia media > 1 s en la ruta {{ $labels.route }}" }
+  - name: prospecting-worker
+    rules:
+      - alert: WorkerStalled
+        expr: time() - worker_last_tick_timestamp_seconds > 300
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: "El worker no completa ciclos hace más de 5 min", runbook: "docs/infrastructure/RUNBOOKS.md (R8)" }
+      - alert: DeadLetterQueueNotEmpty
+        expr: worker_queue_jobs{state="dead"} > 0
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "Hay trabajos en la cola de muertos (DLQ)", runbook: "docs/infrastructure/RUNBOOKS.md (R8)" }
+      - alert: WorkerQueueBacklog
+        expr: worker_queue_jobs{state="queued"} > 500
+        for: 15m
+        labels: { severity: warning }
+        annotations: { summary: "Cola con más de 500 trabajos pendientes" }
+      - alert: WorkerLostLeases
+        expr: increase(worker_jobs_total{outcome="lost_lease"}[15m]) > 0
+        labels: { severity: warning }
+        annotations: { summary: "Se perdieron leases: posible worker lento o duplicado" }

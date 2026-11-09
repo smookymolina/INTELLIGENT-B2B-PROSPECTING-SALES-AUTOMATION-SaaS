@@ -29,7 +29,7 @@ Pruebas realizadas: verificacion correcta; manifiesto alterado (un conteo +1) ->
 
 ## Limitaciones
 
-- El dump **no esta cifrado** y vive en disco local.
+- El dump vive en disco local. Con `BACKUP_ENCRYPTION_KEY` (64 hex) se cifra con AES-256-GCM (`.dump.enc`, manifiesto `encrypted: true`); sin la variable queda en claro. Clave incorrecta o archivo alterado: `backup:verify` falla ("unable to authenticate data"). Guardar la clave fuera del repositorio y de la maquina de respaldos; perderla = perder el respaldo.
 - **No hay copia fuera de la maquina**: perder el disco o el volumen Docker pierde datos y respaldos.
 - **No cubre Redis** (colas BullMQ/estado efimero); se asume reconstruible.
 - Los conteos del manifiesto se toman justo antes del dump; con escrituras concurrentes puede haber falsos negativos.
@@ -38,4 +38,4 @@ Pruebas realizadas: verificacion correcta; manifiesto alterado (un conteo +1) ->
 
 ## Falta para produccion
 
-Cifrado del dump (p. ej. age/KMS), almacenamiento remoto con retencion e inmutabilidad, ejecucion programada con alerta de fallo, backup continuo/PITR (WAL) para un RPO real, restauracion de prueba periodica automatizada con metricas, respaldo de roles y de secretos, y runbook de recuperacion ante desastre.
+Gestion de la clave en un KMS, almacenamiento remoto con retencion e inmutabilidad, ejecucion programada con alerta de fallo, backup continuo/PITR (WAL) para un RPO real, restauracion de prueba periodica automatizada con metricas, respaldo de roles y de secretos, y runbook de recuperacion ante desastre.

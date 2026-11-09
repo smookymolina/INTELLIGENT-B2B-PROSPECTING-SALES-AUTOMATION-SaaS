@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels: { app: api }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: api }
+  template:
+    metadata:
+      labels: { app: api }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: api
+        image: app-api
+        ports:
+          - containerPort: 3001
+        envFrom:
+          - configMapRef: { name: app-config }
+        env:
+          - name: DATABASE_URL
+            valueFrom: { secretKeyRef: { name: app-secrets, key: DATABASE_URL } }
+          - name: REDIS_URL
+            valueFrom: { secretKeyRef: { name: app-secrets, key: REDIS_URL } }
+          - name: HMAC_SECRET
+            valueFrom: { secretKeyRef: { name: app-secrets, key: HMAC_SECRET } }
+          - name: ENCRYPTION_KEY
+            valueFrom: { secretKeyRef: { name: app-secrets, key: ENCRYPTION_KEY } }
+          - name: METRICS_TOKEN
+            valueFrom: { secretKeyRef: { name: app-secrets, key: METRICS_TOKEN } }
+        readinessProbe:
+          httpGet: { path: /v1/health/ready, port: 3001 }
+          periodSeconds: 10
+          timeoutSeconds: 3
+        livenessProbe:
+          httpGet: { path: /v1/health, port: 3001 }
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        resources:
+          requests: { cpu: 250m, memory: 384Mi }
+          limits: { cpu: "1", memory: 768Mi }
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities: { drop: ["ALL"] }
+          seccompProfile: { type: RuntimeDefault }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+spec:
+  selector: { app: api }
+  ports:
+    - port: 3001
+      targetPort: 3001

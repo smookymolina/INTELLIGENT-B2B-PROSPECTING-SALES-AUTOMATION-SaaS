@@ -3,9 +3,9 @@
 // Usage: node scripts/restore-verify.mjs [--file backups/x.dump] [--manifest backups/x.json] [--target <db> --yes [--force]]
 // Env: BACKUP_DB (default prospecting) selects which DB's latest dump to use when --file is absent.
 import { createHash } from "node:crypto";
-import { createReadStream, readdirSync, readFileSync } from "node:fs";
+import { createReadStream, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { basename, join } from "node:path";
-import { assertIdent, lastMigration, pgExec, psql, PG_USER, tableCounts } from "./backup-lib.mjs";
+import { assertIdent, backupKey, decryptToTemp, lastMigration, pgExec, psql, PG_USER, tableCounts } from "./backup-lib.mjs";
 
 const argv = process.argv.slice(2);
 const opt = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : undefined; };
@@ -15,12 +15,12 @@ const TEMP = "prospecting_restore_check";
 const srcDb = assertIdent(process.env.BACKUP_DB ?? "prospecting", "BACKUP_DB");
 let file = opt("--file");
 if (!file) {
-  const own = new RegExp(`^${srcDb}-\\d{8}T\\d{6}Z\\.dump$`);
+  const own = new RegExp(`^${srcDb}-\\d{8}T\\d{6}Z\\.dump(\\.enc)?$`);
   const latest = readdirSync("backups").filter((f) => own.test(f)).sort().pop();
   if (!latest) throw new Error(`no dump found in backups/ for ${srcDb}`);
   file = join("backups", latest);
 }
-const manifestPath = opt("--manifest") ?? file.replace(/\.dump$/, ".json");
+const manifestPath = opt("--manifest") ?? file.replace(/\.dump(\.enc)?$/, ".json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 
 const target = assertIdent(opt("--target") ?? TEMP, "--target");
@@ -48,9 +48,18 @@ try {
   }
   if (!exists || isTemp) { await psql("postgres", `CREATE DATABASE "${target}"`); created = true; }
 
+  // 2b) encrypted backups are decrypted to a temp file (wrong key / tampering throws here)
+  let restoreFile = file;
+  if (manifest.encrypted) {
+    const key = backupKey();
+    if (!key) throw new Error("backup is encrypted: set BACKUP_ENCRYPTION_KEY");
+    restoreFile = await decryptToTemp(file, key);
+  }
+
   // 3) restore (dump is streamed through stdin; --clean only for an explicit --force into an existing DB)
   const flags = ["--no-owner", "--exit-on-error", ...(has("--force") && !isTemp ? ["--clean", "--if-exists"] : [])];
-  const r = await pgExec(["pg_restore", "-U", PG_USER, "-d", target, ...flags], { stdin: createReadStream(file) });
+  const r = await pgExec(["pg_restore", "-U", PG_USER, "-d", target, ...flags], { stdin: createReadStream(restoreFile) });
+  if (restoreFile !== file) try { unlinkSync(restoreFile); } catch {}
   if (r.code !== 0) problems.push(`pg_restore failed: ${r.stderr.trim().split("\n").slice(0, 3).join(" | ")}`);
 
   // 4) compare

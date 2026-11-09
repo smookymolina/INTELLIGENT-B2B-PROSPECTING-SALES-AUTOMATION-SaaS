@@ -12,3 +12,13 @@ apps/api/src/generated/
 
 backups/
 ci-logs/
+
+# Playwright
+test-results/
+playwright-report/
+infra/monitoring/metrics_token
+
+# Claves y volcados
+*.pem
+*.key
+*.dump

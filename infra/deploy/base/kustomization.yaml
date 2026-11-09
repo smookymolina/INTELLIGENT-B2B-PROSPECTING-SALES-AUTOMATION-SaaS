@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - configmap.yaml
+  - api.yaml
+  - worker.yaml
+  - web.yaml
+  - networkpolicy.yaml
+# Las imagenes se fijan en un overlay propio (registro = decision humana):
+# images: [{name: app-api, newName: <registro>/api, newTag: <sha>}]

@@ -48,3 +48,41 @@ export async function tableCounts(db) {
 export async function lastMigration(db) {
   return (await psql(db, "SELECT coalesce(max(migration_name), '') FROM _prisma_migrations WHERE finished_at IS NOT NULL")) || null;
 }
+
+// ---- Encryption at rest (AES-256-GCM). File layout: "BKE1" | iv(12) | ciphertext | tag(16). Key: BACKUP_ENCRYPTION_KEY = 64 hex chars.
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createReadStream as _crs, createWriteStream as _cws, openSync, readSync, closeSync, statSync as _st, writeFileSync as _wf } from "node:fs";
+import { pipeline } from "node:stream/promises";
+import { tmpdir } from "node:os";
+import { join as _join } from "node:path";
+
+export function backupKey() {
+  const k = process.env.BACKUP_ENCRYPTION_KEY;
+  if (!k) return null;
+  if (!/^[0-9a-f]{64}$/i.test(k)) throw new Error("BACKUP_ENCRYPTION_KEY must be 64 hex characters (32 bytes)");
+  return Buffer.from(k, "hex");
+}
+
+export async function encryptFile(src, dst, key) {
+  const iv = randomBytes(12);
+  const c = createCipheriv("aes-256-gcm", key, iv);
+  const out = _cws(dst);
+  const w = (buf) => new Promise((res, rej) => out.write(buf, (e) => (e ? rej(e) : res())));
+  await w(Buffer.concat([Buffer.from("BKE1"), iv]));
+  for await (const chunk of _crs(src)) await w(c.update(chunk));
+  await w(c.final());
+  await new Promise((res, rej) => out.end(c.getAuthTag(), (e) => (e ? rej(e) : res())));
+}
+
+export async function decryptToTemp(src, key) {
+  const size = _st(src).size;
+  const fd = openSync(src, "r");
+  const head = Buffer.alloc(16), tag = Buffer.alloc(16);
+  readSync(fd, head, 0, 16, 0); readSync(fd, tag, 0, 16, size - 16); closeSync(fd);
+  if (head.subarray(0, 4).toString() !== "BKE1") throw new Error("not an encrypted backup (bad magic)");
+  const d = createDecipheriv("aes-256-gcm", key, head.subarray(4, 16));
+  d.setAuthTag(tag);
+  const out = _join(tmpdir(), `restore-${randomBytes(6).toString("hex")}.dump`);
+  await pipeline(_crs(src, { start: 16, end: size - 17 }), d, _cws(out)); // throws on wrong key / tampering
+  return out;
+}

@@ -28,7 +28,7 @@ const outbox = () => api.app.get(EmailChannels).sandbox.outbox;
 const clock = (at: string) => {
   api.app.get(SequencesService).now = () => new Date(at);
 };
-const iso = (offsetMs = -60_000) => new Date(Date.now() + offsetMs).toISOString();
+const iso = (offsetMs = -60_000) => new Date(new Date("2026-11-09T16:00:00.000Z").getTime() + offsetMs).toISOString(); // anchored to the injected clock, not the real one
 
 async function contact(t: string, opts: { consent?: boolean } = {}) {
   const domain = `seq-${randomUUID().slice(0, 8)}.example`;

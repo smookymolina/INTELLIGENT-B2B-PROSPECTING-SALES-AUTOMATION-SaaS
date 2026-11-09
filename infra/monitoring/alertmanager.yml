@@ -1,0 +1,13 @@
+# Alertmanager local. Sin secretos: el destino se inyecta por ALERT_WEBHOOK_URL (docker-compose lo expande a /tmp/alertmanager.yml).
+# Por defecto apunta a un receptor nulo en localhost sin servicio real (las alertas se descartan en silencio).
+route:
+  receiver: default-webhook
+  group_by: [alertname, severity]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+receivers:
+  - name: default-webhook
+    webhook_configs:
+      - url: "http://127.0.0.1:9/null"   # PLACEHOLDER: el entrypoint de compose lo reemplaza por ALERT_WEBHOOK_URL
+        send_resolved: true

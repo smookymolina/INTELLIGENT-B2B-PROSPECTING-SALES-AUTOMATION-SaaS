@@ -47,3 +47,5 @@ W-11 2026-11-03: interfaz de privacidad completada (E2E 33 pasos OK, typecheck y
 
 ### Recalculo 2026-11-04 (cierre 90 %)
 F7 55→62 % (+0,7; secuencias en sandbox), F11 92→96 % (+0,2), F9 95→97 % (+0,1), F12 +0,2 (runbooks, resiliencia medida), web W-07 +1,0 (auditoría propia, sin axe/Playwright). Suma ≈ 75,1/98: interno ≈ 74 % (rango 64–75 tras el descuento de la revisión independiente). Operable ≈ 33 %. El 90 % no es alcanzable sin proveedores, nube, plazos legales y revisión independiente (ver CURRENT_STATUS).
+
+2026-11-09 (D+E, bloque 1 sin proveedor): `npm run ci` PASSED (check 80/80, test:int 489/489, e2e, backup/restore); `npm audit` prod 0; IaC neutral y Alertmanager listos (destino real BLOCKED). Interno ≈66 % (62–70), operable ≈22 % (20–25) sin cambio: nada nuevo depende de proveedores reales.

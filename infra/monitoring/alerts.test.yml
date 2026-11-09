@@ -1,0 +1,37 @@
+# Prueba de disparo: promtool test rules alerts.test.yml
+rule_files: [alerts.yml]
+evaluation_interval: 15s
+tests:
+  - name: worker detenido
+    interval: 1m
+    input_series:
+      - series: 'worker_last_tick_timestamp_seconds{job="prospecting-worker"}'
+        values: '0+0x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: WorkerStalled
+        exp_alerts:
+          - exp_labels: { severity: critical, job: prospecting-worker }
+            exp_annotations:
+              summary: "El worker no completa ciclos hace más de 5 min"
+              runbook: "docs/infrastructure/RUNBOOKS.md (R8)"
+  - name: cola sin consumir
+    interval: 1m
+    input_series:
+      - series: 'worker_queue_jobs{state="dead"}'
+        values: '3x30'
+      - series: 'worker_queue_jobs{state="queued"}'
+        values: '600x30'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: DeadLetterQueueNotEmpty
+        exp_alerts:
+          - exp_labels: { severity: warning, state: dead }
+            exp_annotations:
+              summary: "Hay trabajos en la cola de muertos (DLQ)"
+              runbook: "docs/infrastructure/RUNBOOKS.md (R8)"
+      - eval_time: 20m
+        alertname: WorkerQueueBacklog
+        exp_alerts:
+          - exp_labels: { severity: warning, state: queued }
+            exp_annotations: { summary: "Cola con más de 500 trabajos pendientes" }

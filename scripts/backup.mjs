@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { assertIdent, lastMigration, pgExec, PG_USER, tableCounts } from "./backup-lib.mjs";
+import { assertIdent, backupKey, encryptFile, lastMigration, pgExec, PG_USER, tableCounts } from "./backup-lib.mjs";
 
 const db = assertIdent(process.env.BACKUP_DB ?? "prospecting", "BACKUP_DB");
 const keep = Number(process.env.BACKUP_KEEP ?? 7);
@@ -12,15 +12,18 @@ if (!Number.isInteger(keep) || keep < 1) throw new Error("BACKUP_KEEP must be an
 const dir = "backups";
 mkdirSync(dir, { recursive: true });
 const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z"); // 20261102T120000Z
-const file = join(dir, `${db}-${stamp}.dump`);
+const plain = join(dir, `${db}-${stamp}.dump`);
+const key = backupKey(); // optional encryption at rest (AES-256-GCM); without it the dump stays plaintext
+const file = key ? `${plain}.enc` : plain;
 const t0 = Date.now();
 
 // Counts are taken just before the dump; restore-verify compares against them (quiet dev DB assumed).
 const counts = await tableCounts(db);
 const migration = await lastMigration(db);
 
-const dump = await pgExec(["pg_dump", "-Fc", "-U", PG_USER, "-d", db], { stdout: createWriteStream(file) });
+const dump = await pgExec(["pg_dump", "-Fc", "-U", PG_USER, "-d", db], { stdout: createWriteStream(plain) });
 if (dump.code !== 0) throw new Error(`pg_dump failed: ${dump.stderr.trim()}`);
+if (key) { await encryptFile(plain, file, key); unlinkSync(plain); }
 
 const hash = createHash("sha256");
 for await (const chunk of createReadStream(file)) hash.update(chunk);
@@ -28,7 +31,8 @@ const version = (await pgExec(["pg_dump", "--version"])).stdout.trim();
 
 const manifest = {
   database: db,
-  file: `${db}-${stamp}.dump`,
+  file: `${db}-${stamp}.dump${key ? ".enc" : ""}`,
+  encrypted: Boolean(key),
   createdAtUtc: new Date().toISOString(),
   sha256: hash.digest("hex"),
   sizeBytes: statSync(file).size,
@@ -37,14 +41,14 @@ const manifest = {
   tableCounts: counts,
   durationMs: Date.now() - t0,
 };
-writeFileSync(file.replace(/\.dump$/, ".json"), JSON.stringify(manifest, null, 2) + "\n");
+writeFileSync(file.replace(/\.dump(\.enc)?$/, ".json"), JSON.stringify(manifest, null, 2) + "\n");
 
 // Rotation: only `<db>-<timestamp>.dump` files of this exact DB (prefix match is anchored on the timestamp shape).
-const own = new RegExp(`^${db}-\\d{8}T\\d{6}Z\\.dump$`);
+const own = new RegExp(`^${db}-\\d{8}T\\d{6}Z\\.dump(\\.enc)?$`);
 const dumps = readdirSync(dir).filter((f) => own.test(f)).sort().reverse();
 for (const old of dumps.slice(keep)) {
   unlinkSync(join(dir, old));
-  try { unlinkSync(join(dir, old.replace(/\.dump$/, ".json"))); } catch {}
+  try { unlinkSync(join(dir, old.replace(/\.dump(\.enc)?$/, ".json"))); } catch {}
   console.log(`rotated out ${old}`);
 }
 

@@ -34,12 +34,14 @@ async function register(label: string): Promise<Account> {
 }
 const T0 = "2026-11-09T16:00:00.000Z"; // Monday 10:00 America/Mexico_City
 const at = (ms = 0) => new Date(new Date(T0).getTime() + ms);
+// Real-clock lag in whole weeks (keeps weekday/hour of the window): DB defaults and JobsService.requeue use the real clock, which has outgrown T0.
+const lagWeeks = () => Math.ceil(Math.max(0, Date.now() - new Date(T0).getTime()) / (7 * 86_400_000)) * 7 * 86_400_000;
 const clock = (ms = 0) => {
   const d = at(ms);
   api.app.get(SequencesService).now = () => d;
   worker.now = () => d;
 };
-const iso = (offsetMs = -60_000) => new Date(Date.now() + offsetMs).toISOString();
+const iso = (offsetMs = -60_000) => new Date(new Date("2026-11-09T16:00:00.000Z").getTime() + offsetMs).toISOString(); // anchored to the injected clock, not the real one
 const outbox = () => api.app.get(EmailChannels).sandbox.outbox;
 const SEQ = {
   timezone: "America/Mexico_City", windowStart: "09:00", windowEnd: "18:00", weekdays: [1, 2, 3, 4, 5],
@@ -146,7 +148,7 @@ describe("automatic processing (criterion 1)", () => {
     await worker.tick();
     expect(await deliveries(cid)).toHaveLength(1);
     // 49 h later (Wednesday 11:00 local): a new window plans a new job and the second step goes out
-    clock(49 * 3_600_000);
+    clock(49 * 3_600_000 + lagWeeks());
     await worker.tick(); // (the shared test database also holds other tests' due enrolments, so assert on this campaign's deliveries)
     expect((await deliveries(cid)).map((d) => d.step_no).sort()).toEqual([1, 2]);
     expect((await jobRows(a.orgId, "sequence.run_due")).length).toBe(2);
@@ -222,7 +224,7 @@ describe("retries, backoff and DLQ without double sends (criterion 2)", () => {
       expect(rq.body).toMatchObject({ state: "queued", attempts: 0 });
       expect((await api.call("POST", `/admin/jobs/${job?.id}/requeue`, { token: a.token })).status).toBe(409); // no longer dead
       expect(await audit(a.orgId, "job.requeued")).toBe(1);
-      clock(120_000);
+      clock(120_000 + lagWeeks());
       await worker.tick();
       expect((await jobRows(a.orgId, "sequence.run_due"))[0]).toMatchObject({ state: "succeeded", attempts: 1 });
       expect(outbox()).toHaveLength(1);

@@ -33,6 +33,7 @@ FROM prod-deps AS api
 ENV NODE_ENV=production API_PORT=3001 API_HOST=0.0.0.0 LOG_FORMAT=json REQUIRE_UNPRIVILEGED_DB_ROLE=1
 COPY --from=build /app/packages/contracts/dist packages/contracts/dist
 COPY --from=build /app/apps/api/dist apps/api/dist
+RUN mkdir -p /metrics && chown node:node /metrics
 WORKDIR /app/apps/api
 USER node
 EXPOSE 3001

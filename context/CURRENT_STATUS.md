@@ -1,6 +1,6 @@
 # Estado actual
 
-Fecha: 2026-10-30. **Fuente única del estado vigente**; el historial por bloque está en `logs/DEVELOPMENT_LOG.md` y el detalle por fase en `planning/PHASE_*_EXECUTION.md`. Git local en `main` (último commit `a827792`); **sin push, sin CI remoto, sin proveedores externos, sin despliegue**.
+Fecha: 2026-11-09 (CI en verde: check 80/80, test:int 489/489, e2e OK, backup OK; interno ≈66 %, operable ≈22 % — ver PROGRESS). **Fuente única del estado vigente**; el historial por bloque está en `logs/DEVELOPMENT_LOG.md` y el detalle por fase en `planning/PHASE_*_EXECUTION.md`. Git local en `main` (último commit `a827792`); **sin push, sin CI remoto, sin proveedores externos, sin despliegue**.
 
 ## Avance (estimación ponderada, no medición; método en `planning/PROGRESS.md`)
 
