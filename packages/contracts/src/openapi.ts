@@ -123,6 +123,18 @@ export const OPERATIONS: readonly Operation[] = [
     pathParams: ["id", "resource"], query: C.PlatformAdminPageQuery, success: { status: 200, schema: z.object({ total: z.number(), limit: z.number(), offset: z.number(), items: z.array(z.record(z.string(), z.unknown())) }), description: "Page" }, errors: [400, 401, 403, 404],
   },
   {
+    method: "post", path: "/drafts/{id}/whatsapp-link", id: "getDraftWhatsAppLink", summary: "wa.me link for an approved, eligible WhatsApp draft. The person sends it from their own number; nothing is sent by the system", tag: "Drafts", permission: "campaigns:approve",
+    pathParams: ["id"], success: { status: 200, schema: C.WhatsAppLinkDto, description: "Link" }, errors: [401, 403, 404, 409, 422, 429],
+  },
+  {
+    method: "post", path: "/drafts/{id}/mark-sent-manual", id: "markDraftSentManual", summary: "Record that the person sent the WhatsApp message manually (idempotent, audited, counts for the frequency cap)", tag: "Drafts", permission: "campaigns:approve",
+    pathParams: ["id"], success: { status: 200, schema: C.WhatsAppMarkSentDto, description: "Recorded" }, errors: [401, 403, 404, 409],
+  },
+  {
+    method: "get", path: "/drafts/{id}/whatsapp-status", id: "getDraftWhatsAppStatus", summary: "Manual WhatsApp state of a draft: none, link_opened or sent_manual", tag: "Drafts", permission: "campaigns:read",
+    pathParams: ["id"], success: { status: 200, schema: C.WhatsAppManualStatusDto, description: "Status" }, errors: [401, 403, 404],
+  },
+  {
     method: "post", path: "/prospects/{id}/contacts", id: "addContact", summary: "Add an email (default) or WhatsApp (E.164) contact to a prospect; a contact has one channel (source required; no consent is implied)", tag: "Campaigns", permission: "prospects:manage",
     pathParams: ["id"], body: C.AddContactRequest, success: { status: 201, schema: C.ContactDto, description: "Created" }, errors: [400, 401, 403, 404, 409],
   },
@@ -395,6 +407,14 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: "post", path: "/prospects/{id}/status", id: "setProspectStatus", summary: "Qualify/disqualify. Suppressed prospects cannot be qualified", tag: "Prospecting", permission: "prospects:manage",
     pathParams: ["id"], body: C.SetProspectStatusRequest, success: { status: 200, schema: C.ProspectDto, description: "Updated" }, errors: [400, 401, 403, 404, 409],
+  },
+  {
+    method: "put", path: "/prospects/{id}/owner", id: "setProspectOwner", summary: "Reassign the owner of a prospect and its leads (Gerente = org_admin)", tag: "Prospecting", permission: "members:manage",
+    pathParams: ["id"], body: C.SetOwnerRequest, success: { status: 200, schema: C.OwnerDto, description: "New owner" }, errors: [400, 401, 403, 404, 422],
+  },
+  {
+    method: "put", path: "/leads/{id}/owner", id: "setLeadOwner", summary: "Reassign the owner of a lead (Gerente = org_admin)", tag: "Leads", permission: "members:manage",
+    pathParams: ["id"], body: C.SetOwnerRequest, success: { status: 200, schema: C.OwnerDto, description: "New owner" }, errors: [400, 401, 403, 404, 422],
   },
   {
     method: "get", path: "/prospects/connectors", id: "listConnectors", summary: "Prospecting connectors available to this deployment (none until a provider is approved)", tag: "Prospecting", permission: "prospects:read",

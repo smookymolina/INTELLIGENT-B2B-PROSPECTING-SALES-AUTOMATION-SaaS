@@ -254,7 +254,7 @@ describe("RBAC", () => {
     org_admin: { read: 200, manage: 201, suppress: 201, remove: 204 },
     sales_manager: { read: 200, manage: 201, suppress: 201, remove: 403 },
     campaign_manager: { read: 200, manage: 201, suppress: 201, remove: 403 },
-    seller: { read: 200, manage: 403, suppress: 403, remove: 403 },
+    seller: { read: 200, manage: 201, suppress: 403, remove: 403 },
     analyst: { read: 200, manage: 403, suppress: 403, remove: 403 },
     viewer: { read: 200, manage: 403, suppress: 403, remove: 403 },
   };
@@ -262,9 +262,9 @@ describe("RBAC", () => {
 
   it.each(MEMBERSHIP_ROLES)("%s gets exactly its prospecting permissions", async (role) => {
     const a = await register(`rbac-${role}`);
-    const seedProspect = (await create(a.token, { name: "Seed", domain: dom() })).body.id as string;
-    const seedSupp = (await suppress(a.token, "name", "seed suppression")).body.id as string;
     const token = role === "org_admin" ? a.token : (await member(a.orgId, role)).token;
+    const seedProspect = (await create(role === "seller" ? token : a.token, { name: "Seed", domain: dom() })).body.id as string;
+    const seedSupp = (await suppress(a.token, "name", "seed suppression")).body.id as string;
     const e = expected[role];
     expect((await api.call("GET", "/prospects", { token })).status).toBe(e.read);
     expect((await api.call("GET", `/prospects/${seedProspect}`, { token })).status).toBe(e.read);

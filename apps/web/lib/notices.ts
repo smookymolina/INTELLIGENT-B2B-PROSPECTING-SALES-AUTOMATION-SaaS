@@ -65,6 +65,7 @@ export const OK: Record<string, string> = {
   draftcreated: "Borrador creado y pendiente de revisión. No se envió nada.",
   draftapproved: "Borrador aprobado. Aprobarlo no lo envía.",
   draftqueued: "Envío en cola. Lo enviará el proceso de fondo; aquí verás el resultado.",
+  wasent: "Registrado como enviado manualmente desde tu WhatsApp.",
   draftrejected: "Borrador rechazado con tu nota.",
   emailsaved: "Cuenta de correo guardada. Prueba la conexión antes de enviar.",
   emailverified: "Conexión e inicio de sesión correctos. No se envió ningún mensaje.",

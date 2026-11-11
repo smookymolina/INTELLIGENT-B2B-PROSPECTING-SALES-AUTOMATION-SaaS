@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { DraftDeliveryDto, MessageDraftDto } from "@prospecting/contracts";
+import type { DraftDeliveryDto, MessageDraftDto, WhatsAppManualStatusDto } from "@prospecting/contracts";
 import { api } from "../../../../lib/api";
 import { requireSession } from "../../../../lib/auth";
 import { formatDate } from "../../../../lib/format";
@@ -21,6 +21,8 @@ export default async function DraftPage({ params, searchParams }: { params: Prom
   const d = result.data;
   const delivery = d.channel === "email" && d.status === "approved" ? await api<DraftDeliveryDto>(`/message-drafts/${id}/delivery`, { token }) : null;
   const state = delivery?.ok ? delivery.data.state : null;
+  const wa = d.channel === "whatsapp" && d.status === "approved" && me.permissions.includes("campaigns:approve") ? await api<WhatsAppManualStatusDto>(`/drafts/${id}/whatsapp-status`, { token }) : null;
+  const waState = wa?.ok ? wa.data.state : null;
   const canSend = me.permissions.includes("campaigns:approve") && (state === "none" || state === "failed" || state === "skipped");
   const canDecide = me.permissions.includes("campaigns:approve") && d.status === "pending_review";
   return (
@@ -28,9 +30,9 @@ export default async function DraftPage({ params, searchParams }: { params: Prom
       <p><Link href="/drafts">← Borradores</Link></p>
       <h1>Borrador de {d.channel === "email" ? "correo" : "WhatsApp"} <span className={`badge ${d.status === "approved" ? "approved" : d.status === "pending_review" ? "draft" : "archived"}`}>{STATE_LABELS[d.status]}</span></h1>
       <Flash sp={sp} />
-      <p role="note" className="notice ok">Este borrador no se envía automáticamente, ni siquiera aprobado.{d.channel === "whatsapp" ? " WhatsApp es sólo borrador: no hay proveedor de envío." : ""}</p>
+      <p role="note" className="notice ok">Este borrador no se envía automáticamente, ni siquiera aprobado.{d.channel === "whatsapp" ? " En WhatsApp lo envías tú desde tu propio número." : ""}</p>
       <dl>
-        <div className="row"><dt>Canal</dt><dd>{d.channel === "email" ? "Correo" : "WhatsApp (sólo borrador)"}</dd></div>
+        <div className="row"><dt>Canal</dt><dd>{d.channel === "email" ? "Correo" : "WhatsApp (envío manual)"}</dd></div>
         <div className="row"><dt>Autor</dt><dd>{d.authorKind === "mcp" ? "Asistente externo (MCP), pendiente de revisión humana" : "Persona"} · {formatDate(d.createdAt)}</dd></div>
         {d.subject !== null ? <div className="row"><dt>Asunto</dt><dd>{d.subject}</dd></div> : null}
         <div className="row"><dt>Cuerpo</dt><dd style={{ whiteSpace: "pre-wrap" }}>{d.body}</dd></div>
@@ -46,6 +48,19 @@ export default async function DraftPage({ params, searchParams }: { params: Prom
             <label>Nota del rechazo (obligatoria)<input name="note" required maxLength={500} /></label>
             <button type="submit" className="secondary">Rechazar</button>
           </form>
+        </>
+      ) : null}
+      {waState ? (
+        <>
+          <h2>Envío por WhatsApp</h2>
+          <p className="hint">Cada persona envía desde su propio número de WhatsApp: así se protege la cuenta de bloqueos. El sistema no envía nada por ti.</p>
+          {waState === "sent_manual" ? <p role="status">Enviado manualmente{wa?.ok && wa.data.sentAt ? ` (${formatDate(wa.data.sentAt)})` : ""}.</p> : (
+            <div className="actions">
+              <form method="post" action={`/actions/drafts/${d.id}/wa-link`} target="_blank" className="inline-form" aria-label="Abrir en WhatsApp"><button type="submit">Abrir en WhatsApp<span className="sr"> (se abre en una pestaña nueva)</span></button></form>
+              <form method="post" action={`/actions/drafts/${d.id}/wa-sent`} className="inline-form" aria-label="Marcar como enviado"><button type="submit" className="secondary" disabled={waState === "none"}>Marcar como enviado</button></form>
+            </div>
+          )}
+          {waState === "none" ? <p className="hint">Primero abre el enlace; después de enviar el mensaje podrás marcarlo como enviado.</p> : null}
         </>
       ) : null}
       {state ? (

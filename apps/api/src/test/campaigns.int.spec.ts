@@ -108,9 +108,9 @@ describe("contacts and the consent ledger", () => {
     const seller = await member(a.orgId, "seller");
     const analyst = await member(a.orgId, "analyst");
     const manager = await member(a.orgId, "campaign_manager");
-    expect((await api.call("POST", `/prospects/${pid}/contacts`, { token: seller, body: { address: "z@example.com", source: "web 1" } })).status).toBe(403);
+    expect((await api.call("POST", `/prospects/${pid}/contacts`, { token: seller, body: { address: "z@example.com", source: "web 1" } })).status).toBe(404); // a seller cannot see another user's prospect (owner visibility)
     expect((await api.call("GET", `/prospects/${pid}/contacts`, { token: analyst })).status).toBe(403); // contact data is not for analysts
-    expect((await consent(seller, k.contactId, "granted")).status).toBe(403);
+    expect((await consent(seller, k.contactId, "granted")).status).toBe(404);
     expect((await api.call("GET", `/prospects/${pid}/contacts`, { token: manager })).status).toBe(200);
     const other = await register("cmp-acl-other");
     expect((await api.call("GET", `/prospects/${pid}/contacts`, { token: other.token })).status).toBe(404);

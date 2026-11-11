@@ -192,8 +192,8 @@ describe("(f) database level: no context means no rows, and FORCE closes the own
 
   /** Tables left without FORCE on purpose: each is used by a SECURITY DEFINER function (see 20261104100000_rls_force and MULTI_TENANCY.md). */
   const DOCUMENTED_EXCEPTIONS = [
-    "audit_events", "campaigns", "consent_events", "contacts", "erased_addresses", "import_jobs", "invitations", "leads", "memberships",
-    "message_drafts", "opportunity_stage_history", "privacy_requests", "prospects", "retention_policies", "send_attempts", "sessions", "suppressions",
+    "audit_events", "campaigns", "consent_events", "contacts", "erased_addresses", "import_jobs", "invitations", "memberships",
+    "message_drafts", "opportunity_stage_history", "privacy_requests", "retention_policies", "send_attempts", "sessions", "suppressions",
   ];
 
   it("app_runtime with an empty context reads zero rows from every tenant table", async () => {
@@ -239,14 +239,14 @@ describe("(f) database level: no context means no rows, and FORCE closes the own
       const tables = (await TABLES_WITH_ORG()).filter((t) => t.forced);
       expect(tables.length).toBeGreaterThanOrEqual(30);
       for (const t of tables) await c.query(`ALTER TABLE "${t.relname}" OWNER TO rls_owner_probe`);
-      await c.query("ALTER TABLE prospects OWNER TO rls_owner_probe"); // exception table: owner still bypasses (documented)
+      await c.query("ALTER TABLE memberships OWNER TO rls_owner_probe"); // exception table (prospects and leads are FORCE since owner visibility): owner still bypasses (documented)
       await c.query("SET LOCAL ROLE rls_owner_probe");
       await c.query("SELECT set_config('app.organization_id', '', true)");
       for (const t of tables) {
         const n = Number((await c.query(`SELECT count(*) AS n FROM "${t.relname}"`)).rows[0].n);
         if (n !== 0) forcedWithRows.push(`${t.relname}:${n}`);
       }
-      expect(Number((await c.query("SELECT count(*) AS n FROM prospects")).rows[0].n)).toBeGreaterThan(0);
+      expect(Number((await c.query("SELECT count(*) AS n FROM memberships")).rows[0].n)).toBeGreaterThan(0);
       // Writes by the owner are refused as well.
       await c.query("SAVEPOINT w");
       await expect(c.query("INSERT INTO branches (id, organization_id, name, updated_at) VALUES (gen_random_uuid(), $1, 'x', now())", [A.orgId])).rejects.toThrow(/row-level security|permission denied/i);

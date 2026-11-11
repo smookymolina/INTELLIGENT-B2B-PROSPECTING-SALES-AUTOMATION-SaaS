@@ -331,7 +331,7 @@ describe("RBAC", () => {
     org_admin: { leadsRead: 200, review: 200, scoringManage: 200, approve: 200, prospectsManage: 201 },
     sales_manager: { leadsRead: 200, review: 200, scoringManage: 200, approve: 403, prospectsManage: 201 },
     campaign_manager: { leadsRead: 200, review: 403, scoringManage: 403, approve: 403, prospectsManage: 201 },
-    seller: { leadsRead: 403, review: 403, scoringManage: 403, approve: 403, prospectsManage: 403 },
+    seller: { leadsRead: 200, review: 403, scoringManage: 403, approve: 403, prospectsManage: 201 },
     analyst: { leadsRead: 200, review: 403, scoringManage: 403, approve: 403, prospectsManage: 403 },
     viewer: { leadsRead: 200, review: 403, scoringManage: 403, approve: 403, prospectsManage: 403 },
   };
@@ -341,9 +341,9 @@ describe("RBAC", () => {
     const a = await register(`rbac-${role}`);
     await approveModel(a.token);
     await setMin(a.token, 0);
-    const p = await prospect(a.token);
-    await qualify(a.token, p.id);
     const token = role === "org_admin" ? a.token : (await member(a.orgId, role)).token;
+    const p = await prospect(role === "seller" ? token : a.token);
+    await qualify(role === "seller" ? token : a.token, p.id);
     const e = expected[role];
     expect((await api.call("GET", "/leads", { token })).status).toBe(e.leadsRead);
     expect((await api.call("GET", "/leads/settings", { token })).status).toBe(e.leadsRead);

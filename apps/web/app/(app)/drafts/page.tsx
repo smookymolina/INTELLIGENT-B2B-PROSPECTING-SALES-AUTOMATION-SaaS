@@ -7,7 +7,7 @@ import { Flash } from "../../components/flash";
 
 const STATES = ["pending_review", "approved", "rejected", "all"] as const;
 const STATE_LABELS: Record<string, string> = { pending_review: "Pendiente de revisión", approved: "Aprobado", rejected: "Rechazado", all: "Todos" };
-const CHANNEL: Record<string, string> = { email: "Correo", whatsapp: "WhatsApp (sólo borrador)" };
+const CHANNEL: Record<string, string> = { email: "Correo", whatsapp: "WhatsApp (envío manual)" };
 
 export default async function DraftsPage({ searchParams }: { searchParams: Promise<{ state?: string; cursor?: string; ok?: string; error?: string }> }) {
   const { token, me } = await requireSession();
@@ -23,7 +23,7 @@ export default async function DraftsPage({ searchParams }: { searchParams: Promi
     <>
       <h1>Borradores de mensajes</h1>
       <Flash sp={sp} />
-      <p className="hint">Un borrador es texto para que una persona lo revise. <strong>Ningún borrador se envía automáticamente</strong>, ni siquiera aprobado. WhatsApp es sólo borrador: no hay proveedor de envío. Para crear uno, abre «Preparar mensaje» en un contacto de la ficha del prospecto.</p>
+      <p className="hint">Un borrador es texto para que una persona lo revise. <strong>Ningún borrador se envía automáticamente</strong>, ni siquiera aprobado. En WhatsApp, la persona lo envía ella misma desde su número con un enlace. Para crear uno, abre «Preparar mensaje» en un contacto de la ficha del prospecto.</p>
       <form method="get" className="filters" aria-label="Filtros">
         <label>Estado<select name="state" defaultValue={state}>{STATES.map((s) => <option key={s} value={s}>{STATE_LABELS[s]}</option>)}</select></label>
         <button type="submit">Filtrar</button>

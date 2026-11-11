@@ -1,3 +1,4 @@
+import { OwnerController, OwnerService } from "./owner.controller.js";
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module.js";
 import { DiscoveryController } from "./discovery/discovery.controller.js";
@@ -15,8 +16,8 @@ import { ProspectsService } from "./prospects.service.js";
 // Controller order matters: fixed `/prospects/imports` routes must be registered before `/prospects/:id`.
 @Module({
   imports: [AuditModule],
-  controllers: [ProspectImportController, DiscoveryController, ProspectMergeController, LifecycleController, ProspectsController, SuppressionsController],
-  providers: [ProspectsService, ProspectImportService, ProspectMergeService, DiscoveryService, OsmDiscoveryAdapter, LifecycleService],
-  exports: [ProspectsService, LifecycleService],
+  controllers: [ProspectImportController, DiscoveryController, ProspectMergeController, LifecycleController, ProspectsController, SuppressionsController, OwnerController],
+  providers: [ProspectsService, ProspectImportService, ProspectMergeService, DiscoveryService, OsmDiscoveryAdapter, LifecycleService, OwnerService],
+  exports: [ProspectsService, LifecycleService, OwnerService],
 })
 export class ProspectsModule {}

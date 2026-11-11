@@ -8,7 +8,11 @@ import {
   type MessageDraftDto,
   type MessageDraftPageDto,
   type OutreachContextDto,
+  type WhatsAppLinkDto,
+  type WhatsAppManualStatusDto,
+  type WhatsAppMarkSentDto,
 } from "@prospecting/contracts";
+import { WhatsAppManualService } from "./whatsapp-manual.service.js";
 import { DraftDeliveryService } from "./draft-delivery.service.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import { Auth, RequirePermission } from "../auth/decorators.js";
@@ -22,6 +26,7 @@ export class DraftsController {
   constructor(
     @Inject(DraftsService) private readonly drafts: DraftsService,
     @Inject(DraftDeliveryService) private readonly deliveries: DraftDeliveryService,
+    @Inject(WhatsAppManualService) private readonly whatsapp: WhatsAppManualService,
   ) {}
 
   @Get("message-drafts/:id/delivery")
@@ -36,6 +41,27 @@ export class DraftsController {
   @RequirePermission("campaigns:approve")
   send(@Auth() auth: AuthContext, @Param("id", id()) did: string): Promise<DraftDeliveryDto> {
     return this.deliveries.queue(auth, did);
+  }
+
+  /** Manual WhatsApp: returns the wa.me link only. The person sends it from their own number; nothing is sent here. */
+  @Post("drafts/:id/whatsapp-link")
+  @HttpCode(200)
+  @RequirePermission("campaigns:approve")
+  whatsappLink(@Auth() auth: AuthContext, @Param("id", id()) did: string): Promise<WhatsAppLinkDto> {
+    return this.whatsapp.link(auth, did);
+  }
+
+  @Post("drafts/:id/mark-sent-manual")
+  @HttpCode(200)
+  @RequirePermission("campaigns:approve")
+  markSentManual(@Auth() auth: AuthContext, @Param("id", id()) did: string): Promise<WhatsAppMarkSentDto> {
+    return this.whatsapp.markSent(auth, did);
+  }
+
+  @Get("drafts/:id/whatsapp-status")
+  @RequirePermission("campaigns:read")
+  whatsappStatus(@Auth() auth: AuthContext, @Param("id", id()) did: string): Promise<WhatsAppManualStatusDto> {
+    return this.whatsapp.status(auth, did);
   }
 
   @Get("contacts/:id/outreach-context")

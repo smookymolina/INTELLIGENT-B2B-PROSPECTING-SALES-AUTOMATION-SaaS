@@ -1,0 +1,16 @@
+/* Design tokens: the single place to change colours, spacing, type and radii. styles.css only consumes these variables. */
+:root {
+  color-scheme: light;
+  /* colour */
+  --ink: #172033; --muted: #5a6478; --line: #d5dbe6; --bg: #f7f9fc; --card: #fff; --accent: #1f4fd8; --accent-ink: #fff;
+  --ok: #0b6b3a; --warn: #8a5a00; --off: #5a6478; --err-bg: #fdecec; --err: #9b1c1c;
+  --ok-bg: #e8f6ee; --surface-alt: #eef2f9; --border-input: #8a94a8; --focus: #f2b300;
+  /* typography */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --leading: 1.5;
+  --text-sm: .85rem; --text-xs: .8rem; --text-h1: 1.6rem; --text-h2: 1.15rem;
+  /* spacing */
+  --space-1: .25rem; --space-2: .5rem; --space-3: .75rem; --space-4: 1rem; --space-5: 1.5rem;
+  /* radii */
+  --radius-sm: .2rem; --radius-md: .35rem; --radius-lg: .5rem; --radius-pill: 1rem;
+}

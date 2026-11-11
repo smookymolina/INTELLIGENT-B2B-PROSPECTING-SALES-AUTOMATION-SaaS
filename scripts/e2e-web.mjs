@@ -392,7 +392,9 @@ try {
     assert.ok(!scoring.includes('action="/actions/scoring/draft"') && !scoring.includes('action="/actions/scoring/approve"') && !scoring.includes("Recalcular"));
     const leads = await html(await get("/leads", viewer));
     assert.ok(leads.includes("Lead Co") && !leads.includes("Evaluar reglas") && !leads.includes('action="/actions/scoring/settings"'));
-    assert.match(await html(await get("/leads", seller)), /no tiene acceso a los leads/);
+    // Owner visibility (Usuario role): a seller opens the leads page but only sees the leads of the prospects they brought.
+    const sellerLeads = await html(await get("/leads", seller));
+    assert.ok(!sellerLeads.includes("Lead Co") && !sellerLeads.includes("Evaluar reglas") && !sellerLeads.includes('action="/actions/scoring/settings"'));
 
     assert.equal(where(await post("/actions/scoring/approve", {}, viewer)), "/scoring?error=forbidden");
     assert.equal(where(await post("/actions/scoring/settings", { minScore: "1" }, viewer)), "/leads?error=forbidden");

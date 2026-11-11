@@ -20,7 +20,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<MembershipRole, readonly Permissi
   org_admin: PERMISSIONS,
   campaign_manager: ["organization:read", "members:read", "catalog:read", "prospects:read", "prospects:manage", "suppressions:manage", "leads:read", "crm:read", "analytics:read", "ai:use", "campaigns:read", "campaigns:manage"],
   sales_manager: ["organization:read", "members:read", "catalog:read", "catalog:manage", "prospects:read", "prospects:manage", "suppressions:manage", "scoring:manage", "leads:read", "leads:review", "crm:read", "crm:work", "crm:manage", "quotes:read", "quotes:manage", "analytics:read", "ai:use", "campaigns:read", "campaigns:manage", "campaigns:approve"],
-  seller: ["organization:read", "catalog:read", "prospects:read", "crm:read", "crm:work", "quotes:read", "quotes:manage", "ai:use"],
+  seller: ["organization:read", "catalog:read", "prospects:read", "prospects:manage", "leads:read", "crm:read", "crm:work", "quotes:read", "quotes:manage", "ai:use"],
   analyst: ["organization:read", "catalog:read", "prospects:read", "leads:read", "crm:read", "quotes:read", "analytics:read"],
   viewer: ["organization:read", "catalog:read", "prospects:read", "leads:read", "crm:read", "quotes:read", "analytics:read"],
 };
@@ -1531,3 +1531,5 @@ export * from "./ai-usage.js";
 export * from "./lifecycle.js";
 export * from "./notification-email.js";
 export * from "./platform-admin.js";
+export * from "./roles.js";
+export * from "./whatsapp-manual.js";
