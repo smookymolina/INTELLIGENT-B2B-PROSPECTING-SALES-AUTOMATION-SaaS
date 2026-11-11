@@ -1,13 +1,15 @@
 # Estado actual
 
-Fecha: 2026-11-11 (check 90/90, test:int 514/514, e2e 33 pasos, backup/restore OK; interno ≈71 %, operable ≈35 % — ver la sección «Proveedores reales»). **Fuente única del estado vigente**; el historial por bloque está en `logs/DEVELOPMENT_LOG.md` y el detalle por fase en `planning/PHASE_*_EXECUTION.md`. Git local en `main` (último commit `a827792`); **sin push, sin CI remoto, sin proveedores externos, sin despliegue**.
+Fecha: 2026-11-11 (check 95/95, test:int 550/550, e2e 33 pasos; último `npm run ci` completo en la Ola 3; interno ≈71 %, operable ≈35 % — ver la sección «Olas 3 y 4»). **Fuente única del estado vigente**; el historial por bloque está en `logs/DEVELOPMENT_LOG.md` y el detalle por fase en `planning/PHASE_*_EXECUTION.md`. Git en `main`, con push a `origin/main` desde el 2026-11-11 (código de la Ola 4: `46192bf`); **resultado del CI remoto sin comprobar, sin despliegue**; único proveedor real verificado: SMTP.
 
 ## Avance (estimación ponderada, no medición; método en `planning/PROGRESS.md`)
 
 | Métrica | Valor | Qué significa |
 |---|---|---|
-| Interno (dominio implementado y probado en local) | ≈ 70 % (revisión independiente: ≈ 60 %; usar rango 60–70 %) | incluye lo que depende de proveedores sólo por su dominio interno |
-| Operable real (cliente real en producción) | ≈ 30 % (rango 25–35 %) | exige proveedores reales, nube, cumplimiento y revisión independiente, que no existen |
+| Interno (dominio implementado y probado en local) | ≈ 71 % (rango 66–74 %) | incluye lo que depende de proveedores sólo por su dominio interno |
+| Operable real (cliente real en producción) | ≈ 35 % (rango 30–40 %) | exige proveedores reales, nube, cumplimiento y revisión independiente; hoy sólo el correo SMTP está verificado en real |
+
+Par vigente fijado por el dueño el 2026-11-11: **71 / 35**. Los porcentajes de secciones anteriores de este documento y de `planning/PROGRESS.md` son históricos.
 
 ## Evidencia local vigente
 
@@ -60,3 +62,10 @@ Hecho (sólo local, canal `sandbox`/in-app): P7-05 secuencias y horarios (4 tabl
 **Avance:** interno ≈ 71 % (66–74) · operable ≈ 35 % (30–40). Sube por correo real verificado, envío por worker y retención; IA y OSM no suman a operable hasta probarse en vivo.
 **Límites:** SMTP es al-menos-una-vez (sin idempotencia del proveedor); rebotes asíncronos llegan al buzón, no al sistema (sin webhooks); sin límite de envíos por hora por organización; el envío ocurre dentro de la transacción del intento; el botón «Procesar envíos» de campañas muestra conflicto genérico con correo real (el worker lo hace solo, ciclo ≈1 min).
 **BLOCKED (por impacto):** 1 `ANTHROPIC_API_KEY` y tope de gasto · 2 nube/región/IdP/dominio público (`PUBLIC_BASE_URL`, TLS) · 3 SPF/DKIM/DMARC del dominio remitente (lo configura cada cliente) · 4 credenciales de push (CI remoto nunca ejecutado) · 5 `saas_admin`, adjuntos, firma, pagos, WhatsApp · 6 destino de alertas y KMS.
+
+## Olas 3 y 4 (2026-11-11)
+**Ola 3 (`a30dac8`):** ciclo de vida de prospectos por cohorte mensual con cupo de leads; notificaciones por correo desde una cuenta SMTP separada con destinos configurables (worker); uso de Claude/MCP (llamadas por herramienta, % de límite interno, gasto de API); superadmin de solo lectura auditado; 3 pantallas web y aviso «en desarrollo» para pagos/adjuntos; OpenAPI al día. Evidencia: `npm run ci` PASSED 8m22s (check 95/95, test:int 541/541, e2e, backup/restore).
+**Ola 4 (`46192bf`):** roles Gerente/Usuario/Superadmin con visibilidad por propietario (RLS FORCE en `prospects` y `leads`); WhatsApp manual con enlace `wa.me` (no se automatiza WhatsApp Web); pantallas de superadmin; tokens CSS para el diseño futuro. Evidencia: check 95/95, test:int 550/550, e2e 33 pasos; no se repitió el `ci` completo ni el backup.
+**Avance vigente:** interno ≈ 71 % (66–74) · operable ≈ 35 % (30–40). Las Olas 3 y 4 no suben «operable»: nada nuevo se probó contra proveedores reales.
+**Sin verificar:** IA Anthropic (inactiva sin `ANTHROPIC_API_KEY` y `AI_PROVIDER=anthropic`); consulta real a OpenStreetMap; Playwright/axe en las pantallas nuevas; resultado del CI remoto tras el push.
+**BLOCKED (por impacto):** 1 clave de Anthropic y tope de gasto · 2 nube/región/IdP/dominio público (despliegue en Hostinger previsto al final) · 3 WhatsApp por QR (riesgo de términos), pagos, adjuntos, firma · 4 destino de alertas y KMS · 5 SPF/DKIM/DMARC del dominio remitente (cada cliente).
