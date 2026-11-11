@@ -24,12 +24,13 @@ import { ScoringModule } from "./scoring/scoring.module.js";
 import { PricingModule } from "./pricing/pricing.module.js";
 import { CatalogModule } from "./catalog/catalog.module.js";
 import { CompanyModule } from "./company/company.module.js";
+import { EmailSettingsModule } from "./email-settings/email-settings.module.js";
 import { MembershipsModule } from "./memberships/memberships.module.js";
 import { OrganizationsModule } from "./organizations/organizations.module.js";
 
 // Guards run in order: authentication (session -> tenant context), then RBAC. Routes are private unless marked @Public().
 @Module({
-  imports: [DbModule, HttpSupportModule, HealthModule, AuditModule, AuthModule, OrganizationsModule, MembershipsModule, InvitationsModule, CompanyModule, CatalogModule, PricingModule, ProspectsModule, ScoringModule, CrmModule, NotificationsModule, QuotesModule, AnalyticsModule, AttributionModule, AiModule, CampaignsModule, SequencesModule, JobsModule, DraftsModule, PrivacyModule],
+  imports: [DbModule, HttpSupportModule, HealthModule, AuditModule, AuthModule, OrganizationsModule, MembershipsModule, InvitationsModule, CompanyModule, EmailSettingsModule,CatalogModule, PricingModule, ProspectsModule, ScoringModule, CrmModule, NotificationsModule, QuotesModule, AnalyticsModule, AttributionModule, AiModule, CampaignsModule, SequencesModule, JobsModule, DraftsModule, PrivacyModule],
   providers: [
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },

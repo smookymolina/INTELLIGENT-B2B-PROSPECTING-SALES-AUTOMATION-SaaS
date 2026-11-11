@@ -154,8 +154,10 @@ export class CampaignsService {
       .catch(mapDbError);
   }
 
-  async dispatch(auth: AuthContext, id: string, limit: number): Promise<DispatchResultDto> {
-    const adapter = this.channels.current(); // 503 when no provider is configured
+  async dispatch(auth: AuthContext, id: string, limit: number, opts: { worker?: boolean } = {}): Promise<DispatchResultDto> {
+    const adapter = await this.db.withTenant(auth, (tx) => this.channels.forTenant(tx, auth.organizationId)); // 503 when no provider is configured
+    // Real mail never leaves inside an HTTP request: with a real provider only the worker dispatches (it picks the campaign up by itself).
+    if (!opts.worker && adapter.name !== "sandbox") throw conflict("This organization sends real email: the worker dispatches running campaigns automatically");
     const first = await this.db.withTenant(auth, (tx) => this.require(tx, auth, id));
     if (first.state !== "running") throw conflict("Only a running campaign dispatches");
     const queued = await this.db.withTenant(auth, (tx) => tx.sendAttempt.findMany({ where: { campaign_id: id, organization_id: auth.organizationId, state: "queued" }, orderBy: { created_at: "asc" }, take: limit, select: { id: true, contact_id: true } }));
@@ -178,7 +180,7 @@ export class CampaignsService {
           const contact = await tx.contact.findFirstOrThrow({ where: { id: attempt.contact_id, organization_id: auth.organizationId }, include: { prospect: { select: { name: true } } } });
           const vars = { company: contact.prospect.name, unsubscribe_url: unsubscribeUrl(auth.organizationId, contact.id) };
           try {
-            const { messageId } = await adapter.send({ idempotencyKey: attempt.id, to: contact.address, subject: render(c.subject, vars), body: render(c.body, vars) });
+            const { messageId } = await adapter.send({ idempotencyKey: attempt.id, to: contact.address, subject: render(c.subject, vars), body: render(c.body, vars), unsubscribeUrl: vars.unsubscribe_url });
             await tx.sendAttempt.update({ where: { id: attempt.id }, data: { state: "sent", provider: adapter.name, provider_message_id: messageId } });
             return "sent";
           } catch (e) {

@@ -4,7 +4,7 @@ import type { MembershipRole } from "@prospecting/contracts";
 import { EmailChannels } from "../campaigns/channels.js";
 import { type Api, asRuntime, owner, PASSWORD, seedMember, startApi } from "./harness.js";
 
-/** P12-04: per-organization retention (no default: nothing is purged without a policy) and data-subject rights (access / restrict / erase). */
+/** P12-04: per-organization retention (defaults apply without a policy; 0 days disables a class; see retention.int.spec.ts) and data-subject rights (access / restrict / erase). */
 let api: Api;
 type Account = { token: string; orgId: string; userId: string };
 
@@ -97,13 +97,14 @@ describe("authorization and validation", () => {
 });
 
 describe("retention policy", () => {
-  it("purges NOTHING without an explicit policy, even with dryRun=false", async () => {
+  it("purges NOTHING when every class is disabled (0 days), even with dryRun=false", async () => {
     const a = await register("prv-nopolicy");
     const rows = await seedOld(a.orgId, a.userId);
-    expect((await api.call("GET", "/privacy/retention", { token: a.token })).body).toMatchObject({ policies: [], available: ["import_jobs", "sessions", "invitations"] });
+    expect((await api.call("GET", "/privacy/retention", { token: a.token })).body).toMatchObject({ policies: [], available: ["import_jobs", "sessions", "invitations", "jobs"] });
+    expect((await setPolicy(a.token, ["import_jobs", "sessions", "invitations", "jobs"].map((dataClass) => ({ dataClass, retentionDays: 0 })))).status).toBe(200);
     const res = await run(a.token, { dryRun: false });
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ dryRun: false, classes: [], skipped: ["import_jobs", "sessions", "invitations"] });
+    expect(res.body).toMatchObject({ dryRun: false, classes: [], skipped: ["import_jobs", "sessions", "invitations", "jobs"] });
     for (const [t, id] of [["import_jobs", rows.job], ["sessions", rows.oldSession], ["invitations", rows.oldInv]] as const) expect(await exists(t, id)).toBe(true);
   });
 
@@ -112,13 +113,13 @@ describe("retention policy", () => {
     const b = await register("prv-run-other");
     const mine = await seedOld(a.orgId, a.userId);
     const theirs = await seedOld(b.orgId, b.userId);
-    const put = await setPolicy(a.token, [{ dataClass: "import_jobs", retentionDays: 365 }, { dataClass: "sessions", retentionDays: 90 }]);
+    const put = await setPolicy(a.token, [{ dataClass: "import_jobs", retentionDays: 365 }, { dataClass: "sessions", retentionDays: 90 }, { dataClass: "invitations", retentionDays: 0 }, { dataClass: "jobs", retentionDays: 0 }]);
     expect(put.status).toBe(200);
-    expect(put.body.policies).toHaveLength(2);
+    expect(put.body.policies).toHaveLength(4);
 
     const dry = await run(a.token); // default dryRun=true
     expect(dry.body.dryRun).toBe(true);
-    expect(dry.body.skipped).toEqual(["invitations"]);
+    expect(dry.body.skipped).toEqual(["invitations", "jobs"]); // disabled classes
     expect(dry.body.classes.find((c: { dataClass: string }) => c.dataClass === "import_jobs")).toMatchObject({ eligible: 1, deleted: 0, retentionDays: 365 });
     expect(dry.body.classes.find((c: { dataClass: string }) => c.dataClass === "sessions")).toMatchObject({ eligible: 1, deleted: 0 });
     expect(await exists("import_jobs", mine.job)).toBe(true);
@@ -129,7 +130,7 @@ describe("retention policy", () => {
     expect(await exists("import_jobs", mine.job)).toBe(false);
     expect(await exists("sessions", mine.oldSession)).toBe(false);
     expect(await exists("sessions", mine.newSession)).toBe(true); // an active session is never purged
-    expect(await exists("invitations", mine.oldInv)).toBe(true); // no policy for invitations
+    expect(await exists("invitations", mine.oldInv)).toBe(true); // invitations are disabled for this organization
     for (const [t, id] of [["import_jobs", theirs.job], ["sessions", theirs.oldSession], ["invitations", theirs.oldInv]] as const) expect(await exists(t, id)).toBe(true); // other tenant untouched
     expect((await api.call("GET", "/me", { token: a.token })).status).toBe(200); // the caller is still logged in
 
@@ -143,7 +144,7 @@ describe("retention policy", () => {
     expect((await api.call("GET", "/privacy/retention", { token: b.token })).body.policies).toEqual([]); // policies are per tenant
   });
 
-  it("with all three policies a real run deletes exactly the eligible rows (old closed ones) and never the active ones; 'skipped' means only 'no policy'", async () => {
+  it("with explicit policies a real run deletes exactly the eligible rows (old closed ones) and never the active ones; 'skipped' means only 'disabled'", async () => {
     const a = await register("prv-purge");
     const old = await seedOld(a.orgId, a.userId);
     const extra = { accepted: randomUUID(), expiredOnly: randomUUID(), recentJob: randomUUID(), recentRevoked: randomUUID(), oldExpiredSession: randomUUID() };
@@ -165,7 +166,7 @@ describe("retention policy", () => {
     for (const [t, id] of [["import_jobs", old.job], ["sessions", old.oldSession], ["invitations", old.oldInv]] as const) expect(await exists(t, id)).toBe(true); // dry run deletes nothing
 
     const real = await run(a.token, { dryRun: false });
-    expect(real.body.classes.map((c: { dataClass: string; deleted: number }) => [c.dataClass, c.deleted])).toEqual([["import_jobs", 1], ["sessions", 2], ["invitations", 3]]);
+    expect(real.body.classes.map((c: { dataClass: string; deleted: number }) => [c.dataClass, c.deleted])).toEqual([["import_jobs", 1], ["sessions", 2], ["invitations", 3], ["jobs", 0]]);
     for (const [t, id] of [["import_jobs", old.job], ["sessions", old.oldSession], ["sessions", extra.oldExpiredSession], ["invitations", old.oldInv], ["invitations", extra.accepted], ["invitations", extra.expiredOnly]] as const) expect(await exists(t, id), `${t} ${id}`).toBe(false);
     for (const [t, id] of [["import_jobs", extra.recentJob], ["sessions", old.newSession], ["sessions", extra.recentRevoked], ["invitations", old.pendingInv]] as const) expect(await exists(t, id), `${t} ${id}`).toBe(true);
   });
@@ -179,7 +180,7 @@ describe("retention policy", () => {
     await expect(asRuntime({ organizationId: a.orgId, userId: seller.userId, role: "seller" }, (c) => c.query("INSERT INTO retention_policies (organization_id, data_class, retention_days, updated_by, updated_at) VALUES ($1, 'sessions', 90, $2, now())", [a.orgId, seller.userId]))).rejects.toThrow(/row-level security/);
     await expect(asRuntime({ organizationId: a.orgId, userId: a.userId, role: "org_admin" }, (c) => c.query("INSERT INTO retention_policies (organization_id, data_class, retention_days, updated_by, updated_at) VALUES ($1, 'sessions', 90, $2, now())", [b.orgId, a.userId]))).rejects.toThrow(/row-level security/);
     await expect(asRuntime({ organizationId: a.orgId, userId: seller.userId, role: "seller" }, (c) => c.query("SELECT privacy_purge('sessions', false)"))).rejects.toThrow(/org_admin required/);
-    expect(await asRuntime({ organizationId: a.orgId, userId: a.userId, role: "org_admin" }, async (c) => (await c.query("SELECT privacy_purge('sessions', false) AS r")).rows[0].r)).toBeNull(); // no policy: no-op
+    expect(await asRuntime({ organizationId: a.orgId, userId: a.userId, role: "org_admin" }, async (c) => (await c.query("SELECT privacy_purge('sessions', true) AS r")).rows[0].r)).toMatchObject({ source: "default", retentionDays: 30 }); // no policy: the default term
   });
 });
 

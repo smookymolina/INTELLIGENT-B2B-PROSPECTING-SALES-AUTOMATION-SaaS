@@ -15,6 +15,7 @@ export default async function CompanyPage({ searchParams }: { searchParams: Prom
     <>
       <h1>Empresa</h1>
       <Flash sp={sp} />
+      {canEdit ? <p><a href="/company/email">Configurar correo saliente (SMTP)</a></p> : null}
       {p.updatedAt === null ? <p className="empty">El perfil aún no se ha completado. Nada se infiere ni se prellena.</p> : <p className="hint">Actualizado {formatDate(p.updatedAt)}</p>}
       {canEdit ? (
         <form method="post" action="/actions/company/profile" className="stack" aria-label="Perfil de la empresa">

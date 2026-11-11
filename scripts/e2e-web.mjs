@@ -856,7 +856,8 @@ try {
     assert.equal(where(await post(`/actions/drafts/${did}/approve`, {}, viewer.cookie)), `/drafts/${did}?error=forbidden`);
     assert.equal(where(await post(`/actions/drafts/${did}/reject`, { note: "x" }, viewer.cookie)), `/drafts/${did}?error=forbidden`);
     assert.equal(where(await post("/actions/drafts/create", { contactId: cid, channel: "email", subject: "s", body: "b" }, viewer.cookie)), `/drafts/new?contactId=${cid}&error=forbidden`);
-    assert.equal((await post(`/actions/drafts/${did}/send`, {}, session.pair)).status, 404, "there is no send operation");
+    assert.ok(where(await post(`/actions/drafts/${did}/send`, {}, session.pair)).startsWith(`/drafts/${did}?error=`), "a draft pending review cannot be queued for sending");
+    assert.equal(where(await post(`/actions/drafts/${did}/send`, {}, viewer.cookie)), `/drafts/${did}?error=forbidden`);
     assert.equal(where(await post(`/actions/drafts/${did}/reject`, { note: "" }, session.pair)), `/drafts/${did}?error=input`);
     assert.equal(where(await post(`/actions/drafts/${did}/reject`, { note: "Falta personalizar" }, session.pair)), `/drafts/${did}?ok=draftrejected`);
     page = await html(await get(`/drafts/${did}`, session.pair));

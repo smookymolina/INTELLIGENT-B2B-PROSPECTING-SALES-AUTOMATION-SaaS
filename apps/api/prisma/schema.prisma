@@ -41,6 +41,7 @@ model Organization {
   sessions                Session[]
   invitations             Invitation[]
   profile                 OrganizationProfile?
+  email_settings          EmailSettings?
   branches                Branch[]
   catalog_categories      CatalogCategory[]
   catalog_items           CatalogItem[]
@@ -227,6 +228,26 @@ model OrganizationProfile {
   organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
 
   @@map("organization_profiles")
+}
+
+/// Per-organization SMTP account. password_enc is AES-256-GCM ciphertext; the clear password never leaves the server.
+model EmailSettings {
+  organization_id String    @id @db.Uuid
+  host            String
+  port            Int
+  secure          Boolean
+  username        String
+  password_enc    String
+  from_name       String?
+  from_email      String
+  reply_to        String?
+  verified_at     DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @updatedAt @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict)
+
+  @@map("email_settings")
 }
 
 /// Branch / site. Never deleted (future records will reference it): disabled via status. name_key = normalized name for case-insensitive uniqueness.
@@ -1253,4 +1274,24 @@ model Job {
   @@index([state, run_after])
   @@index([organization_id, state, created_at(sort: Desc), id(sort: Desc)])
   @@map("jobs")
+}
+
+/// Delivery of an approved email draft: requested by a person, sent only by the worker. Foreign keys and the guard trigger live in the migration.
+model DraftDelivery {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id     String    @db.Uuid
+  draft_id            String    @db.Uuid
+  contact_id          String    @db.Uuid
+  state               String    @default("queued")
+  skip_reason         String?
+  provider            String?
+  provider_message_id String?
+  requested_by        String    @db.Uuid
+  attempted_at        DateTime? @db.Timestamptz(6)
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([organization_id, draft_id])
+  @@index([organization_id, state, created_at])
+  @@index([organization_id, contact_id, attempted_at])
+  @@map("draft_deliveries")
 }

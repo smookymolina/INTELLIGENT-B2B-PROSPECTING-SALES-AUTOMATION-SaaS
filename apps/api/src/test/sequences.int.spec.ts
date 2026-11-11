@@ -323,7 +323,7 @@ describe("database guarantees", () => {
     const ins = (step: number) => ["INSERT INTO sequence_deliveries (organization_id, enrollment_id, campaign_id, contact_id, step_no, provider, provider_message_id, sent_at) VALUES ($1,$2,$3,$4,$5,'sandbox','m',now())", [a.orgId, e.id, id, k.contactId, step]] as const;
     expect(await attempt(...ins(1))).toMatch(/duplicate key|current step/); // already delivered / not the current step
     expect(await attempt(...ins(3))).toMatch(/current step/);
-    expect(await attempt("INSERT INTO sequence_deliveries (organization_id, enrollment_id, campaign_id, contact_id, step_no, provider, provider_message_id, sent_at) VALUES ($1,$2,$3,$4,2,'ses','m',now())", [a.orgId, e.id, id, k.contactId])).toMatch(/sandbox_only/);
+    expect(await attempt("INSERT INTO sequence_deliveries (organization_id, enrollment_id, campaign_id, contact_id, step_no, provider, provider_message_id, sent_at) VALUES ($1,$2,$3,$4,2,'ses','m',now())", [a.orgId, e.id, id, k.contactId])).toMatch(/sequence_deliveries_provider/);
     await withdraw(a.token, k.contactId);
     expect(await attempt(...ins(2))).toMatch(/no consent/);
     expect(await attempt("UPDATE sequence_enrollments SET next_step = 4 WHERE id = $1", [e.id])).toMatch(/one step at a time/);

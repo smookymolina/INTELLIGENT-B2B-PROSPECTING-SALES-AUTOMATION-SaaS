@@ -1,4 +1,5 @@
 import { z } from "zod";
+export * from "./discovery.js";
 
 /** Shared contracts (API v1). Request schemas are strict: unknown keys (e.g. `organization_id`) are rejected, never trusted. */
 export type HealthStatus = Readonly<{
@@ -936,7 +937,7 @@ export const ProspectDto = z.object({
   updatedAt: z.iso.datetime(),
 });
 export type ProspectDto = z.infer<typeof ProspectDto>;
-export const ProspectSourceDto = z.object({ id: z.uuid(), type: z.enum(["manual", "csv_import"]), ref: z.string().nullable(), collectedAt: z.iso.datetime(), createdBy: z.uuid() });
+export const ProspectSourceDto = z.object({ id: z.uuid(), type: z.enum(["manual", "csv_import", "openstreetmap"]), ref: z.string().nullable(), collectedAt: z.iso.datetime(), createdBy: z.uuid() });
 export const ProspectDetailDto = ProspectDto.extend({ sources: z.array(ProspectSourceDto) });
 export type ProspectDetailDto = z.infer<typeof ProspectDetailDto>;
 export const ProspectPageDto = z.object({ items: z.array(ProspectDto), nextCursor: z.uuid().nullable() });
@@ -974,7 +975,7 @@ export const AttributeDto = z.object({
   key: z.string(),
   value: z.string(),
   confidence: z.enum(CONFIDENCES),
-  source: z.enum(["manual", "csv_import"]),
+  source: z.enum(["manual", "csv_import", "openstreetmap"]),
   status: z.enum(["unverified", "verified", "rejected"]),
   /** True when another non-rejected value exists for the same key: a human must verify one. */
   conflict: z.boolean(),
@@ -1260,16 +1261,21 @@ export type ProspectMergeListDto = z.infer<typeof ProspectMergeListDto>;
 
 /* ---------- P12-04 privacy: retention policy and data-subject requests ---------- */
 /** Only classes that are safe to purge. Never: audit, consent ledger, suppressions, accepted quotes/sales (legal evidence). */
-export const RETENTION_CLASSES = ["import_jobs", "sessions", "invitations"] as const;
+export const RETENTION_CLASSES = ["import_jobs", "sessions", "invitations", "jobs"] as const;
+/** Owner-decided defaults (days) applied while an organization has no policy of its own for the class. Mirrors SQL retention_default_days(). */
+export const RETENTION_DEFAULT_DAYS = { import_jobs: 90, sessions: 30, invitations: 30, jobs: 30 } as const satisfies Record<(typeof RETENTION_CLASSES)[number], number>;
 export const RetentionClass = z.enum(RETENTION_CLASSES);
 export type RetentionClass = z.infer<typeof RetentionClass>;
-export const RetentionPolicyEntry = z.strictObject({ dataClass: RetentionClass, retentionDays: z.number().int().min(30).max(3650) });
+/** retentionDays: 30..3650, or 0 to disable the purge of that class. */
+export const RetentionPolicyEntry = z.strictObject({ dataClass: RetentionClass, retentionDays: z.number().int().min(0).max(3650).refine((n) => n === 0 || n >= 30, "Use 0 (disabled) or 30..3650 days") });
 export const SetRetentionRequest = z.strictObject({ policies: z.array(RetentionPolicyEntry).min(1).max(RETENTION_CLASSES.length) });
 export type SetRetentionRequest = z.infer<typeof SetRetentionRequest>;
 export const RetentionPolicyDto = z.object({
   policies: z.array(z.object({ dataClass: RetentionClass, retentionDays: z.number().int(), updatedBy: z.uuid(), updatedAt: z.iso.datetime() })),
-  /** Classes that can be configured; without an explicit policy nothing is purged. */
+  /** Classes that can be configured; without an explicit policy the default applies. */
   available: z.array(RetentionClass),
+  /** What the purge will actually use per class: the organization policy or the default. retentionDays 0 = disabled. */
+  effective: z.array(z.object({ dataClass: RetentionClass, retentionDays: z.number().int(), source: z.enum(["policy", "default"]) })),
 });
 export type RetentionPolicyDto = z.infer<typeof RetentionPolicyDto>;
 export const RetentionRunRequest = z.strictObject({ dryRun: z.boolean().default(true) });
@@ -1277,8 +1283,8 @@ export type RetentionRunRequest = z.infer<typeof RetentionRunRequest>;
 export const RetentionRunDto = z.object({
   dryRun: z.boolean(),
   ranAt: z.iso.datetime(),
-  classes: z.array(z.object({ dataClass: RetentionClass, retentionDays: z.number().int(), cutoff: z.iso.datetime(), eligible: z.number().int(), deleted: z.number().int() })),
-  /** Classes without a policy: untouched. */
+  classes: z.array(z.object({ dataClass: RetentionClass, retentionDays: z.number().int(), source: z.enum(["policy", "default"]), cutoff: z.iso.datetime(), eligible: z.number().int(), deleted: z.number().int() })),
+  /** Classes disabled by the organization (retentionDays 0): untouched. */
   skipped: z.array(RetentionClass),
 });
 export type RetentionRunDto = z.infer<typeof RetentionRunDto>;
@@ -1355,6 +1361,16 @@ export const MessageDraftDto = z.object({
 export type MessageDraftDto = z.infer<typeof MessageDraftDto>;
 export const MessageDraftPageDto = z.object({ items: z.array(MessageDraftDto), nextCursor: z.uuid().nullable() });
 export type MessageDraftPageDto = z.infer<typeof MessageDraftPageDto>;
+/** Delivery of an approved email draft. `none` = nobody asked to send it. Only the worker sends. */
+export const DRAFT_DELIVERY_STATES = ["none", "queued", "sent", "failed", "skipped"] as const;
+export const DraftDeliveryDto = z.object({
+  draftId: z.uuid(),
+  state: z.enum(DRAFT_DELIVERY_STATES),
+  skipReason: z.string().nullable(),
+  provider: z.string().nullable(),
+  attemptedAt: z.iso.datetime().nullable(),
+});
+export type DraftDeliveryDto = z.infer<typeof DraftDeliveryDto>;
 const channelEligibility = z.object({ eligible: z.boolean(), reasons: z.array(z.string()) });
 export const OutreachContextDto = z.object({
   contactId: z.uuid(),
@@ -1445,7 +1461,7 @@ export type EnrollmentPageDto = z.infer<typeof EnrollmentPageDto>;
 /* ---------- Worker job queue (PostgreSQL-backed; admin view of retries and the dead-letter queue) ---------- */
 export const JOB_STATES = ["queued", "running", "succeeded", "failed", "dead"] as const;
 export type JobState = (typeof JOB_STATES)[number];
-export const JOB_TYPES = ["sequence.run_due", "notifications.scan_due"] as const;
+export const JOB_TYPES = ["sequence.run_due", "notifications.scan_due", "retention.purge", "campaign.dispatch", "draft.send_queued"] as const;
 export type JobType = (typeof JOB_TYPES)[number];
 export const JobListQuery = z.strictObject({
   state: z.enum(["all", ...JOB_STATES]).default("dead"),
@@ -1472,3 +1488,42 @@ export const JobPageDto = z.object({ items: z.array(JobDto), nextCursor: z.uuid(
 export type JobPageDto = z.infer<typeof JobPageDto>;
 export const JobStatsDto = z.object({ byState: z.record(z.enum(JOB_STATES), z.number().int()) });
 export type JobStatsDto = z.infer<typeof JobStatsDto>;
+
+// --- Per-organization SMTP (each tenant sends with its own mailbox) ---
+export const SMTP_PORTS = [25, 465, 587, 2525] as const;
+const smtpHost = z.string().trim().toLowerCase().max(253).regex(/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$|^localhost$|^\d{1,3}(\.\d{1,3}){3}$/, "a host name such as smtp.example.com");
+const smtpPort = z.number().int().refine((v) => (SMTP_PORTS as readonly number[]).includes(v), "one of 25, 465, 587, 2525");
+const headerSafe = (v: string) => !/[\u0000-\u001f\u007f<>"]/.test(v);
+/** PUT replaces the settings. `password` may be omitted only to keep the stored one, and never when host or username change. */
+export const UpdateEmailSettingsRequest = z.strictObject({
+  host: smtpHost,
+  port: smtpPort,
+  secure: z.boolean(),
+  username: z.string().trim().min(1).max(254).refine(headerSafe, "no control characters"),
+  password: z.string().min(1).max(256).optional(),
+  fromName: text(120).refine(headerSafe, "no control characters or quotes").nullish(),
+  fromEmail: email,
+  replyTo: email.nullish(),
+});
+export type UpdateEmailSettingsRequest = z.infer<typeof UpdateEmailSettingsRequest>;
+/** The password is never returned: only whether one is stored. */
+export const EmailSettingsDto = z.object({
+  configured: z.boolean(),
+  host: z.string().nullable(),
+  port: z.number().int().nullable(),
+  secure: z.boolean().nullable(),
+  username: z.string().nullable(),
+  hasPassword: z.boolean(),
+  fromName: z.string().nullable(),
+  fromEmail: z.string().nullable(),
+  replyTo: z.string().nullable(),
+  verifiedAt: z.iso.datetime().nullable(),
+  updatedAt: z.iso.datetime().nullable(),
+});
+export type EmailSettingsDto = z.infer<typeof EmailSettingsDto>;
+/** Without `sendTo` only the connection and login are checked; with it one test message is sent to that address. */
+export const TestEmailSettingsRequest = z.strictObject({ sendTo: email.optional() });
+export type TestEmailSettingsRequest = z.infer<typeof TestEmailSettingsRequest>;
+export const EMAIL_TEST_FAILURES = ["auth_failed", "connection_failed", "tls_failed", "host_not_allowed", "rejected", "unknown"] as const;
+export const EmailSettingsTestDto = z.object({ ok: z.boolean(), sent: z.boolean(), failure: z.enum(EMAIL_TEST_FAILURES).nullable(), verifiedAt: z.iso.datetime().nullable() });
+export type EmailSettingsTestDto = z.infer<typeof EmailSettingsTestDto>;

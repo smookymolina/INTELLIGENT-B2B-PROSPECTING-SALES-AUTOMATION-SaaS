@@ -44,6 +44,10 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       TRUST_PROXY: ${TRUST_PROXY:-0}
       METRICS_TOKEN: ${METRICS_TOKEN:-}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      AI_PROVIDER: ${AI_PROVIDER:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
@@ -66,6 +70,7 @@ services:
       HMAC_SECRET: ${HMAC_SECRET:-}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       WORKER_METRICS_FILE: /metrics/worker.prom
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
     volumes: ["worker_metrics:/metrics"]
     depends_on:
       migrate: { condition: service_completed_successfully }

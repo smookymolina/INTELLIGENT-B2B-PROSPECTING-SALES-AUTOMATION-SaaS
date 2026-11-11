@@ -36,6 +36,7 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
       <p className="toolbar">
         {manage ? <Link href="/prospects/new">+ Nuevo prospecto</Link> : null}
         {manage ? <Link href="/prospects/import">Importar CSV</Link> : null}
+        {manage ? <Link href="/prospects/discovery">Buscar por zona (OpenStreetMap)</Link> : null}
         <Link href="/prospects/suppressions">Lista de no contactar</Link>
         <a href="/export/prospects" download>Exportar CSV</a>
       </p>

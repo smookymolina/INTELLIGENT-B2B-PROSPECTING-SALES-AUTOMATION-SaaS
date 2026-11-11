@@ -20,6 +20,7 @@ Estado: implementado con **canal sandbox (mock)**: ningun envio sale a un provee
 | `WORKER_MAX_ATTEMPTS` | 5 | intentos antes de DLQ |
 | `WORKER_BACKOFF_BASE_MS` / `_CAP_MS` | 30000 / 900000 | reintento = base * 2^(intento-1), con tope |
 | `WORKER_RUN_DUE_LIMIT` | 50 | inscripciones por ejecucion de `runDue` |
+| `WORKER_RETENTION_EVERY_MS` | 86400000 | ventana del job `retention.purge` (uno por organizacion y ventana); `0` = no se planifica |
 | `WORKER_METRICS_FILE` | vacio | ruta del archivo de metricas Prometheus |
 | `LOG_FORMAT=json` | | logs estructurados (sin PII; mensajes `event=... type=... job=...`) |
 
@@ -43,6 +44,15 @@ Estado: implementado con **canal sandbox (mock)**: ningun envio sale a un provee
 4. Si sigue cayendo en DLQ, pausar la campana y escalar. No editar `jobs` a mano.
 
 ## Retencion y limites
-- `jobs` crece (1 trabajo por campana/org/ventana). **No hay purga automatica** hasta que el cliente decida retencion; mientras tanto, vigilar tamano. Propuesta pendiente de decision: borrar `succeeded` con mas de 30 dias y conservar `dead` 180 dias.
+- `jobs` crece (1 trabajo por campana/org/ventana); lo acota la purga automatica (seccion siguiente).
 - Sin cron externo: la planificacion vive en el propio worker (un proceso basta; si no hay worker no se planifica nada). Sin Redis/BullMQ. Un worker caido deja los envios en pausa, no los pierde.
 - No existe endpoint HTTP que envie: se elimino `POST /campaigns/{id}/sequence/run-due` (2026-11-04); solo el worker llama a `SequencesService.runDue`.
+
+## Purga automatica de retencion (`retention.purge`, decision del dueno 2026-11-11)
+- El worker planifica **un** `retention.purge` por organizacion y dia (clave `org:<dia>`, idempotente) y lo ejecuta en el contexto tenant de su `org_admin` (`PrivacyService.run` -> `privacy_purge`, RLS vigente). Un reintento no encuentra nada que borrar.
+- Plazos por defecto (dias): sesiones caducadas o revocadas 30 · invitaciones vencidas/cerradas 30 · `import_jobs` 90 · filas terminadas de `jobs` (`succeeded` o `dead`) 30. Cada organizacion los cambia con `PUT /privacy/retention` (30..3650) o desactiva una clase con `retentionDays: 0`; `GET /privacy/retention` devuelve `effective` (plazo y origen `policy|default`).
+- Simulacion: `POST /privacy/retention/run` con `dryRun: true` (valor por defecto) devuelve conteos sin borrar; `dryRun: false` purga al momento. Permiso `privacy:manage`.
+- Nunca se purga: lista de supresion, libro de consentimiento, auditoria, contactos (incluidos los restringidos o borrados), solicitudes de titulares, ni trabajos `queued|running|failed`. No existe clase configurable para ellos (CHECK en base de datos).
+- Auditoria: `privacy.retention.purged` / `privacy.retention.dry_run` con `trigger` (`worker|manual`) y conteos por clase; sin datos personales.
+- El instante de referencia se acota al reloj real de la base: un reloj adelantado no puede borrar de mas. Un `dead` purgado ya no se puede reencolar (30 dias para atender la DLQ).
+- Migracion: `20261111120000_retention_defaults`. Pruebas: `apps/api/src/test/retention.int.spec.ts`.

@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
+import type { Tx } from "../db/prisma.service.js";
+import { EmailSettingsService } from "../email-settings/email-settings.service.js";
+import { SmtpEmailAdapter } from "../email-settings/smtp.js";
 import { ApiException } from "../http/api-exception.js";
 
-export type OutboundEmail = Readonly<{ idempotencyKey: string; to: string; subject: string; body: string }>;
+export type OutboundEmail = Readonly<{ idempotencyKey: string; to: string; subject: string; body: string; unsubscribeUrl?: string }>;
 
 /**
  * One email provider behind one shape. Real adapters (SES, Resend, Gmail...) need a verified sender domain, signed webhooks and a legal review,
@@ -30,6 +33,17 @@ export class SandboxEmailAdapter implements EmailAdapter {
 export class EmailChannels {
   readonly sandbox = new SandboxEmailAdapter();
   private readonly known = new Map<string, EmailAdapter>([["sandbox", this.sandbox]]);
+
+  constructor(@Inject(EmailSettingsService) private readonly settings: EmailSettingsService) {}
+
+  /** The organization's own SMTP account wins; otherwise the process-wide provider (sandbox in development and tests); otherwise 503. */
+  async forTenant(tx: Tx, organizationId: string, options: { sandboxOutsideProduction?: boolean } = {}, env: NodeJS.ProcessEnv = process.env): Promise<EmailAdapter> {
+    const account = await this.settings.account(tx, organizationId);
+    if (account) return new SmtpEmailAdapter(account, env);
+    // Sequences historically ran on the sandbox without EMAIL_PROVIDER; that shortcut is kept for development and tests only.
+    if (options.sandboxOutsideProduction && !env.EMAIL_PROVIDER && env.NODE_ENV !== "production") return this.sandbox;
+    return this.current(env);
+  }
 
   register(adapter: EmailAdapter): void {
     this.known.set(adapter.name, adapter);

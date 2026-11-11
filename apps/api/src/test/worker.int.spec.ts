@@ -2,8 +2,11 @@ import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuditService } from "../audit/audit.service.js";
 import { PrismaService } from "../db/prisma.service.js";
+import { PrivacyService } from "../privacy/privacy.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
 import { EmailChannels } from "../campaigns/channels.js";
+import { CampaignsService } from "../campaigns/campaigns.service.js";
+import { DraftDeliveryService } from "../drafts/draft-delivery.service.js";
 import { JobsService, backoffMs, redactError } from "../jobs/jobs.service.js";
 import { renderWorkerMetrics, resetWorkerMetrics } from "../jobs/worker-metrics.js";
 import { configFromEnv, WorkerService } from "../jobs/worker.service.js";
@@ -113,7 +116,7 @@ afterAll(async () => {
 });
 beforeEach(() => {
   outbox().length = 0;
-  worker.config = { ...configFromEnv({}), batch: 100, maxAttempts: 3, backoffBaseMs: 1000, backoffCapMs: 60_000, planEveryMs: 60_000, metricsFile: null };
+  worker.config = { ...configFromEnv({}), batch: 100, maxAttempts: 3, backoffBaseMs: 1000, backoffCapMs: 60_000, planEveryMs: 60_000, retentionEveryMs: 0, metricsFile: null }; // the daily retention.purge job has its own spec (retention.int.spec.ts)
   clock();
 });
 afterEach(() => resetWorkerMetrics());
@@ -286,7 +289,7 @@ describe("concurrency and leases (criteria 3 and 4)", () => {
     const a = await register("wk-two");
     const cid = await enrolled(a.token, 3);
     await worker.plan();
-    const second = new WorkerService(api.app.get(PrismaService), jobs, api.app.get(AuditService), api.app.get(SequencesService), api.app.get(NotificationsService));
+    const second = new WorkerService(api.app.get(PrismaService), jobs, api.app.get(AuditService), api.app.get(SequencesService), api.app.get(NotificationsService), api.app.get(PrivacyService), api.app.get(CampaignsService), api.app.get(DraftDeliveryService));
     second.now = worker.now;
     second.config = worker.config;
     await Promise.all([worker.tick(), second.tick()]);

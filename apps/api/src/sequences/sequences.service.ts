@@ -177,9 +177,10 @@ export class SequencesService {
     if (!current) throw conflict("The campaign has no sequence");
     const contact = await tx.contact.findFirstOrThrow({ where: { id: e.contact_id, organization_id: org }, include: { prospect: { select: { name: true } } } });
     const vars = { company: contact.prospect.name, unsubscribe_url: unsubscribeUrl(org, contact.id) };
-    // Sandbox only: this module never resolves a real provider. Idempotent on (enrolment, step).
-    const { messageId } = await this.channels.sandbox.send({ idempotencyKey: `seq:${e.id}:${current.step_no}`, to: contact.address, subject: render(current.subject, vars), body: render(current.body, vars) });
-    await tx.sequenceDelivery.create({ data: { organization_id: org, enrollment_id: e.id, campaign_id: campaignId, contact_id: contact.id, step_no: current.step_no, provider: this.channels.sandbox.name, provider_message_id: messageId, sent_at: now } });
+    // The organization's SMTP account when configured, else the process provider (503 without one). Idempotent on (enrolment, step).
+    const adapter = await this.channels.forTenant(tx, org, { sandboxOutsideProduction: true });
+    const { messageId } = await adapter.send({ idempotencyKey: `seq:${e.id}:${current.step_no}`, to: contact.address, subject: render(current.subject, vars), body: render(current.body, vars), unsubscribeUrl: vars.unsubscribe_url });
+    await tx.sequenceDelivery.create({ data: { organization_id: org, enrollment_id: e.id, campaign_id: campaignId, contact_id: contact.id, step_no: current.step_no, provider: adapter.name, provider_message_id: messageId, sent_at: now } });
     const next = steps.find((s) => s.step_no === current.step_no + 1);
     if (!next) {
       await tx.sequenceEnrollment.update({ where: { id: e.id }, data: { state: "completed", next_due_at: null } });

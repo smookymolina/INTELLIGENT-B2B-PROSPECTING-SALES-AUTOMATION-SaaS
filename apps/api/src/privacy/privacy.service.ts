@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import {
   RETENTION_CLASSES,
+  RETENTION_DEFAULT_DAYS,
   type ContactDto,
   type CreatePrivacyRequest,
   type PrivacyListQuery,
@@ -54,6 +55,10 @@ export class PrivacyService {
     return {
       policies: rows.map((r) => ({ dataClass: r.data_class as RetentionClass, retentionDays: r.retention_days, updatedBy: r.updated_by, updatedAt: r.updated_at.toISOString() })),
       available: [...RETENTION_CLASSES],
+      effective: RETENTION_CLASSES.map((c) => {
+        const own = rows.find((r) => r.data_class === c);
+        return own ? { dataClass: c, retentionDays: own.retention_days, source: "policy" as const } : { dataClass: c, retentionDays: RETENTION_DEFAULT_DAYS[c], source: "default" as const };
+      }),
     };
   }
 
@@ -77,20 +82,26 @@ export class PrivacyService {
     });
   }
 
-  run(auth: AuthContext, dryRun: boolean): Promise<RetentionRunDto> {
+  /**
+   * Purges (or, with dryRun, only counts) the expired rows of every class of THIS organization: its own policy, else the default; a class set to 0
+   * days is skipped. Runs in the tenant context (RLS); the audit event carries counts only. `now` is injectable (tests, worker clock).
+   */
+  run(auth: AuthContext, dryRun: boolean, opts: { now?: Date; trigger?: "manual" | "worker" } = {}): Promise<RetentionRunDto> {
+    const now = opts.now ?? new Date();
+    const trigger = opts.trigger ?? "manual";
     return this.db.withTenant(auth, async (tx) => {
       const classes: RetentionRunDto["classes"] = [];
       const skipped: RetentionClass[] = [];
       for (const cls of RETENTION_CLASSES) {
-        const rows = await tx.$queryRaw<{ r: { retentionDays: number; cutoff: string; count: number } | null }[]>`SELECT privacy_purge(${cls}, ${dryRun}) AS r`;
+        const rows = await tx.$queryRaw<{ r: { retentionDays: number; source: "policy" | "default"; cutoff: string; count: number } | null }[]>`SELECT privacy_purge(${cls}, ${dryRun}, ${now}::timestamptz) AS r`;
         const r = rows[0]?.r ?? null;
         if (!r) { skipped.push(cls); continue; }
-        classes.push({ dataClass: cls, retentionDays: r.retentionDays, cutoff: new Date(r.cutoff).toISOString(), eligible: r.count, deleted: dryRun ? 0 : r.count });
+        classes.push({ dataClass: cls, retentionDays: r.retentionDays, source: r.source, cutoff: new Date(r.cutoff).toISOString(), eligible: r.count, deleted: dryRun ? 0 : r.count });
       }
-      const report: RetentionRunDto = { dryRun, ranAt: new Date().toISOString(), classes, skipped };
-      await this.audit.record(tx, auth, { action: dryRun ? "privacy.retention.dry_run" : "privacy.retention.purged", resourceType: "retention_policy", metadata: { classes: classes.map((c) => ({ dataClass: c.dataClass, retentionDays: c.retentionDays, eligible: c.eligible, deleted: c.deleted })), skipped } });
+      const report: RetentionRunDto = { dryRun, ranAt: now.toISOString(), classes, skipped };
+      await this.audit.record(tx, auth, { action: dryRun ? "privacy.retention.dry_run" : "privacy.retention.purged", resourceType: "retention_policy", metadata: { trigger, classes: classes.map((c) => ({ dataClass: c.dataClass, retentionDays: c.retentionDays, source: c.source, eligible: c.eligible, deleted: c.deleted })), skipped } });
       return report;
-    });
+    }, { timeoutMs: 60_000 });
   }
 
   /* ---------- data-subject requests ---------- */

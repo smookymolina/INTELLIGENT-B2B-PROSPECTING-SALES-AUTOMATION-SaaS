@@ -189,6 +189,22 @@ export const OPERATIONS: readonly Operation[] = [
     body: C.UpdateProfileRequest, success: { status: 200, schema: C.ProfileDto, description: "Profile" }, errors: [400, 401, 403],
   },
   {
+    method: "get", path: "/organization/email-settings", id: "getEmailSettings", summary: "The organization's own SMTP account (the password is never returned)", tag: "Organization", permission: "organization:update",
+    success: { status: 200, schema: C.EmailSettingsDto, description: "Settings" }, errors: [401, 403],
+  },
+  {
+    method: "put", path: "/organization/email-settings", id: "replaceEmailSettings", summary: "Save the organization's SMTP account (password stored encrypted; resets verification)", tag: "Organization", permission: "organization:update",
+    body: C.UpdateEmailSettingsRequest, success: { status: 200, schema: C.EmailSettingsDto, description: "Settings" }, errors: [400, 401, 403],
+  },
+  {
+    method: "delete", path: "/organization/email-settings", id: "deleteEmailSettings", summary: "Remove the organization's SMTP account", tag: "Organization", permission: "organization:update",
+    success: { status: 200, schema: C.EmailSettingsDto, description: "Empty settings" }, errors: [401, 403],
+  },
+  {
+    method: "post", path: "/organization/email-settings/test", id: "testEmailSettings", summary: "Check the SMTP connection and login; optionally send one test message", tag: "Organization", permission: "organization:update",
+    body: C.TestEmailSettingsRequest, success: { status: 200, schema: C.EmailSettingsTestDto, description: "Result" }, errors: [400, 401, 403, 409],
+  },
+  {
     method: "get", path: "/branches", id: "listBranches", summary: "Branches of the caller's organization (active and disabled)", tag: "Branches", permission: "organization:read",
     success: { status: 200, schema: z.array(C.BranchDto), description: "Branches" }, errors: [401, 403],
   },
@@ -339,6 +355,14 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: "post", path: "/prospects/imports", id: "importProspectsCsv", summary: "Validate (dry_run) or apply a CSV of prospects. All-or-nothing; never changes status; records csv_import provenance", tag: "Prospecting", permission: "prospects:manage",
     body: C.ImportRequest, idempotent: true, success: { status: 200, schema: C.ProspectImportResultDto, description: "Outcome" }, errors: [400, 401, 403, 409, 413, 422],
+  },
+  {
+    method: "post", path: "/prospects/discovery/search", id: "searchProspectDiscovery", summary: "Preview businesses near a place from OpenStreetMap (nothing is stored)", tag: "Prospecting", permission: "prospects:manage",
+    body: C.DiscoverySearchRequest, success: { status: 200, schema: C.DiscoverySearchDto, description: "Candidates" }, errors: [400, 401, 403, 503],
+  },
+  {
+    method: "post", path: "/prospects/discovery/import", id: "importProspectDiscovery", summary: "Store selected OpenStreetMap candidates as prospects (dedupe and suppression respected; openstreetmap provenance)", tag: "Prospecting", permission: "prospects:manage",
+    body: C.DiscoveryImportRequest, success: { status: 200, schema: C.DiscoveryImportDto, description: "Outcome" }, errors: [400, 401, 403, 503],
   },
   {
     method: "get", path: "/prospects/imports", id: "listProspectImports", summary: "Prospect import history (keyset by id)", tag: "Prospecting", permission: "prospects:manage",
@@ -621,7 +645,7 @@ export const OPERATIONS: readonly Operation[] = [
     body: C.AcceptInvitationRequest, success: { status: 200, schema: C.AcceptedInvitationDto, description: "Membership created (or already present)" }, errors: [400, 401, 404],
   },
   {
-    method: "put", path: "/privacy/retention", id: "setRetention", summary: "Set per-class retention days (org_admin). No default: without a policy nothing is purged", tag: "Privacy", permission: "privacy:manage",
+    method: "put", path: "/privacy/retention", id: "setRetention", summary: "Set per-class retention days (org_admin); 0 disables a class. Without a policy the default applies", tag: "Privacy", permission: "privacy:manage",
     body: C.SetRetentionRequest, success: { status: 200, schema: C.RetentionPolicyDto, description: "Policies" }, errors: [400, 401, 403],
   },
   {
@@ -629,7 +653,7 @@ export const OPERATIONS: readonly Operation[] = [
     success: { status: 200, schema: C.RetentionPolicyDto, description: "Policies" }, errors: [401, 403],
   },
   {
-    method: "post", path: "/privacy/retention/run", id: "runRetention", summary: "Purge expired rows of the classes that have a policy; dryRun (default) only reports", tag: "Privacy", permission: "privacy:manage",
+    method: "post", path: "/privacy/retention/run", id: "runRetention", summary: "Purge expired rows per class (organization policy or default; disabled classes are skipped); dryRun (default) only reports", tag: "Privacy", permission: "privacy:manage",
     body: C.RetentionRunRequest, success: { status: 200, schema: C.RetentionRunDto, description: "Report" }, errors: [400, 401, 403],
   },
   {
@@ -703,6 +727,14 @@ export const OPERATIONS: readonly Operation[] = [
   {
     method: "get", path: "/message-drafts/{id}", id: "getMessageDraft", summary: "One draft", tag: "Drafts", permission: "campaigns:read",
     pathParams: ["id"], success: { status: 200, schema: C.MessageDraftDto, description: "Draft" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "get", path: "/message-drafts/{id}/delivery", id: "getDraftDelivery", summary: "Delivery state of a draft (none until someone asks to send it)", tag: "Drafts", permission: "campaigns:read",
+    pathParams: ["id"], success: { status: 200, schema: C.DraftDeliveryDto, description: "Delivery" }, errors: [400, 401, 403, 404],
+  },
+  {
+    method: "post", path: "/message-drafts/{id}/send", id: "sendMessageDraft", summary: "Queue an approved email draft for delivery by the worker (nothing is sent inside this request)", tag: "Drafts", permission: "campaigns:approve",
+    pathParams: ["id"], success: { status: 200, schema: C.DraftDeliveryDto, description: "Queued" }, errors: [400, 401, 403, 404, 409],
   },
   {
     method: "post", path: "/message-drafts/{id}/approve", id: "approveMessageDraft", summary: "Approve a pending draft (re-checks eligibility; org_admin, sales_manager). Approving never sends", tag: "Drafts", permission: "campaigns:approve",

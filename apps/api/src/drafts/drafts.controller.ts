@@ -4,10 +4,12 @@ import {
   DraftListQuery,
   RejectDraftRequest,
   UuidParam,
+  type DraftDeliveryDto,
   type MessageDraftDto,
   type MessageDraftPageDto,
   type OutreachContextDto,
 } from "@prospecting/contracts";
+import { DraftDeliveryService } from "./draft-delivery.service.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import { Auth, RequirePermission } from "../auth/decorators.js";
 import { ZodPipe } from "../auth/zod.pipe.js";
@@ -17,7 +19,24 @@ const id = () => new ZodPipe(UuidParam);
 
 @Controller()
 export class DraftsController {
-  constructor(@Inject(DraftsService) private readonly drafts: DraftsService) {}
+  constructor(
+    @Inject(DraftsService) private readonly drafts: DraftsService,
+    @Inject(DraftDeliveryService) private readonly deliveries: DraftDeliveryService,
+  ) {}
+
+  @Get("message-drafts/:id/delivery")
+  @RequirePermission("campaigns:read")
+  delivery(@Auth() auth: AuthContext, @Param("id", id()) did: string): Promise<DraftDeliveryDto> {
+    return this.deliveries.get(auth, did);
+  }
+
+  /** Queues the delivery; the worker sends it. Nothing leaves the system inside this request. */
+  @Post("message-drafts/:id/send")
+  @HttpCode(200)
+  @RequirePermission("campaigns:approve")
+  send(@Auth() auth: AuthContext, @Param("id", id()) did: string): Promise<DraftDeliveryDto> {
+    return this.deliveries.queue(auth, did);
+  }
 
   @Get("contacts/:id/outreach-context")
   @RequirePermission("campaigns:read")
