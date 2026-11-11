@@ -78,6 +78,10 @@ export const OK: Record<string, string> = {
   privacyrejected: "Solicitud rechazada con tu motivo.",
   privacylifted: "Restricción levantada y auditada.",
   switched: "Cambiaste de organización.",
+  notifdestinations: "Destinos de notificación guardados.",
+  notiftestqueued: "Correo de prueba en cola: se enviará en unos instantes.",
+  mcplimit: "Límite de llamadas MCP guardado.",
+  leadquota: "Cupo mensual de leads guardado.",
 };
 export const ERR: Record<string, string> = {
   input: "Revisa los datos ingresados.",
@@ -88,6 +92,8 @@ export const ERR: Record<string, string> = {
   email_host_not_allowed: "Ese servidor no está permitido o no existe. Usa el servidor público de tu proveedor de correo.",
   email_rejected: "El servidor rechazó el mensaje. Revisa el correo del remitente y el destinatario.",
   email_unknown: "La prueba falló por un motivo no identificado. Inténtalo de nuevo en unos minutos.",
+  addresses: "Revisa las direcciones: deben ser correos válidos, sin repetir y como máximo 5.",
+  number: "Escribe un número entero válido (0 o más).",
   noprovider: "No hay proveedor de correo configurado: el envío está deshabilitado.",
   aibudget: "La IA no tiene presupuesto disponible. Un administrador debe configurarlo o esperar al próximo mes.",
   noevidence: "Ninguna referencia es evidencia aprobada y vigente de tu catálogo.",

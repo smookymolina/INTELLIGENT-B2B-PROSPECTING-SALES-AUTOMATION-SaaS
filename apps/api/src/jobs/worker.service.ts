@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
-import { HttpException, Inject, Injectable, Logger } from "@nestjs/common";
+import { HttpException, Inject, Injectable, Logger, Optional } from "@nestjs/common";
 import { UuidParam, type JobType } from "@prospecting/contracts";
 import { z } from "zod";
 import { AuditService } from "../audit/audit.service.js";
@@ -9,6 +9,7 @@ import { CampaignsService } from "../campaigns/campaigns.service.js";
 import { PrismaService, type TenantContext } from "../db/prisma.service.js";
 import { DraftDeliveryService } from "../drafts/draft-delivery.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
+import { LifecycleService } from "../prospects/lifecycle/lifecycle.service.js";
 import { PrivacyService } from "../privacy/privacy.service.js";
 import { SequencesService } from "../sequences/sequences.service.js";
 import { backoffMs, JobsService, type ClaimedJob } from "./jobs.service.js";
@@ -87,6 +88,7 @@ export class WorkerService {
     @Inject(PrivacyService) private readonly privacy: PrivacyService,
     @Inject(CampaignsService) private readonly campaigns: CampaignsService,
     @Inject(DraftDeliveryService) private readonly draftDeliveries: DraftDeliveryService,
+    @Optional() @Inject(LifecycleService) private readonly lifecycle?: LifecycleService,
   ) {}
 
   /* ---------- planning ---------- */
@@ -117,6 +119,7 @@ export class WorkerService {
           ...pending.map((p) => ({ type: "campaign.dispatch" as const, dedupeKey: `${p.campaign_id}:${bucket}`, payload: { campaignId: p.campaign_id, limit: this.config.runDueLimit }, ...base })),
           ...(queuedDrafts > 0 ? [{ type: "draft.send_queued" as const, dedupeKey: `org:${bucket}`, payload: { limit: this.config.runDueLimit }, ...base }] : []),
           { type: "notifications.scan_due", dedupeKey: `org:${bucket}`, payload: {}, ...base },
+          { type: "prospects.expire_due" as const, dedupeKey: `org:${Math.floor(now.getTime() / 86_400_000)}`, payload: {}, ...base },
           ...(this.config.retentionEveryMs > 0 ? [{ type: "retention.purge" as const, dedupeKey: `org:${Math.floor(now.getTime() / this.config.retentionEveryMs)}`, payload: {}, ...base }] : []),
           ...campaigns.map((c) => ({ type: "sequence.run_due" as const, dedupeKey: `${c.id}:${bucket}`, payload: { campaignId: c.id, limit: this.config.runDueLimit }, ...base })),
         ]);
@@ -204,6 +207,13 @@ export class WorkerService {
         const p = z.strictObject({ limit: z.number().int().min(1).max(200).default(50) }).parse(job.payload);
         return this.draftDeliveries.sendQueued(ctx, p.limit, this.now());
       },
+      // Stubs replaced by wave-3 work (prospect lifecycle / notification e-mail): fail permanently until implemented.
+      "prospects.expire_due": async () => {
+        // Expires this organization's active prospects past their month with no lead; a re-run finds nothing left, so a retry is harmless.
+        if (!this.lifecycle) throw new HttpException("lifecycle service unavailable", 500);
+        await this.lifecycle.expireDue(ctx, this.now());
+      },
+      "notifications.send_email": async () => this.notifications.sendEmailJob(ctx, job.payload),
       "retention.purge": async () => {
         PurgePayload.parse(job.payload);
         // Deletes only what is past its term for THIS organization; a re-run finds nothing left, so a retry is harmless.

@@ -146,7 +146,7 @@ describe("automatic processing (criterion 1)", () => {
     expect(res.claimed).toBeGreaterThanOrEqual(2);
     expect(await deliveries(cid)).toHaveLength(1);
     const rows = await jobRows(a.orgId);
-    expect(rows.map((r) => `${r.type}:${r.state}`).sort()).toEqual(["notifications.scan_due:succeeded", "sequence.run_due:succeeded"]);
+    expect(rows.map((r) => `${r.type}:${r.state}`).sort()).toEqual(["notifications.scan_due:succeeded", "prospects.expire_due:succeeded", "sequence.run_due:succeeded"]);
     // same window: nothing new is planned, so nothing else is sent (and step 2 is not due for 48 h anyway)
     await worker.tick();
     expect(await deliveries(cid)).toHaveLength(1);
@@ -277,7 +277,7 @@ describe("concurrency and leases (criteria 3 and 4)", () => {
     const ids1 = mine(w1).map((j) => j.id);
     const ids2 = mine(w2).map((j) => j.id);
     expect(ids1.filter((id) => ids2.includes(id))).toEqual([]);
-    expect(new Set([...ids1, ...ids2]).size).toBe(5); // 4 campaigns + 1 notifications scan
+    expect(new Set([...ids1, ...ids2]).size).toBe(6); // 4 campaigns + 1 notifications scan + 1 prospects.expire_due
     expect([...mine(w1), ...mine(w2)].every((j) => j.attempts === 1 && j.actorUserId === a.userId)).toBe(true);
     const rows = await jobRows(a.orgId);
     expect(rows.every((r) => r.state === "running" && (r.locked_by === "w1" || r.locked_by === "w2"))).toBe(true);
@@ -303,7 +303,7 @@ describe("concurrency and leases (criteria 3 and 4)", () => {
     await runningCampaign(a.token);
     await worker.plan();
     const first = (await jobs.claim("w1", 10, 100, at())).filter((j) => j.organizationId === a.orgId);
-    expect(first).toHaveLength(2);
+    expect(first).toHaveLength(3); // sequence.run_due + notifications.scan_due + prospects.expire_due
     expect((await jobs.claim("w2", 10, 100, at(5_000))).filter((j) => j.organizationId === a.orgId)).toHaveLength(0); // lease still valid
     const again = (await jobs.claim("w2", 10, 100, at(11_000))).filter((j) => j.organizationId === a.orgId);
     expect(again.map((j) => j.id).sort()).toEqual(first.map((j) => j.id).sort());
@@ -375,9 +375,9 @@ describe("idempotency per window (criterion 6)", () => {
     await runningCampaign(a.token);
     await worker.plan();
     const before = await jobRows(a.orgId);
-    expect(before).toHaveLength(2);
+    expect(before).toHaveLength(3);
     await Promise.all([worker.plan(), worker.plan(), worker.plan()]);
-    expect(await jobRows(a.orgId)).toHaveLength(2);
+    expect(await jobRows(a.orgId)).toHaveLength(3);
     // direct duplicate enqueue is a no-op too
     const ctx = { organizationId: a.orgId, userId: a.userId, role: "org_admin" } as const;
     const dup = await jobs.enqueue(ctx, [{ type: "notifications.scan_due", dedupeKey: `org:${Math.floor(at().getTime() / 60_000)}`, payload: {}, maxAttempts: 3, runAfter: at() }]);
@@ -385,7 +385,7 @@ describe("idempotency per window (criterion 6)", () => {
     // the next window is a new job
     clock(61_000);
     await worker.plan();
-    expect(await jobRows(a.orgId)).toHaveLength(4);
+    expect(await jobRows(a.orgId)).toHaveLength(5);
   });
 
   it("reports the queue as Prometheus text without tenant data", async () => {

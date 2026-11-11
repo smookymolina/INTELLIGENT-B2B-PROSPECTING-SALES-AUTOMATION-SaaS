@@ -57,3 +57,8 @@ ol.timeline { padding-left: 1.2rem; display: grid; gap: .35rem; }
 .funnel-bar { display: inline-block; height: .6rem; background: var(--accent); border-radius: .2rem; vertical-align: middle; max-width: 8rem; min-width: 2px; }
 
 .switcher { display: flex; gap: .5rem; align-items: center; margin: 0; } .switcher select, .switcher button { margin: 0; }
+
+.notice.working { border: 2px dashed var(--muted); padding: .6rem .8rem; border-radius: .35rem; }
+.usage-bar { width: 100%; max-width: 28rem; height: 1rem; }
+.checks { border: 0; padding: 0; }
+.checks label { display: block; }

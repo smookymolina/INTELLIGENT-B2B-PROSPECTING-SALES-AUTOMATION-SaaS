@@ -70,6 +70,19 @@ function draftView(data: unknown): Record<string, unknown> {
   };
 }
 
+/** Reports tool-call metadata (tool + ok/error only, never content) so the SaaS can show MCP usage. Best effort: never breaks the tool. */
+function metered<A>(api: ApiClient, tool: string, fn: (a: A) => Promise<ToolResult>): (a: A) => Promise<ToolResult> {
+  return async (a) => meter(api, tool, await fn(a));
+}
+async function meter(api: ApiClient, tool: string, result: ToolResult): Promise<ToolResult> {
+  try {
+    await api.request("POST", "/ai/mcp-usage", { body: { tool, outcome: result.isError ? "error" : "ok" } });
+  } catch {
+    /* metering must not affect the tool */
+  }
+  return result;
+}
+
 export function registerTools(server: McpServer, api: ApiClient): void {
   server.registerTool(
     "get_outreach_context",
@@ -79,7 +92,7 @@ export function registerTools(server: McpServer, api: ApiClient): void {
       inputSchema: GetOutreachContextInput,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async ({ contactId }) => {
+    metered(api, "get_outreach_context", async ({ contactId }: { contactId: string }) => {
       const r = await api.request("GET", `/contacts/${contactId}/outreach-context`);
       if (!r.ok) return fail(r);
       const d = (isRec(r.data) ? r.data : {}) as Record<string, unknown>;
@@ -102,7 +115,7 @@ export function registerTools(server: McpServer, api: ApiClient): void {
         },
         reminders: ["Only use facts listed in `evidence`; do not invent figures or claims.", "Only draft for channels where eligible is true.", REVIEW_NOTE, WHATSAPP_NOTE],
       });
-    },
+    }),
   );
 
   server.registerTool(
@@ -113,7 +126,7 @@ export function registerTools(server: McpServer, api: ApiClient): void {
       inputSchema: SaveMessageDraftInput,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
-    async (args) => {
+    metered(api, "save_message_draft", async (args: z.infer<z.ZodObject<typeof SaveMessageDraftInput>>) => {
       const body = {
         contactId: args.contactId,
         channel: args.channel,
@@ -124,7 +137,7 @@ export function registerTools(server: McpServer, api: ApiClient): void {
       const r = await api.request("POST", "/message-drafts", { body, headers: { "x-client-kind": "mcp" } });
       if (!r.ok) return fail(r);
       return out({ ...draftView(r.data), reminders: [REVIEW_NOTE, ...(args.channel === "whatsapp" ? [WHATSAPP_NOTE] : []), "Use get_draft_status to check the decision later."] });
-    },
+    }),
   );
 
   server.registerTool(
@@ -134,10 +147,10 @@ export function registerTools(server: McpServer, api: ApiClient): void {
       inputSchema: GetDraftStatusInput,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async ({ draftId }) => {
+    metered(api, "get_draft_status", async ({ draftId }: { draftId: string }) => {
       const r = await api.request("GET", `/message-drafts/${draftId}`);
       if (!r.ok) return fail(r);
       return out({ ...draftView(r.data), reminders: ["Approved means a human accepted the content; it is still not sent by this MCP."] });
-    },
+    }),
   );
 }

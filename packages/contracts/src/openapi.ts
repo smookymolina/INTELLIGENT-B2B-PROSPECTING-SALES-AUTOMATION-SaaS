@@ -79,6 +79,50 @@ export const OPERATIONS: readonly Operation[] = [
     body: C.SetAiBudgetRequest, success: { status: 200, schema: C.AiUsageDto, description: "Usage with the new limit" }, errors: [400, 401, 403],
   },
   {
+    method: "get", path: "/ai/usage-summary", id: "getAiUsageSummary", summary: "Current month: MCP tool calls (by tool, user, day) against the internal limit, and API AI spend against the budget. The Claude Pro plan percentage is not visible to the SaaS", tag: "AI", permission: "ai:use",
+    success: { status: 200, schema: C.AiUsageSummaryDto, description: "Summary" }, errors: [401, 403],
+  },
+  {
+    method: "put", path: "/ai/mcp-limit", id: "setMcpLimit", summary: "Set the monthly internal limit of MCP tool calls (0 = no limit)", tag: "AI", permission: "ai:manage",
+    body: C.SetMcpLimitRequest, success: { status: 200, schema: C.AiUsageSummaryDto, description: "Summary with the new limit" }, errors: [400, 401, 403],
+  },
+  {
+    method: "post", path: "/ai/mcp-usage", id: "reportMcpUsage", summary: "Used by the MCP server to record one tool call (metadata only; organization and user come from the token)", tag: "AI", permission: "ai:use",
+    body: C.ReportMcpUsageRequest, success: { status: 204, description: "Recorded" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/prospects/cohorts", id: "listProspectCohorts", summary: "Monthly prospect cohorts: discovered, active, converted, rejected, no reply, expired, and the monthly lead quota used", tag: "Prospects", permission: "prospects:read",
+    success: { status: 200, schema: C.CohortListDto, description: "Cohorts" }, errors: [401, 403],
+  },
+  {
+    method: "get", path: "/prospects/lead-quota", id: "getLeadQuota", summary: "Monthly lead quota of the organization", tag: "Prospects", permission: "prospects:read",
+    success: { status: 200, schema: C.LeadQuotaDto, description: "Quota" }, errors: [401, 403],
+  },
+  {
+    method: "put", path: "/prospects/lead-quota", id: "setLeadQuota", summary: "Set the monthly lead quota", tag: "Prospects", permission: "organization:update",
+    body: C.SetLeadQuotaRequest, success: { status: 200, schema: C.LeadQuotaDto, description: "Quota" }, errors: [400, 401, 403],
+  },
+  {
+    method: "get", path: "/notifications/email-destinations", id: "getNotificationEmailDestinations", summary: "Where to send notifications by e-mail (up to 5 addresses) and the enabled event types", tag: "Notifications", permission: "organization:update",
+    success: { status: 200, schema: C.NotificationEmailDestinationsDto, description: "Destinations" }, errors: [401, 403],
+  },
+  {
+    method: "put", path: "/notifications/email-destinations", id: "replaceNotificationEmailDestinations", summary: "Replace the e-mail destinations (max 5) and optionally the enabled event types", tag: "Notifications", permission: "organization:update",
+    body: C.UpdateNotificationEmailDestinationsRequest, success: { status: 200, schema: C.NotificationEmailDestinationsDto, description: "Destinations" }, errors: [400, 401, 403],
+  },
+  {
+    method: "post", path: "/notifications/email-destinations/{id}/test", id: "testNotificationEmailDestination", summary: "Queue a test e-mail to one destination (sent by the worker, never in the request)", tag: "Notifications", permission: "organization:update",
+    pathParams: ["id"], success: { status: 202, schema: C.NotificationEmailTestQueuedDto, description: "Queued" }, errors: [401, 403, 404],
+  },
+  {
+    method: "get", path: "/platform-admin/organizations", id: "platformAdminListOrganizations", summary: "Platform administrator only, read-only and audited: organizations with counts", tag: "Platform admin",
+    query: C.PlatformAdminPageQuery, success: { status: 200, schema: z.object({ total: z.number(), limit: z.number(), offset: z.number(), items: z.array(C.PlatformAdminOrganizationDto) }), description: "Page" }, errors: [401, 403],
+  },
+  {
+    method: "get", path: "/platform-admin/organizations/{id}/{resource}", id: "platformAdminListResource", summary: "Platform administrator only, read-only and audited: users, prospects, leads, opportunities, quotes or campaigns of one organization", tag: "Platform admin",
+    pathParams: ["id", "resource"], query: C.PlatformAdminPageQuery, success: { status: 200, schema: z.object({ total: z.number(), limit: z.number(), offset: z.number(), items: z.array(z.record(z.string(), z.unknown())) }), description: "Page" }, errors: [400, 401, 403, 404],
+  },
+  {
     method: "post", path: "/prospects/{id}/contacts", id: "addContact", summary: "Add an email (default) or WhatsApp (E.164) contact to a prospect; a contact has one channel (source required; no consent is implied)", tag: "Campaigns", permission: "prospects:manage",
     pathParams: ["id"], body: C.AddContactRequest, success: { status: 201, schema: C.ContactDto, description: "Created" }, errors: [400, 401, 403, 404, 409],
   },
@@ -190,18 +234,22 @@ export const OPERATIONS: readonly Operation[] = [
   },
   {
     method: "get", path: "/organization/email-settings", id: "getEmailSettings", summary: "The organization's own SMTP account (the password is never returned)", tag: "Organization", permission: "organization:update",
+    query: C.EmailSettingsPurposeQuery,
     success: { status: 200, schema: C.EmailSettingsDto, description: "Settings" }, errors: [401, 403],
   },
   {
     method: "put", path: "/organization/email-settings", id: "replaceEmailSettings", summary: "Save the organization's SMTP account (password stored encrypted; resets verification)", tag: "Organization", permission: "organization:update",
+    query: C.EmailSettingsPurposeQuery,
     body: C.UpdateEmailSettingsRequest, success: { status: 200, schema: C.EmailSettingsDto, description: "Settings" }, errors: [400, 401, 403],
   },
   {
     method: "delete", path: "/organization/email-settings", id: "deleteEmailSettings", summary: "Remove the organization's SMTP account", tag: "Organization", permission: "organization:update",
+    query: C.EmailSettingsPurposeQuery,
     success: { status: 200, schema: C.EmailSettingsDto, description: "Empty settings" }, errors: [401, 403],
   },
   {
     method: "post", path: "/organization/email-settings/test", id: "testEmailSettings", summary: "Check the SMTP connection and login; optionally send one test message", tag: "Organization", permission: "organization:update",
+    query: C.EmailSettingsPurposeQuery,
     body: C.TestEmailSettingsRequest, success: { status: 200, schema: C.EmailSettingsTestDto, description: "Result" }, errors: [400, 401, 403, 409],
   },
   {

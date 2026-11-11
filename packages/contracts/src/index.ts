@@ -1461,7 +1461,7 @@ export type EnrollmentPageDto = z.infer<typeof EnrollmentPageDto>;
 /* ---------- Worker job queue (PostgreSQL-backed; admin view of retries and the dead-letter queue) ---------- */
 export const JOB_STATES = ["queued", "running", "succeeded", "failed", "dead"] as const;
 export type JobState = (typeof JOB_STATES)[number];
-export const JOB_TYPES = ["sequence.run_due", "notifications.scan_due", "retention.purge", "campaign.dispatch", "draft.send_queued"] as const;
+export const JOB_TYPES = ["sequence.run_due", "notifications.scan_due", "retention.purge", "campaign.dispatch", "draft.send_queued", "prospects.expire_due", "notifications.send_email"] as const;
 export type JobType = (typeof JOB_TYPES)[number];
 export const JobListQuery = z.strictObject({
   state: z.enum(["all", ...JOB_STATES]).default("dead"),
@@ -1527,3 +1527,7 @@ export type TestEmailSettingsRequest = z.infer<typeof TestEmailSettingsRequest>;
 export const EMAIL_TEST_FAILURES = ["auth_failed", "connection_failed", "tls_failed", "host_not_allowed", "rejected", "unknown"] as const;
 export const EmailSettingsTestDto = z.object({ ok: z.boolean(), sent: z.boolean(), failure: z.enum(EMAIL_TEST_FAILURES).nullable(), verifiedAt: z.iso.datetime().nullable() });
 export type EmailSettingsTestDto = z.infer<typeof EmailSettingsTestDto>;
+export * from "./ai-usage.js";
+export * from "./lifecycle.js";
+export * from "./notification-email.js";
+export * from "./platform-admin.js";

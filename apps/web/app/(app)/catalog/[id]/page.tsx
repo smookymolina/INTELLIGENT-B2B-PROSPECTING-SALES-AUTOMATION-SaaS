@@ -6,6 +6,7 @@ import { api } from "../../../../lib/api";
 import { requireSession } from "../../../../lib/auth";
 import { KIND_LABELS, STATUS_LABELS, formatDate, label } from "../../../../lib/format";
 import { Flash } from "../../../components/flash";
+import { WorkingNotice } from "../../../components/working-notice";
 
 function Version({ title, v }: { title: string; v: ItemVersionDto | null }) {
   return (
@@ -52,6 +53,7 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
       <h1>{i.sku} <span className={`badge ${i.status}`}>{label(STATUS_LABELS, i.status)}</span></h1>
       <p>{label(KIND_LABELS, i.kind)} · última versión {i.latestVersion}{i.archivedAt ? ` · archivado ${formatDate(i.archivedAt)}` : ""}</p>
       <Flash sp={sp} />
+      <WorkingNotice what="Adjuntos, pagos y firma" />
       <div className="actions" role="group" aria-label="Acciones">
         {can("catalog:manage") && !archived && !i.draft ? <Action id={i.id} op="draft">Nueva versión (borrador)</Action> : null}
         {can("catalog:approve") && !archived && i.draft ? <Action id={i.id} op="approve">Aprobar borrador</Action> : null}

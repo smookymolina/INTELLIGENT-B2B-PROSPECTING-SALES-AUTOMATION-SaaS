@@ -1295,3 +1295,42 @@ model DraftDelivery {
   @@index([organization_id, contact_id, attempted_at])
   @@map("draft_deliveries")
 }
+
+/// Notification e-mail: second SMTP account (purpose "notifications"), same layout/encryption as EmailSettings. FKs to organizations live in SQL.
+model NotificationSmtpSettings {
+  organization_id String    @id @db.Uuid
+  host            String
+  port            Int
+  secure          Boolean
+  username        String
+  password_enc    String
+  from_name       String?
+  from_email      String
+  reply_to        String?
+  verified_at     DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@map("notification_smtp_settings")
+}
+
+model NotificationEmailDestination {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String    @db.Uuid
+  address         String
+  last_test_at    DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([organization_id, address])
+  @@map("notification_email_destinations")
+}
+
+model NotificationEmailRule {
+  organization_id String   @db.Uuid
+  type            String
+  enabled         Boolean
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([organization_id, type])
+  @@map("notification_email_rules")
+}

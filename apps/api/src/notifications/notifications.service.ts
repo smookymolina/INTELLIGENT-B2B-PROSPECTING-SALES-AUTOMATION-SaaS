@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import {
   NOTIFICATION_TYPES,
@@ -14,6 +15,7 @@ import { AuditService } from "../audit/audit.service.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import { PrismaService, type TenantContext, type Tx } from "../db/prisma.service.js";
 import { ApiException } from "../http/api-exception.js";
+import { NotificationEmailService } from "./notification-email.service.js";
 
 export type NotifyInput = {
   userId: string;
@@ -52,20 +54,31 @@ export class NotificationsService {
   constructor(
     @Inject(PrismaService) private readonly db: PrismaService,
     @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(NotificationEmailService) private readonly email: NotificationEmailService,
   ) {}
 
   /** Creates a notification inside the caller's transaction. Returns false when the recipient disabled the type or the dedupe key already exists. */
   async notifyInTx(tx: Tx, organizationId: string, input: NotifyInput): Promise<boolean> {
     const pref = await tx.notificationPreference.findFirst({ where: { organization_id: organizationId, user_id: input.userId, type: input.type }, select: { enabled: true } });
     if (pref && !pref.enabled) return false;
+    // The id is generated here: the producer is usually not the recipient and so cannot read the row back (RLS).
+    const id = randomUUID();
     const res = await tx.notification.createMany({
       data: [{
-        organization_id: organizationId, user_id: input.userId, type: input.type, title: input.title, body: input.body ?? null,
+        id, organization_id: organizationId, user_id: input.userId, type: input.type, title: input.title, body: input.body ?? null,
         resource_type: input.resourceType ?? null, resource_id: input.resourceId ?? null, dedupe_key: input.dedupeKey, channel: "sandbox",
       }],
       skipDuplicates: true,
     });
-    return res.count === 1;
+    if (res.count !== 1) return false;
+    // The e-mail copy is only queued here (same transaction, so it exists exactly when the notification does); the worker sends it.
+    await this.email.queueInTx(tx, organizationId, id, input.type);
+    return true;
+  }
+
+  /** Worker entry point for `notifications.send_email`. */
+  sendEmailJob(ctx: TenantContext, payload: unknown) {
+    return this.email.sendJob(ctx, payload);
   }
 
   /** Same as notifyInTx in its own tenant transaction (for callers without an open one). */

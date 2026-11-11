@@ -31,6 +31,7 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
   return (
     <>
       <h1>Prospectos</h1>
+      <p><Link href="/prospects/cohorts">Ver cohortes por mes y cupo de leads</Link></p>
       <Flash sp={raw} />
       <p className="hint">Un prospecto es sólo un <strong>candidato</strong>: no implica permiso para contactarlo.</p>
       <p className="toolbar">
