@@ -281,7 +281,7 @@ body {
   font-weight: 650;
   letter-spacing: -0.02em;
 }
-.auth-brand :where(p) { max-width: 42ch; margin: 0; color: var(--brand-muted); font-size: var(--text-lg); }
+.auth-brand :where(p:not(.title)) { max-width: 42ch; margin: 0; color: var(--brand-muted); font-size: var(--text-lg); }
 .auth-brand :where(ul) { display: grid; gap: var(--space-3); margin: var(--space-2) 0 0; padding: 0; list-style: none; }
 .auth-brand :where(li) { position: relative; padding-left: var(--space-6); color: var(--brand-ink); }
 .auth-brand li::before {
