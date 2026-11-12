@@ -14,7 +14,9 @@ export default async function ScoringPage({ searchParams }: { searchParams: Prom
   const can = (p: string) => (me.permissions as readonly string[]).includes(p);
   return (
     <>
-      <h1>Puntuación de prospectos</h1>
+      <header className="page-head">
+        <h1>Puntuación de prospectos</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">Modelo de reglas transparentes y versionado. Sólo los atributos <strong>verificados</strong> puntúan; cada puntuación explica qué regla coincidió y con qué evidencia. Una versión aprobada es inmutable.</p>
       <div className="two">

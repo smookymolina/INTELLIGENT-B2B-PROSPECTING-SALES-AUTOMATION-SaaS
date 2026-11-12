@@ -20,7 +20,9 @@ export default async function PipelinePage({ searchParams }: { searchParams: Pro
   const isSeller = me.role === "seller";
   return (
     <>
-      <h1>Pipeline</h1>
+      <header className="page-head">
+        <h1>Pipeline</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">{isSeller ? "Sólo ves las oportunidades que te asignaron." : "Todas las oportunidades de tu organización."} Se crean a partir de leads aceptados (desde <Link href="/leads">Leads</Link>).</p>
       <p className="toolbar">

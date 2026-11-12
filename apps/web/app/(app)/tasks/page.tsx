@@ -23,7 +23,9 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const next = new URLSearchParams({ state, ...(sp.mine === "1" ? { mine: "1" } : {}), ...(sp.overdue === "1" ? { overdue: "1" } : {}), cursor: result.data.nextCursor ?? "" });
   return (
     <>
-      <h1>Tareas de seguimiento</h1>
+      <header className="page-head">
+        <h1>Tareas de seguimiento</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">Los vendedores ven sólo las tareas de sus oportunidades. Las fechas se muestran en UTC.</p>
       <form method="get" className="filters" aria-label="Filtros">

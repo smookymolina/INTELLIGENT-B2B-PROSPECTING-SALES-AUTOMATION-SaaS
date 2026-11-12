@@ -13,7 +13,9 @@ export default async function ProspectImportPage({ searchParams }: { searchParam
   return (
     <>
       <p><Link href="/prospects">← Prospectos</Link></p>
-      <h1>Importar prospectos (CSV)</h1>
+      <header className="page-head">
+        <h1>Importar prospectos (CSV)</h1>
+      </header>
       <Flash sp={sp} />
       <p>Columnas: <code>name</code> (obligatoria), <code>domain</code>, <code>country</code>, <code>region</code>, <code>city</code>, <code>industry</code>. La clave de deduplicación es el dominio (o nombre + país). Todo o nada; nunca cambia el estado de un prospecto ni concede permiso de contacto; máx. 1000 filas.</p>
       <form method="post" action="/actions/prospects/import">

@@ -13,7 +13,9 @@ export default async function NewItemPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <p><Link href="/catalog">← Catálogo</Link></p>
-      <h1>Nuevo elemento</h1>
+      <header className="page-head">
+        <h1>Nuevo elemento</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">Se crea como <strong>borrador</strong>: no se usa en cotizaciones ni IA hasta que un administrador lo apruebe.</p>
       <form method="post" action="/actions/catalog/create">

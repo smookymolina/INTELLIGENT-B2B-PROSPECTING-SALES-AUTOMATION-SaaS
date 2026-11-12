@@ -15,7 +15,9 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
   const s = res.data;
   return (
     <>
-      <h1>Correo saliente (SMTP)</h1>
+      <header className="page-head">
+        <h1>Correo saliente (SMTP)</h1>
+      </header>
       <p><Link href="/company">← Empresa</Link></p>
       <Flash sp={sp} />
       {s.configured ? (

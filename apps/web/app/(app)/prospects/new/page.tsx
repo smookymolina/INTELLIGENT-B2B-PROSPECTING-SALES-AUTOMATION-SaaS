@@ -9,7 +9,9 @@ export default async function NewProspectPage({ searchParams }: { searchParams: 
   return (
     <>
       <p><Link href="/prospects">← Prospectos</Link></p>
-      <h1>Nuevo prospecto</h1>
+      <header className="page-head">
+        <h1>Nuevo prospecto</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">Se guarda como <strong>candidato</strong> con procedencia «manual». Si el dominio (o nombre + país) ya existe, te llevaremos al registro existente.</p>
       <form method="post" action="/actions/prospects/create">

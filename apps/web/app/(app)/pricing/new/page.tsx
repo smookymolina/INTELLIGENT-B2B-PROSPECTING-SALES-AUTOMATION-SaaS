@@ -9,7 +9,9 @@ export default async function NewPriceListPage({ searchParams }: { searchParams:
   return (
     <>
       <p><Link href="/pricing">← Listas de precios</Link></p>
-      <h1>Nueva lista de precios</h1>
+      <header className="page-head">
+        <h1>Nueva lista de precios</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">La <strong>moneda no se puede cambiar</strong> después de crear la lista.</p>
       <form method="post" action="/actions/pricing/create">

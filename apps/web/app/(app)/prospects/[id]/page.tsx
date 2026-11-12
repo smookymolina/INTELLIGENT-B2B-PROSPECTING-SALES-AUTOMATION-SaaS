@@ -45,7 +45,9 @@ export default async function ProspectPage({ params, searchParams }: { params: P
   return (
     <>
       <p><Link href="/prospects">← Prospectos</Link></p>
-      <h1>{p.name} <span className={`badge ${p.status === "qualified" ? "approved" : p.status === "candidate" ? "draft" : "archived"}`}>{LABELS[p.status]}</span></h1>
+      <header className="page-head">
+        <h1>{p.name} <span className={`badge ${p.status === "qualified" ? "approved" : p.status === "candidate" ? "draft" : "archived"}`}>{LABELS[p.status]}</span></h1>
+      </header>
       <Flash sp={sp} />
       {hiddenBehind ? <p role="alert" className="notice error">Este prospecto es un duplicado oculto: está fusionado detrás de <Link href={`/prospects/${hiddenBehind.survivorId}`}>otro prospecto (el sobreviviente)</Link>. {manage ? "Puedes deshacer la fusión desde la sección «Duplicados» de esa ficha." : ""}</p> : null}
       {p.suppressed ? <p role="alert" className="notice error">Está en la lista de no contactar: no puede calificarse ni usarse en campañas.</p> : null}

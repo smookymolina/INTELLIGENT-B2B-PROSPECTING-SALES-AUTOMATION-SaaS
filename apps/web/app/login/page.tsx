@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { readSessionToken } from "../../lib/session";
+import { AuthBrand } from "../components/auth-brand";
 
 const MESSAGES: Record<string, string> = {
   invalid: "Credenciales inválidas o sin acceso a la organización indicada.",
@@ -16,16 +17,19 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { error } = await searchParams;
   const message = error ? (MESSAGES[error] ?? MESSAGES.unexpected) : null;
   return (
-    <main className="auth">
-      <h1>Iniciar sesión</h1>
-      {message ? <p role="alert" className="notice error">{message}</p> : null}
-      <form method="post" action="/session/login">
-        <label>Correo electrónico<input name="email" type="email" autoComplete="username" required maxLength={254} /></label>
-        <label>Contraseña<input name="password" type="password" autoComplete="current-password" required maxLength={128} /></label>
-        <label>Organización (opcional)<input name="organizationSlug" type="text" autoComplete="off" maxLength={64} placeholder="identificador de la organización" /></label>
-        <button type="submit">Entrar</button>
-      </form>
-      <p>¿Primera vez? <Link href="/register">Crear una cuenta y organización</Link></p>
-    </main>
+    <div className="auth-wrap">
+      <AuthBrand />
+      <main className="auth">
+        <h1>Iniciar sesión</h1>
+        {message ? <p role="alert" className="notice error">{message}</p> : null}
+        <form method="post" action="/session/login">
+          <label>Correo electrónico<input name="email" type="email" autoComplete="username" required maxLength={254} /></label>
+          <label>Contraseña<input name="password" type="password" autoComplete="current-password" required maxLength={128} /></label>
+          <label>Organización (opcional)<input name="organizationSlug" type="text" autoComplete="off" maxLength={64} placeholder="identificador de la organización" /></label>
+          <button type="submit">Entrar</button>
+        </form>
+        <p>¿Primera vez? <Link href="/register">Crear una cuenta y organización</Link></p>
+      </main>
+    </div>
   );
 }

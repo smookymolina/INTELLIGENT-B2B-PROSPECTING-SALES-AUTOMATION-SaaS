@@ -14,7 +14,9 @@ export default async function SuppressionsPage({ searchParams }: { searchParams:
   return (
     <>
       <p><Link href="/prospects">← Prospectos</Link></p>
-      <h1>Lista de no contactar</h1>
+      <header className="page-head">
+        <h1>Lista de no contactar</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">Los dominios y nombres de esta lista no pueden calificarse ni recibir campañas. Agregar una entrada descalifica al instante a los prospectos calificados que coinciden.</p>
       {result.data.items.length === 0 ? <p className="empty">La lista está vacía.</p> : (

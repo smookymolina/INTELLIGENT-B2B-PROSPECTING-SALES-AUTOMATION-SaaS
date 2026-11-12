@@ -13,7 +13,9 @@ export default async function CompanyPage({ searchParams }: { searchParams: Prom
   const canEdit = me.permissions.includes("organization:update");
   return (
     <>
-      <h1>Empresa</h1>
+      <header className="page-head">
+        <h1>Empresa</h1>
+      </header>
       <Flash sp={sp} />
       {canEdit ? <p><a href="/company/email">Configurar correo saliente (SMTP)</a></p> : null}
       {p.updatedAt === null ? <p className="empty">El perfil aún no se ha completado. Nada se infiere ni se prellena.</p> : <p className="hint">Actualizado {formatDate(p.updatedAt)}</p>}

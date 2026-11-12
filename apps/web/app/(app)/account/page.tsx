@@ -11,7 +11,9 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   if (!sessions.ok) throw new Error("The sessions could not be loaded");
   return (
     <>
-      <h1>Mi cuenta</h1>
+      <header className="page-head">
+        <h1>Mi cuenta</h1>
+      </header>
       <Flash sp={sp} />
       <p>{me.user.displayName} · {me.user.email}</p>
       <h2>Cambiar contraseña</h2>

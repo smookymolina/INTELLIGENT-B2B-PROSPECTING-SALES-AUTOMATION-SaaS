@@ -24,7 +24,9 @@ export default async function ProspectDiscoveryPage({ searchParams }: { searchPa
   return (
     <>
       <p><Link href="/prospects">← Prospectos</Link></p>
-      <h1>Buscar empresas por zona (OpenStreetMap)</h1>
+      <header className="page-head">
+        <h1>Buscar empresas por zona (OpenStreetMap)</h1>
+      </header>
       <Flash sp={sp} />
       {imported ? (
         <p role="status" className="notice ok">

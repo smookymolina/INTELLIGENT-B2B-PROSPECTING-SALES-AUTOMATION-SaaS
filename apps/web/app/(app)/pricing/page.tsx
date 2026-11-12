@@ -18,7 +18,9 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const { items, nextCursor } = result.data;
   return (
     <>
-      <h1>Listas de precios</h1>
+      <header className="page-head">
+        <h1>Listas de precios</h1>
+      </header>
       <Flash sp={raw} />
       <p className="hint">Una lista aprobada es inmutable; para cambiarla se clona. Sólo los precios de listas aprobadas con productos aprobados pueden usarse en cotizaciones o por la IA.</p>
       <p className="toolbar">{me.permissions.includes("catalog:manage") ? <Link href="/pricing/new">+ Nueva lista</Link> : null}</p>

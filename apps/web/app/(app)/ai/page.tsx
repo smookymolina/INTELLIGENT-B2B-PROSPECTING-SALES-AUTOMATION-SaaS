@@ -17,7 +17,9 @@ export default async function AiPage({ searchParams }: { searchParams: Promise<{
   const canManage = me.permissions.includes("ai:manage");
   return (
     <>
-      <h1>Asistente de IA</h1>
+      <header className="page-head">
+        <h1>Asistente de IA</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">La IA sólo sugiere: nunca envía mensajes ni cambia datos. Sólo ve evidencia aprobada del catálogo (referencias <code>item:…</code> y <code>price:…</code>), con datos personales ocultos. Lo dudoso queda marcado para revisión humana. Sin presupuesto configurado la IA está bloqueada.</p>
       <dl className="stats">

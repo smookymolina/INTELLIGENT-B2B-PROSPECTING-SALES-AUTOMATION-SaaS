@@ -32,7 +32,9 @@ export default async function CampaignPage({ params, searchParams }: { params: P
   return (
     <>
       <p><Link href="/campaigns">← Campañas</Link></p>
-      <h1>{c.name} <span className="badge draft">{STATES[c.state]}</span></h1>
+      <header className="page-head">
+        <h1>{c.name} <span className="badge draft">{STATES[c.state]}</span></h1>
+      </header>
       <Flash sp={sp} />
       <dl>
         <div className="row"><dt>Asunto</dt><dd>{c.subject}</dd></div>

@@ -17,7 +17,9 @@ export default async function PlatformAdminPage({ searchParams }: { searchParams
   const { items, total } = result.data;
   return (
     <>
-      <h1>{roleName("platform_admin")}: organizaciones</h1>
+      <header className="page-head">
+        <h1>{roleName("platform_admin")}: organizaciones</h1>
+      </header>
       <p className="hint">Vista de solo lectura. Cada consulta queda auditada en la organización consultada.</p>
       {items.length === 0 ? <p className="empty">Sin organizaciones.</p> : (
         <div className="table-wrap">

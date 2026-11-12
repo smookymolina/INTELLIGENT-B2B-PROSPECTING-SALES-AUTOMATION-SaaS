@@ -18,7 +18,9 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   const roleOptions = MEMBERSHIP_ROLES.map((r) => <option key={r} value={r}>{label(ROLE_LABELS, r)}</option>);
   return (
     <>
-      <h1>Equipo</h1>
+      <header className="page-head">
+        <h1>Equipo</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">¿Te invitaron a otra organización? <Link href="/team/accept">Aceptar una invitación</Link>.</p>
       <h2>Miembros</h2>

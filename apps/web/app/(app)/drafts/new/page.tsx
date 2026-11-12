@@ -20,7 +20,9 @@ export default async function NewDraftPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <p><Link href="/drafts">← Borradores</Link></p>
-      <h1>Preparar mensaje</h1>
+      <header className="page-head">
+        <h1>Preparar mensaje</h1>
+      </header>
       <Flash sp={sp} />
       <p role="note" className="notice ok">Ningún borrador se envía automáticamente: queda pendiente de revisión y aprobarlo tampoco lo envía. WhatsApp es sólo borrador (no hay proveedor de envío).</p>
       <h2>Contacto</h2>

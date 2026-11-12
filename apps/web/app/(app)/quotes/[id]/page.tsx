@@ -23,7 +23,9 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
   return (
     <>
       <p><Link href={`/pipeline/${q.opportunityId}`}>← Oportunidad</Link></p>
-      <h1>Cotización {q.label} <span className={`badge ${q.status === "accepted" ? "approved" : q.status === "draft" ? "draft" : "archived"}`}>{STATUS[q.status]}</span></h1>
+      <header className="page-head">
+        <h1>Cotización {q.label} <span className={`badge ${q.status === "accepted" ? "approved" : q.status === "draft" ? "draft" : "archived"}`}>{STATUS[q.status]}</span></h1>
+      </header>
       <Flash sp={sp} />
       <WorkingNotice />
       <p><a href={`/export/quotes/${q.id}/pdf`} download>Descargar PDF</a> <span className="hint">(cotización {q.label}; los importes se calculan en el servidor)</span></p>

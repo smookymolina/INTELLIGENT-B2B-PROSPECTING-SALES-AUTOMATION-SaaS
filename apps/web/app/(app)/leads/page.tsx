@@ -20,7 +20,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   if (!list.ok || !settings.ok) throw new Error("Leads could not be loaded");
   return (
     <>
-      <h1>Leads</h1>
+      <header className="page-head">
+        <h1>Leads</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">Un lead se crea sólo por una regla explícita (puntuación igual o mayor al umbral, prospecto calificado y fuera de la lista de no contactar) o por una respuesta con intención positiva. Siempre lo revisa una persona.</p>
       <p>Umbral mínimo: <strong>{settings.data.minScore ?? "sin configurar"}</strong>{settings.data.minScore === null ? " — no se crean leads por regla hasta que un administrador lo defina." : ""}</p>

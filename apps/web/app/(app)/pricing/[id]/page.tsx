@@ -31,7 +31,9 @@ export default async function PriceListPage({ params, searchParams }: { params: 
   return (
     <>
       <p><Link href="/pricing">← Listas de precios</Link></p>
-      <h1>{l.name} <span className={`badge ${l.status}`}>{label(STATUS_LABELS, l.status)}</span></h1>
+      <header className="page-head">
+        <h1>{l.name} <span className={`badge ${l.status}`}>{label(STATUS_LABELS, l.status)}</span></h1>
+      </header>
       <Flash sp={sp} />
       <p>Moneda <strong>{l.currency}</strong> · vigencia {l.validFrom ?? "—"} → {l.validUntil ?? "—"} · {l.entryCount} precio(s){l.approvedAt ? ` · aprobada ${formatDate(l.approvedAt)}` : ""}{l.clonedFrom ? " · clon de otra lista" : ""}</p>
       <div className="actions" role="group" aria-label="Acciones">

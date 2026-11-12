@@ -27,7 +27,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const range = `from=${o.window.from}&to=${o.window.to}`;
   return (
     <>
-      <h1>Analítica</h1>
+      <header className="page-head">
+        <h1>Analítica</h1>
+      </header>
       {invalid ? <p role="alert" className="notice error">La ventana indicada no es válida (máximo 366 días, «desde» no puede ser posterior a «hasta»). Se muestra la ventana por defecto.</p> : null}
       <form method="get" className="filters" aria-label="Ventana">
         <label>Desde (UTC)<input name="from" type="date" defaultValue={o.window.from} /></label>

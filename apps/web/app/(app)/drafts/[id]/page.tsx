@@ -28,7 +28,9 @@ export default async function DraftPage({ params, searchParams }: { params: Prom
   return (
     <>
       <p><Link href="/drafts">← Borradores</Link></p>
-      <h1>Borrador de {d.channel === "email" ? "correo" : "WhatsApp"} <span className={`badge ${d.status === "approved" ? "approved" : d.status === "pending_review" ? "draft" : "archived"}`}>{STATE_LABELS[d.status]}</span></h1>
+      <header className="page-head">
+        <h1>Borrador de {d.channel === "email" ? "correo" : "WhatsApp"} <span className={`badge ${d.status === "approved" ? "approved" : d.status === "pending_review" ? "draft" : "archived"}`}>{STATE_LABELS[d.status]}</span></h1>
+      </header>
       <Flash sp={sp} />
       <p role="note" className="notice ok">Este borrador no se envía automáticamente, ni siquiera aprobado.{d.channel === "whatsapp" ? " En WhatsApp lo envías tú desde tu propio número." : ""}</p>
       <dl>

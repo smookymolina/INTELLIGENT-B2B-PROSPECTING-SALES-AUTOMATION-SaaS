@@ -15,7 +15,9 @@ export default async function RoutingPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <p><Link href="/pipeline">← Pipeline</Link></p>
-      <h1>Asignación de oportunidades</h1>
+      <header className="page-head">
+        <h1>Asignación de oportunidades</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">Sin configuración, la asignación es manual y no hay SLA. El round-robin elige a quien tenga menos oportunidades abiertas (respetando su capacidad); si nadie puede recibirla, queda en la cola. Cada decisión guarda la lista de candidatos para poder reproducirla.</p>
       <form method="post" action="/actions/crm/routing" className="inline">

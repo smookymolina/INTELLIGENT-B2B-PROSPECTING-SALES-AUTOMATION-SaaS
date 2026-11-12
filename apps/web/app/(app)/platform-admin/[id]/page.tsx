@@ -26,7 +26,9 @@ export default async function PlatformAdminOrgPage({ params, searchParams }: { p
   return (
     <>
       <p><Link href="/platform-admin">← Organizaciones</Link></p>
-      <h1>Organización (solo lectura)</h1>
+      <header className="page-head">
+        <h1>Organización (solo lectura)</h1>
+      </header>
       <nav aria-label="Secciones" className="actions">
         {PLATFORM_ADMIN_RESOURCES.map((t) => <Link key={t} href={href(t, 0)} aria-current={t === tab ? "page" : undefined}>{t === tab ? <strong>{TABS[t]}</strong> : TABS[t]}</Link>)}
       </nav>

@@ -30,7 +30,9 @@ export default async function OpportunityPage({ params, searchParams }: { params
   return (
     <>
       <p><Link href="/pipeline">← Pipeline</Link></p>
-      <h1>{o.title} <span className="badge draft">{STAGE_LABELS[o.stage]}</span></h1>
+      <header className="page-head">
+        <h1>{o.title} <span className="badge draft">{STAGE_LABELS[o.stage]}</span></h1>
+      </header>
       <Flash sp={sp} />
       <dl>
         <div className="row"><dt>Prospecto</dt><dd><Link href={`/prospects/${o.prospect.id}`}>{o.prospect.name}</Link></dd></div>

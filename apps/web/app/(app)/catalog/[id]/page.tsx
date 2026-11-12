@@ -50,7 +50,9 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
   return (
     <>
       <p><Link href="/catalog">← Catálogo</Link></p>
-      <h1>{i.sku} <span className={`badge ${i.status}`}>{label(STATUS_LABELS, i.status)}</span></h1>
+      <header className="page-head">
+        <h1>{i.sku} <span className={`badge ${i.status}`}>{label(STATUS_LABELS, i.status)}</span></h1>
+      </header>
       <p>{label(KIND_LABELS, i.kind)} · última versión {i.latestVersion}{i.archivedAt ? ` · archivado ${formatDate(i.archivedAt)}` : ""}</p>
       <Flash sp={sp} />
       <WorkingNotice what="Adjuntos, pagos y firma" />

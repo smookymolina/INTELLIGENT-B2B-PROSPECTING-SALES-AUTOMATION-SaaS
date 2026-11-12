@@ -29,7 +29,9 @@ export default async function ClaudeUsagePage({ searchParams }: { searchParams: 
     : `${formatMicros(ai.spentMicros)} · sin presupuesto definido`;
   return (
     <>
-      <h1>Uso de Claude</h1>
+      <header className="page-head">
+        <h1>Uso de Claude</h1>
+      </header>
       <Flash sp={sp} />
       <p role="status" className="notice working"><strong>{u.claudePlanNotice}.</strong> Consúltalo directamente en <a href="https://claude.ai" target="_blank" rel="noopener noreferrer">claude.ai (se abre en otra pestaña)</a>.</p>
 

@@ -26,12 +26,14 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <h1>Catálogo</h1>
-      <p className="toolbar">
-        {me.permissions.includes("catalog:manage") ? <Link href="/catalog/new">+ Nuevo elemento</Link> : null}
-        {me.permissions.includes("catalog:manage") ? <Link href="/catalog/import">Importar CSV</Link> : null}
-        <Link href="/catalog/categories">Categorías</Link>
-      </p>
+      <header className="page-head">
+        <h1>Catálogo</h1>
+        <div className="page-actions">
+          {me.permissions.includes("catalog:manage") ? <Link className="btn secondary" href="/catalog/new">+ Nuevo elemento</Link> : null}
+          {me.permissions.includes("catalog:manage") ? <Link className="btn secondary" href="/catalog/import">Importar CSV</Link> : null}
+          <Link className="btn secondary" href="/catalog/categories">Categorías</Link>
+        </div>
+      </header>
       <form method="get" className="filters" aria-label="Filtros">
         <label>Estado
           <select name="status" defaultValue={status}>{STATUSES.map((s) => <option key={s} value={s}>{s === "all" ? "Todos" : label(STATUS_LABELS, s)}</option>)}</select>

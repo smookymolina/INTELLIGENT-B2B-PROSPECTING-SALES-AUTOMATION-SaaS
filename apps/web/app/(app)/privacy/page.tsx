@@ -24,7 +24,9 @@ export default async function PrivacyPage({ searchParams }: { searchParams: Prom
   const contactId = sp.contactId && UUID.test(sp.contactId) ? sp.contactId : "";
   return (
     <>
-      <h1>Privacidad</h1>
+      <header className="page-head">
+        <h1>Privacidad</h1>
+      </header>
       <Flash sp={sp} />
       {sp.eligible ? <p role="status" className="notice ok">Simulación: {Number(sp.eligible) || 0} filas serían eliminadas. No se borró nada.</p> : null}
 

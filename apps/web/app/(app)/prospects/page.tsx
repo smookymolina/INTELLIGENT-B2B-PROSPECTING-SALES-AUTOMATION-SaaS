@@ -30,7 +30,9 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
   const manage = me.permissions.includes("prospects:manage");
   return (
     <>
-      <h1>Prospectos</h1>
+      <header className="page-head">
+        <h1>Prospectos</h1>
+      </header>
       <p><Link href="/prospects/cohorts">Ver cohortes por mes y cupo de leads</Link></p>
       <Flash sp={raw} />
       <p className="hint">Un prospecto es sólo un <strong>candidato</strong>: no implica permiso para contactarlo.</p>

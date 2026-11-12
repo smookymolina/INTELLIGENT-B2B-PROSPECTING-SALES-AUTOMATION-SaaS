@@ -21,7 +21,9 @@ export default async function DraftsPage({ searchParams }: { searchParams: Promi
   if (!result.ok) throw new Error("The drafts could not be loaded");
   return (
     <>
-      <h1>Borradores de mensajes</h1>
+      <header className="page-head">
+        <h1>Borradores de mensajes</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">Un borrador es texto para que una persona lo revise. <strong>Ningún borrador se envía automáticamente</strong>, ni siquiera aprobado. En WhatsApp, la persona lo envía ella misma desde su número con un enlace. Para crear uno, abre «Preparar mensaje» en un contacto de la ficha del prospecto.</p>
       <form method="get" className="filters" aria-label="Filtros">

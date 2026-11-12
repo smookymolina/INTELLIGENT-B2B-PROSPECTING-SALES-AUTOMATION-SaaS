@@ -29,7 +29,9 @@ export default async function NotificationsSettingsPage({ searchParams }: { sear
   const slots = Array.from({ length: MAX_DESTINATIONS }, (_, i) => d.items[i]);
   return (
     <>
-      <h1>Notificaciones</h1>
+      <header className="page-head">
+        <h1>Notificaciones</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">Los correos personalizados a prospectos salen de una cuenta de envío; las notificaciones internas salen de otra. Se configuran por separado.</p>
 

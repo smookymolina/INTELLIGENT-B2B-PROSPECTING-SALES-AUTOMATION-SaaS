@@ -16,7 +16,9 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
   if (!quotes.ok || !sales.ok || !settings.ok) throw new Error("Quotes could not be loaded");
   return (
     <>
-      <h1>Cotizaciones y ventas</h1>
+      <header className="page-head">
+        <h1>Cotizaciones y ventas</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">Las cotizaciones se arman con productos y precios aprobados, con totales exactos; al enviarlas quedan congeladas. Una cotización aceptada registra la venta y gana la oportunidad.</p>
       <p>Descuento máximo sin aprobación: <strong>{settings.data.maxDiscountPercent} %</strong> (por defecto 0: todo descuento necesita aprobación de un administrador).</p>

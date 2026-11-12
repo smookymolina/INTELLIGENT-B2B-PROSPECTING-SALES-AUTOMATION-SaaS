@@ -13,7 +13,9 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
   const canEdit = me.permissions.includes("organization:update");
   return (
     <>
-      <h1>Cohortes de prospectos</h1>
+      <header className="page-head">
+        <h1>Cohortes de prospectos</h1>
+      </header>
       <p><Link href="/prospects">← Prospectos</Link></p>
       <Flash sp={sp} />
       <p className="hint">Regla de vida: un prospecto se conserva hasta que se vuelve lead, el lead lo rechaza o no responde, o pasa un mes.</p>

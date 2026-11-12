@@ -1,16 +1,228 @@
-/* Design tokens: the single place to change colours, spacing, type and radii. styles.css only consumes these variables. */
+/*
+ * Design tokens: the single place to change colour, type, spacing, radii, elevation and motion.
+ * styles.css only consumes these variables. Three levels:
+ *   1. primitive  (--n-*, --blue-*, --green-*, ...)  raw OKLCH values, never used directly by components
+ *   2. semantic   (--ink, --muted, --bg, --accent, --ok, ...)  remapped per theme (light / dark)
+ *   3. component  (--button-bg, --field-border, --nav-active-bg, ...)  point to semantic tokens
+ * Contrast (WCAG 2.1 AA) is computed for every text/background pair listed in the semantic block.
+ */
 :root {
-  color-scheme: light;
-  /* colour */
-  --ink: #172033; --muted: #5a6478; --line: #d5dbe6; --bg: #f7f9fc; --card: #fff; --accent: #1f4fd8; --accent-ink: #fff;
-  --ok: #0b6b3a; --warn: #8a5a00; --off: #5a6478; --err-bg: #fdecec; --err: #9b1c1c;
-  --ok-bg: #e8f6ee; --surface-alt: #eef2f9; --border-input: #8a94a8; --focus: #f2b300;
-  /* typography */
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  --leading: 1.5;
-  --text-sm: .85rem; --text-xs: .8rem; --text-h1: 1.6rem; --text-h2: 1.15rem;
-  /* spacing */
-  --space-1: .25rem; --space-2: .5rem; --space-3: .75rem; --space-4: 1rem; --space-5: 1.5rem;
-  /* radii */
-  --radius-sm: .2rem; --radius-md: .35rem; --radius-lg: .5rem; --radius-pill: 1rem;
+  color-scheme: light dark;
+
+  /* ---------- 1. Primitives ---------- */
+  /* neutral (cool slate, hue 265) */
+  --n-0: oklch(100% 0 0);
+  --n-25: oklch(98.6% 0.003 265);
+  --n-50: oklch(97.4% 0.004 265);
+  --n-100: oklch(95.6% 0.006 265);
+  --n-150: oklch(93% 0.007 265);
+  --n-200: oklch(90.5% 0.008 265);
+  --n-300: oklch(84% 0.01 265);
+  --n-400: oklch(70% 0.014 265);
+  --n-500: oklch(60% 0.016 265);
+  --n-600: oklch(48% 0.018 265);
+  --n-700: oklch(38% 0.02 265);
+  --n-800: oklch(29% 0.02 265);
+  --n-850: oklch(24.5% 0.016 265);
+  --n-900: oklch(21% 0.014 265);
+  --n-950: oklch(17.5% 0.012 265);
+  --n-1000: oklch(14.5% 0.01 265);
+  /* accent (indigo-blue, hue 264) */
+  --blue-50: oklch(97% 0.015 264);
+  --blue-100: oklch(94.5% 0.03 264);
+  --blue-200: oklch(89% 0.055 264);
+  --blue-300: oklch(80% 0.1 264);
+  --blue-400: oklch(70% 0.14 264);
+  --blue-500: oklch(58% 0.19 264);
+  --blue-600: oklch(50% 0.19 264);
+  --blue-700: oklch(44% 0.18 264);
+  --blue-800: oklch(32% 0.12 264);
+  --blue-900: oklch(26% 0.08 264);
+  --blue-950: oklch(22% 0.06 264);
+  /* status */
+  --green-50: oklch(96% 0.03 155);
+  --green-200: oklch(86% 0.07 155);
+  --green-300: oklch(80% 0.13 155);
+  --green-600: oklch(46% 0.11 155);
+  --green-800: oklch(38% 0.07 155);
+  --green-900: oklch(27% 0.05 155);
+  --amber-50: oklch(96.5% 0.04 85);
+  --amber-200: oklch(87% 0.09 80);
+  --amber-300: oklch(84% 0.12 80);
+  --amber-600: oklch(48% 0.1 70);
+  --amber-800: oklch(40% 0.07 70);
+  --amber-900: oklch(28% 0.05 70);
+  --red-50: oklch(96% 0.022 20);
+  --red-200: oklch(87% 0.06 20);
+  --red-300: oklch(78% 0.12 22);
+  --red-600: oklch(50% 0.18 27);
+  --red-800: oklch(40% 0.1 25);
+  --red-900: oklch(27% 0.07 25);
+  --sky-50: oklch(96% 0.02 240);
+  --sky-200: oklch(87% 0.05 240);
+  --sky-300: oklch(80% 0.1 240);
+  --sky-600: oklch(50% 0.12 245);
+  --sky-800: oklch(40% 0.07 245);
+  --sky-900: oklch(27% 0.05 245);
+
+  /* ---------- 2. Semantic (light theme) ---------- */
+  /* surfaces by elevation */
+  --bg: var(--n-25);                 /* page canvas (level 0) */
+  --card: var(--n-0);                /* cards, tables, panels (level 1) */
+  --surface-alt: var(--n-50);        /* table heads, lanes, code (level 2, sunken) */
+  --surface-3: var(--n-100);         /* hover fills, tracks (level 3) */
+  --surface-0: var(--bg);
+  --surface-1: var(--card);
+  --surface-2: var(--surface-alt);
+  --surface-field: var(--n-0);
+  --surface-side: var(--n-50);
+  /* text */
+  --ink: var(--n-900);               /* 16.9:1 on --card */
+  --ink-2: var(--n-700);             /* 10.0:1 on --card */
+  --muted: var(--n-600);             /* 6.5:1 on --card, 6.0:1 on --surface-alt, 5.7:1 on --surface-3 */
+  /* lines */
+  --line: var(--n-200);              /* decorative separators */
+  --line-strong: var(--n-300);
+  --border-input: var(--n-500);      /* 3.9:1 on --card (WCAG 1.4.11 >= 3:1) */
+  --border-input-hover: var(--n-600);
+  /* accent */
+  --accent: var(--blue-600);         /* 6.3:1 on --card, 6.0:1 on --bg; --accent-ink on it 6.3:1 */
+  --accent-hover: var(--blue-700);
+  --accent-ink: var(--n-0);
+  --accent-soft: var(--blue-100);
+  --accent-soft-ink: var(--blue-700); /* ~6.5:1 on --accent-soft */
+  --focus: var(--blue-500);          /* ring >= 4.5:1 on light surfaces */
+  --selection: var(--blue-200);
+  /* status: text colour, soft background, border */
+  --ok: var(--green-600);   --ok-bg: var(--green-50);  --ok-line: var(--green-200);   /* 6.9:1 / 6.1:1 on bg */
+  --warn: var(--amber-600); --warn-bg: var(--amber-50); --warn-line: var(--amber-200); /* 6.7:1 / 6.0:1 */
+  --err: var(--red-600);    --err-bg: var(--red-50);   --err-line: var(--red-200);    /* 6.6:1 / 5.8:1 */
+  --info: var(--sky-600);   --info-bg: var(--sky-50);  --info-line: var(--sky-200);   /* 5.9:1 / 5.2:1 */
+  --off: var(--n-600);      --off-bg: var(--n-100);    --off-line: var(--n-200);      /* 6.5:1 / 5.7:1 */
+  /* brand panel (auth) */
+  --brand-bg: var(--blue-900);
+  --brand-ink: var(--n-0);           /* ~15:1 */
+  --brand-muted: var(--blue-200);    /* ~11:1 */
+  --brand-check: var(--blue-300);
+  /* elevation */
+  --shadow-base: 22% 0.02 265;
+  --shadow-k: 1;
+
+  /* ---------- typography ---------- */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", "Segoe UI Mono", Consolas, Menlo, monospace;
+  --leading: 1.55;
+  --leading-tight: 1.2;
+  --tracking-tight: -0.015em;
+  --text-xs: .75rem;
+  --text-sm: .875rem;
+  --text-base: .9375rem;
+  --text-lg: 1.0625rem;
+  --text-h2: clamp(1.0625rem, 1rem + .25vw, 1.1875rem);
+  --text-h1: clamp(1.375rem, 1.2rem + .75vw, 1.75rem);
+  --text-kpi: clamp(1.375rem, 1.2rem + .6vw, 1.625rem);
+  --text-display: clamp(1.5rem, 1.1rem + 1.5vw, 2.25rem);
+
+  /* ---------- spacing (4px grid; --space-5 kept at 24px for compatibility) ---------- */
+  --space-0-5: .125rem; /* 2px */
+  --space-1: .25rem;    /* 4px */
+  --space-2: .5rem;     /* 8px */
+  --space-3: .75rem;    /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.5rem;    /* 24px */
+  --space-6: 2rem;      /* 32px */
+  --space-7: 2.5rem;    /* 40px */
+  --space-8: 3rem;      /* 48px */
+  --space-9: 4rem;      /* 64px */
+
+  /* ---------- radii ---------- */
+  --radius-sm: .25rem;
+  --radius-md: .5rem;
+  --radius-lg: .75rem;
+  --radius-xl: 1rem;
+  --radius-pill: 999px;
+
+  /* ---------- layout ---------- */
+  --side-w: 16rem;
+  --content-max: 76rem;
+  --control-h: 2.5rem;  /* 40px controls on desktop */
+  --tap: 2.75rem;       /* 44px touch targets on small / coarse pointers */
+
+  /* ---------- motion ---------- */
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --ease: cubic-bezier(.2, 0, 0, 1);
+
+  /* ---------- elevation (layered, theme-aware) ---------- */
+  --shadow-xs: 0 1px 2px oklch(var(--shadow-base) / calc(.05 * var(--shadow-k)));
+  --shadow-sm: 0 1px 2px oklch(var(--shadow-base) / calc(.05 * var(--shadow-k))), 0 1px 3px oklch(var(--shadow-base) / calc(.07 * var(--shadow-k)));
+  --shadow-md: 0 1px 2px oklch(var(--shadow-base) / calc(.05 * var(--shadow-k))), 0 4px 12px -2px oklch(var(--shadow-base) / calc(.08 * var(--shadow-k)));
+  --shadow-lg: 0 2px 4px oklch(var(--shadow-base) / calc(.05 * var(--shadow-k))), 0 12px 32px -8px oklch(var(--shadow-base) / calc(.14 * var(--shadow-k)));
+
+  /* ---------- 3. Component tokens ---------- */
+  --button-bg: var(--accent);
+  --button-bg-hover: var(--accent-hover);
+  --button-ink: var(--accent-ink);
+  --button-highlight: oklch(100% 0 0 / .14);
+  --field-bg: var(--surface-field);
+  --field-border: var(--border-input);
+  --field-border-hover: var(--border-input-hover);
+  --card-bg: var(--card);
+  --card-border: var(--line);
+  --card-shadow: var(--shadow-xs);
+  --side-bg: var(--surface-side);
+  --nav-ink: var(--ink-2);
+  --nav-hover-bg: var(--surface-3);
+  --nav-active-bg: var(--accent-soft);
+  --nav-active-ink: var(--accent-soft-ink);
+  --table-head-bg: var(--surface-alt);
+  --row-hover: var(--surface-alt);
+  --track: var(--n-150);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* surfaces */
+    --bg: var(--n-1000);
+    --card: var(--n-950);
+    --surface-alt: var(--n-900);
+    --surface-3: var(--n-850);
+    --surface-field: var(--n-1000);
+    --surface-side: var(--n-950);
+    /* text */
+    --ink: var(--n-100);               /* ~16:1 on --card */
+    --ink-2: var(--n-300);             /* ~11:1 on --card */
+    --muted: var(--n-400);             /* 6.6:1 on --card, 6.6:1 on --surface-alt, 6.1:1 on --surface-3 */
+    /* lines */
+    --line: var(--n-800);
+    --line-strong: var(--n-700);
+    --border-input: var(--n-500);      /* 4.8:1 on --card, 5.0:1 on field */
+    --border-input-hover: var(--n-400);
+    /* accent */
+    --accent: var(--blue-400);         /* 6.5:1 on --card; --accent-ink on it 7.3:1 */
+    --accent-hover: var(--blue-300);
+    --accent-ink: var(--n-1000);
+    --accent-soft: var(--blue-900);
+    --accent-soft-ink: var(--blue-300); /* ~8:1 */
+    --focus: var(--blue-300);
+    --selection: var(--blue-800);
+    /* status */
+    --ok: var(--green-300);   --ok-bg: var(--green-900);  --ok-line: var(--green-800);
+    --warn: var(--amber-300); --warn-bg: var(--amber-900); --warn-line: var(--amber-800);
+    --err: var(--red-300);    --err-bg: var(--red-900);   --err-line: var(--red-800);
+    --info: var(--sky-300);   --info-bg: var(--sky-900);  --info-line: var(--sky-800);
+    --off: var(--n-400);      --off-bg: var(--n-850);     --off-line: var(--n-700);
+    /* brand */
+    --brand-bg: var(--blue-950);
+    --brand-ink: var(--n-50);
+    --brand-muted: var(--blue-200);
+    --brand-check: var(--blue-300);
+    /* elevation */
+    --shadow-base: 0% 0 0;
+    --shadow-k: 4;
+    /* components */
+    --button-highlight: oklch(100% 0 0 / .2);
+    --row-hover: var(--n-900);
+    --track: var(--n-800);
+  }
 }

@@ -14,7 +14,9 @@ export default async function CategoriesPage({ searchParams }: { searchParams: P
   return (
     <>
       <p><Link href="/catalog">← Catálogo</Link></p>
-      <h1>Categorías</h1>
+      <header className="page-head">
+        <h1>Categorías</h1>
+      </header>
       <Flash sp={sp} />
       {result.data.length === 0 ? <p className="empty">Aún no hay categorías.</p> : (
         <div className="table-wrap">

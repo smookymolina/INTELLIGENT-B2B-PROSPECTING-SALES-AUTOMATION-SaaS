@@ -18,7 +18,9 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
   const canManage = me.permissions.includes("campaigns:manage");
   return (
     <>
-      <h1>Campañas de correo</h1>
+      <header className="page-head">
+        <h1>Campañas de correo</h1>
+      </header>
       <Flash sp={sp} />
       <p className="hint">Sólo se contacta a quien tenga un consentimiento registrado vigente, no esté dado de baja ni en la lista de no contactar, y respetando el intervalo mínimo entre mensajes. Cada contacto se revalida justo antes de cada envío. El canal de envío es de pruebas hasta que se apruebe un proveedor.</p>
       {result.data.items.length === 0 ? <p className="empty">Aún no hay campañas.</p> : (

@@ -13,7 +13,9 @@ export default async function CatalogImportPage({ searchParams }: { searchParams
   return (
     <>
       <p><Link href="/catalog">← Catálogo</Link></p>
-      <h1>Importar catálogo (CSV)</h1>
+      <header className="page-head">
+        <h1>Importar catálogo (CSV)</h1>
+      </header>
       <Flash sp={sp} />
       <p>Columnas: <code>sku</code>, <code>kind</code> (product|service) y <code>name</code> obligatorias; <code>description</code>, <code>unit</code>, <code>category</code> (existente) y <code>feature:Nombre</code> opcionales. Sólo crea o edita <strong>borradores</strong> (la aprobación es aparte). Todo o nada; máx. 1000 filas. Los precios se cargan en las listas de precios.</p>
       <form method="post" action="/actions/catalog/import">
