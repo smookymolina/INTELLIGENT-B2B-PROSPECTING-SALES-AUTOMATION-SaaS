@@ -4,6 +4,7 @@ import type { MyOrganizationsDto } from "@prospecting/contracts";
 import { api } from "../../lib/api";
 import { requireSession } from "../../lib/auth";
 import { ROLE_LABELS, label } from "../../lib/format";
+import { NavAdvanced } from "../components/nav-advanced";
 import { NavLink } from "../components/nav-link";
 
 type NavItem = { href: string; text: string; show: boolean };
@@ -18,8 +19,14 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       title: "Prospección",
       items: [
         { href: "/prospects", text: "Prospectos", show: true },
-        { href: "/scoring", text: "Puntuación", show: true },
         { href: "/leads", text: "Leads", show: can("leads:read") },
+      ],
+    },
+    {
+      title: "Alcance",
+      items: [
+        { href: "/drafts", text: "Borradores", show: can("campaigns:read") },
+        { href: "/campaigns", text: "Campañas", show: can("campaigns:read") },
       ],
     },
     {
@@ -29,29 +36,25 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         { href: "/tasks", text: "Tareas", show: can("crm:read") },
         { href: "/sales", text: "Ventas", show: can("quotes:read") },
         { href: "/catalog", text: "Catálogo", show: true },
-        { href: "/pricing", text: "Precios", show: true },
       ],
     },
     {
-      title: "Alcance",
+      title: "Negocio",
       items: [
-        { href: "/campaigns", text: "Campañas", show: can("campaigns:read") },
-        { href: "/drafts", text: "Borradores", show: can("campaigns:read") },
-        { href: "/ai", text: "IA", show: can("ai:use") },
-        { href: "/claude-usage", text: "Uso de Claude", show: can("ai:use") },
-      ],
-    },
-    {
-      title: "Organización",
-      items: [
-        { href: "/analytics", text: "Analítica", show: can("analytics:read") },
         { href: "/company", text: "Empresa", show: true },
         { href: "/team", text: "Equipo", show: can("members:read") },
         { href: "/notifications-settings", text: "Notificaciones", show: can("organization:update") },
-        { href: "/privacy", text: "Privacidad", show: can("privacy:manage") },
       ],
     },
   ];
+  const advanced: NavItem[] = [
+    { href: "/scoring", text: "Puntuación", show: true },
+    { href: "/pricing", text: "Precios", show: true },
+    { href: "/ai", text: "IA", show: can("ai:use") },
+    { href: "/claude-usage", text: "Uso de Claude", show: can("ai:use") },
+    { href: "/privacy", text: "Privacidad", show: can("privacy:manage") },
+    { href: "/analytics", text: "Analítica", show: can("analytics:read") },
+  ].filter((i) => i.show);
   return (
     <>
       <a className="skip" href="#content">Saltar al contenido</a>
@@ -59,12 +62,13 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         <aside className="side">
           <p className="side-brand">{me.organization.name}</p>
           {others.length > 0 ? (
-            <form method="post" action="/actions/team/switch" className="switcher" aria-label="Cambiar de organización">
-              <label className="sr" htmlFor="org-switch">Cambiar de organización</label>
+            <form method="post" action="/actions/team/switch" className="switcher" aria-label="Cambiar de negocio">
+              <label className="sr" htmlFor="org-switch">Cambiar de negocio</label>
               <select id="org-switch" name="organizationSlug" defaultValue={others[0]?.slug}>{others.map((o) => <option key={o.id} value={o.slug}>{o.name}</option>)}</select>
               <button type="submit">Cambiar</button>
             </form>
           ) : null}
+          <Link className="nav-add" href="/company/new">+ Nuevo negocio</Link>
           <nav aria-label="Principal">
             <div className="nav-group">
               <NavLink href="/">Inicio</NavLink>
@@ -79,6 +83,11 @@ export default async function AppLayout({ children }: Readonly<{ children: React
                 </div>
               );
             })}
+            {advanced.length > 0 ? (
+              <NavAdvanced hrefs={advanced.map((i) => i.href)}>
+                {advanced.map((i) => <NavLink key={i.href} href={i.href}>{i.text}</NavLink>)}
+              </NavAdvanced>
+            ) : null}
           </nav>
           <div className="side-foot">
             <span className="who"><Link href="/account">{me.user.displayName}</Link> · {label(ROLE_LABELS, me.role)}</span>

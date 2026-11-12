@@ -17,7 +17,7 @@ import type { AuthContext } from "../auth/auth.types.js";
 import { PrismaService, type Tx } from "../db/prisma.service.js";
 import { ApiException } from "../http/api-exception.js";
 import { ProspectsService } from "../prospects/prospects.service.js";
-import { EmailChannels } from "./channels.js";
+import { EmailChannels, EmailSendCapReached, SEND_TX_TIMEOUT_MS, type EmailAdapter } from "./channels.js";
 import { evaluateContacts, render, unsubscribeUrl, validUnsubscribeSignature, type ExclusionReason } from "./eligibility.js";
 
 const conflict = (message: string) => new ApiException(409, "CONFLICT", message);
@@ -155,16 +155,16 @@ export class CampaignsService {
   }
 
   async dispatch(auth: AuthContext, id: string, limit: number, opts: { worker?: boolean } = {}): Promise<DispatchResultDto> {
-    const adapter = await this.db.withTenant(auth, (tx) => this.channels.forTenant(tx, auth.organizationId)); // 503 when no provider is configured
+    const provider = await this.db.withTenant(auth, (tx) => this.channels.resolve(tx, auth.organizationId)); // 503 when no provider is configured
     // Real mail never leaves inside an HTTP request: with a real provider only the worker dispatches (it picks the campaign up by itself).
-    if (!opts.worker && adapter.name !== "sandbox") throw conflict("This organization sends real email: the worker dispatches running campaigns automatically");
+    if (!opts.worker && provider.name !== "sandbox") throw conflict("This organization sends real email: the worker dispatches running campaigns automatically");
     const first = await this.db.withTenant(auth, (tx) => this.require(tx, auth, id));
     if (first.state !== "running") throw conflict("Only a running campaign dispatches");
     const queued = await this.db.withTenant(auth, (tx) => tx.sendAttempt.findMany({ where: { campaign_id: id, organization_id: auth.organizationId, state: "queued" }, orderBy: { created_at: "asc" }, take: limit, select: { id: true, contact_id: true } }));
     const out = { processed: 0, sent: 0, failed: 0, skipped: {} as Record<string, number> };
     for (const attempt of queued) {
       const outcome = await this.db
-        .withTenant(auth, async (tx): Promise<"sent" | "failed" | "gone" | "paused" | ExclusionReason> => {
+        .withTenant(auth, async (tx): Promise<"sent" | "failed" | "gone" | "paused" | "capped" | ExclusionReason> => {
           const c = await this.require(tx, auth, id);
           if (c.state !== "running") return "paused"; // paused/cancelled while we were working: stop, nothing else is touched
           const locked = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM send_attempts WHERE id = ${attempt.id}::uuid AND state = 'queued' FOR UPDATE SKIP LOCKED`;
@@ -179,6 +179,13 @@ export class CampaignsService {
           }
           const contact = await tx.contact.findFirstOrThrow({ where: { id: attempt.contact_id, organization_id: auth.organizationId }, include: { prospect: { select: { name: true } } } });
           const vars = { company: contact.prospect.name, unsubscribe_url: unsubscribeUrl(auth.organizationId, contact.id) };
+          let adapter: EmailAdapter;
+          try {
+            adapter = await this.channels.forTenant(tx, auth.organizationId); // per-organization cap, checked under its lock for THIS send
+          } catch (e) {
+            if (e instanceof EmailSendCapReached) return "capped"; // nothing written: the attempt stays queued and a later dispatch sends it
+            throw e;
+          }
           try {
             const { messageId } = await adapter.send({ idempotencyKey: attempt.id, to: contact.address, subject: render(c.subject, vars), body: render(c.body, vars), unsubscribeUrl: vars.unsubscribe_url });
             await tx.sendAttempt.update({ where: { id: attempt.id }, data: { state: "sent", provider: adapter.name, provider_message_id: messageId } });
@@ -188,9 +195,9 @@ export class CampaignsService {
             await tx.sendAttempt.update({ where: { id: attempt.id }, data: { state: "failed" } });
             return "failed";
           }
-        })
+        }, { timeoutMs: SEND_TX_TIMEOUT_MS })
         .catch(mapDbError);
-      if (outcome === "paused") break;
+      if (outcome === "paused" || outcome === "capped") break;
       if (outcome === "gone") continue;
       out.processed += 1;
       if (outcome === "sent") out.sent += 1;

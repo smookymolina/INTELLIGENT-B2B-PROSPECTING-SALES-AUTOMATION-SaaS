@@ -10,7 +10,7 @@ import {
 } from "@prospecting/contracts";
 import { AuditService } from "../audit/audit.service.js";
 import type { AuthContext } from "../auth/auth.types.js";
-import { EmailChannels } from "../campaigns/channels.js";
+import { EmailChannels, EmailSendCapReached, SEND_TX_TIMEOUT_MS } from "../campaigns/channels.js";
 import { evaluateContacts, render, unsubscribeUrl, type ExclusionReason } from "../campaigns/eligibility.js";
 import { PrismaService, type Tx } from "../db/prisma.service.js";
 import { ApiException } from "../http/api-exception.js";
@@ -109,7 +109,11 @@ export class SequencesService {
     });
     const out: RunDueResultDto = { processed: 0, sent: 0, deferred: 0, completed: 0, stopped: {}, nextDueAt: null };
     for (const { id } of due) {
-      const r = await this.db.withTenant(auth, (tx) => this.step(tx, auth, campaignId, id, now)).catch(mapDbError);
+      const r = await this.db
+        .withTenant(auth, (tx) => this.step(tx, auth, campaignId, id, now), { timeoutMs: SEND_TX_TIMEOUT_MS })
+        // Send cap used up: the step's transaction rolled back untouched, so the enrolment stays due and a later run sends it.
+        .catch((e: unknown) => (e instanceof EmailSendCapReached ? ("capped" as const) : mapDbError(e)));
+      if (r === "capped") break;
       if (r === "gone" || r === "paused") continue;
       out.processed += 1;
       if (r === "sent" || r === "completed") out.sent += 1;

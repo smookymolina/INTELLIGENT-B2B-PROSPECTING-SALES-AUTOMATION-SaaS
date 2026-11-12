@@ -2,7 +2,7 @@ import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type { DraftDeliveryDto } from "@prospecting/contracts";
 import { AuditService } from "../audit/audit.service.js";
 import type { AuthContext } from "../auth/auth.types.js";
-import { EmailChannels, type EmailAdapter } from "../campaigns/channels.js";
+import { EmailChannels, EmailSendCapReached, SEND_TX_TIMEOUT_MS, type EmailAdapter } from "../campaigns/channels.js";
 import { evaluateContacts, unsubscribeUrl } from "../campaigns/eligibility.js";
 import { PrismaService, type Tx } from "../db/prisma.service.js";
 import { ApiException } from "../http/api-exception.js";
@@ -57,19 +57,21 @@ export class DraftDeliveryService {
     });
   }
 
-  /** Worker only. Each delivery is its own transaction; without a provider everything stays queued. */
+  /**
+   * Worker only. Each delivery is its own transaction; without a provider everything stays queued. When the organization's send cap is used
+   * up the run stops and the rest stays queued: the worker plans another run in a later window.
+   */
   async sendQueued(auth: AuthContext, limit: number, now: Date = new Date()): Promise<DraftSendResult> {
     const out: DraftSendResult = { processed: 0, sent: 0, failed: 0, skipped: 0, noProvider: false };
-    let adapter: EmailAdapter;
     try {
-      adapter = await this.db.withTenant(auth, (tx) => this.channels.forTenant(tx, auth.organizationId));
+      await this.db.withTenant(auth, (tx) => this.channels.resolve(tx, auth.organizationId));
     } catch (e) {
       if (e instanceof ApiException && e.getStatus() === 503) return { ...out, noProvider: true };
       throw e;
     }
     const queued = await this.db.withTenant(auth, (tx) => tx.draftDelivery.findMany({ where: { organization_id: auth.organizationId, state: "queued" }, orderBy: { created_at: "asc" }, take: limit, select: { id: true } }));
     for (const q of queued) {
-      const outcome = await this.db.withTenant(auth, async (tx): Promise<"sent" | "failed" | "skipped" | "gone"> => {
+      const outcome = await this.db.withTenant(auth, async (tx): Promise<"sent" | "failed" | "skipped" | "gone" | "capped"> => {
         const locked = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM draft_deliveries WHERE id = ${q.id}::uuid AND state = 'queued' FOR UPDATE SKIP LOCKED`;
         if (locked.length === 0) return "gone";
         const delivery = await tx.draftDelivery.findFirstOrThrow({ where: { id: q.id, organization_id: auth.organizationId } });
@@ -84,6 +86,13 @@ export class DraftDeliveryService {
         }
         const contact = await tx.contact.findFirstOrThrow({ where: { id: delivery.contact_id, organization_id: auth.organizationId } });
         const unsubscribe = unsubscribeUrl(auth.organizationId, contact.id);
+        let adapter: EmailAdapter;
+        try {
+          adapter = await this.channels.forTenant(tx, auth.organizationId); // per-organization cap, checked under its lock for THIS send
+        } catch (e) {
+          if (e instanceof EmailSendCapReached) return "capped"; // nothing written: the delivery stays queued
+          throw e;
+        }
         try {
           const { messageId } = await adapter.send({ idempotencyKey: `draft:${delivery.id}`, to: contact.address, subject: d.subject ?? "", body: `${d.body}\n\nPara dejar de recibir estos mensajes: ${unsubscribe}`, unsubscribeUrl: unsubscribe });
           await tx.draftDelivery.update({ where: { id: q.id }, data: { state: "sent", provider: adapter.name, provider_message_id: messageId, attempted_at: now } });
@@ -94,7 +103,8 @@ export class DraftDeliveryService {
           await tx.draftDelivery.update({ where: { id: q.id }, data: { state: "failed", provider: adapter.name, attempted_at: now } });
           return "failed";
         }
-      });
+      }, { timeoutMs: SEND_TX_TIMEOUT_MS });
+      if (outcome === "capped") break;
       if (outcome === "gone") continue;
       out.processed += 1;
       out[outcome] += 1;

@@ -208,6 +208,34 @@ describe("time window", () => {
   });
 });
 
+describe("organization email cap", () => {
+  it("a capped step is not sent nor failed: the enrolment stays due and a later run sends it", async () => {
+    const a = await register("seq-cap");
+    for (let i = 0; i < 3; i++) await contact(a.token);
+    const allDay = { ...SEQ, timezone: "UTC", windowStart: "00:00", windowEnd: "23:59", weekdays: [1, 2, 3, 4, 5, 6, 7], steps: [SEQ.steps[0]] };
+    const id = await campaign(a.token, {}, allDay);
+    expect((await api.call("POST", `/campaigns/${id}/approve`, { token: a.token })).status).toBe(200);
+    expect((await api.call("POST", `/campaigns/${id}/launch`, { token: a.token })).status).toBe(200);
+    expect((await enroll(a.token, id)).body.enrolled).toBe(3);
+    const now = new Date();
+    if (now.getUTCHours() === 23 && now.getUTCMinutes() === 59) now.setUTCMinutes(58); // stay inside the 00:00-23:59 window
+    clock(now.toISOString()); // the cap counts against the database's real time, so the deliveries must be stamped now
+    process.env.EMAIL_MAX_PER_HOUR = "2";
+    try {
+      expect((await runDue(a.token, id)).body).toMatchObject({ processed: 2, sent: 2, completed: 2 });
+      expect((await runDue(a.token, id)).body).toMatchObject({ processed: 0, sent: 0 }); // cap used up
+      expect(outbox()).toHaveLength(2);
+      const states = (await enrollments(a.token, id)).map((e) => `${e.state}:${e.deliveries.length}`).sort();
+      expect(states).toEqual(["active:0", "completed:1", "completed:1"]); // the capped one is still active and due, never stopped
+      process.env.EMAIL_MAX_PER_HOUR = "3";
+      expect((await runDue(a.token, id)).body).toMatchObject({ processed: 1, sent: 1, completed: 1 });
+      expect(outbox()).toHaveLength(3);
+    } finally {
+      delete process.env.EMAIL_MAX_PER_HOUR;
+    }
+  });
+});
+
 describe("eligibility cuts the sequence", () => {
   it("a withdrawn consent or a suppression after step 1 stops the enrolment without sending", async () => {
     const a = await register("seq-stop");

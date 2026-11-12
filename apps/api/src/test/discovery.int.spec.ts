@@ -197,6 +197,25 @@ describe("import", () => {
     expect(JSON.stringify(audit[0].metadata)).not.toContain("Acme");
   });
 
+  it("creates contacts without consent: email when valid, WhatsApp only for a safe E.164 phone; never duplicated", async () => {
+    const a = await register("osm-contacts");
+    const res = await imp(a.token, ["node/101", "way/202"]);
+    const [withBoth, noContact] = res.body.items.map((i: { prospectId: string }) => i.prospectId) as string[];
+    const rows = (await owner.query("SELECT channel, address, address_key, source, status FROM contacts WHERE prospect_id = $1 ORDER BY channel", [withBoth])).rows;
+    expect(rows).toEqual([
+      { channel: "email", address: "contacto@acme-osm.example.mx", address_key: "contacto@acme-osm.example.mx", source: "openstreetmap", status: "active" },
+      { channel: "whatsapp", address: "+524421234567", address_key: "+524421234567", source: "openstreetmap", status: "active" },
+    ]);
+    // way/202 has a phone without country code: not safely normalizable, so no contact at all
+    expect((await owner.query("SELECT 1 FROM contacts WHERE prospect_id = $1", [noContact])).rowCount).toBe(0);
+    // intentional: no consent is recorded or assumed
+    expect((await owner.query("SELECT 1 FROM consent_events WHERE organization_id = $1", [a.orgId])).rowCount).toBe(0);
+    // repeating the discovery does not duplicate anything
+    const again = await imp(a.token, ["node/101", "way/202"]);
+    expect(again.body).toMatchObject({ created: 0, skippedDuplicate: 2 });
+    expect((await owner.query("SELECT 1 FROM contacts WHERE organization_id = $1", [a.orgId])).rowCount).toBe(2);
+  });
+
   it("rejects malformed requests", async () => {
     const a = await register("osm-badimport");
     for (const osmIds of [[], ["relation/1"], ["node/0"], ["node/1;drop"], ["node/1", "node/1"], Array.from({ length: 101 }, (_, i) => `node/${i + 1}`)]) {

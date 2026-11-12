@@ -69,3 +69,9 @@ Hecho (sólo local, canal `sandbox`/in-app): P7-05 secuencias y horarios (4 tabl
 **Avance vigente:** interno ≈ 71 % (66–74) · operable ≈ 35 % (30–40). Las Olas 3 y 4 no suben «operable»: nada nuevo se probó contra proveedores reales.
 **Sin verificar:** IA Anthropic (inactiva sin `ANTHROPIC_API_KEY` y `AI_PROVIDER=anthropic`); consulta real a OpenStreetMap; Playwright/axe en las pantallas nuevas; resultado del CI remoto tras el push.
 **BLOCKED (por impacto):** 1 clave de Anthropic y tope de gasto · 2 nube/región/IdP/dominio público (despliegue en Hostinger previsto al final) · 3 WhatsApp por QR (riesgo de términos), pagos, adjuntos, firma · 4 destino de alertas y KMS · 5 SPF/DKIM/DMARC del dominio remitente (cada cliente).
+
+## Ola 5 (2026-11-12) — MVP para el primer negocio
+**Hecho:** un usuario crea más negocios sin registrarse de nuevo (`POST /auth/organizations`, /company/new; máx. 20 como administrador); menú reducido al MVP (resto en «Avanzado»); cada lead nuevo genera `lead_assigned` (in-app y correo a los destinos configurados); el descubrimiento OSM crea contactos de correo y WhatsApp (E.164 con `+`) sin consentimiento; tope de envíos por organización 50/h y 200/día (`EMAIL_MAX_PER_HOUR`, `EMAIL_MAX_PER_DAY`); transacciones de envío de 60 s y límite global SMTP de 45 s; la web permite contactos de WhatsApp.
+**Evidencia:** `npm run check` exit 0 · `test:int` 559/559 (42 archivos, base limpia). **Sin verificar:** e2e, navegador, envío real tras estos cambios, consulta real a OSM.
+**Decisión pendiente del dueño:** el envío exige consentimiento `granted` por contacto; los prospectos descubiertos nacen sin él (hoy se registra a mano, uno por uno, con evidencia).
+**Límites:** el aviso de lead va al `org_admin` más antiguo (el lead nace sin propietario) y el correo no incluye los datos del lead; las respuestas se registran a mano; sin cobro/facturación en la app.

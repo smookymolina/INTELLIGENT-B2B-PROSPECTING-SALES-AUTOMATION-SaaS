@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { ConflictException, ForbiddenException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
-import type { ChangePasswordRequest, ChangedPasswordDto, LoginRequest, MeDto, SessionInfoListDto, MembershipRole, MyOrganizationsDto, RegisterRequest, SessionDto } from "@prospecting/contracts";
+import type { ChangePasswordRequest, ChangedPasswordDto, CreateOrganizationRequest, LoginRequest, MeDto, SessionInfoListDto, MembershipRole, MyOrganizationsDto, RegisterRequest, SessionDto } from "@prospecting/contracts";
 import { ROLE_PERMISSIONS } from "@prospecting/contracts";
 import { AuditService } from "../audit/audit.service.js";
 import { PrismaService, type Tx } from "../db/prisma.service.js";
@@ -14,6 +14,7 @@ type UserRow = { id: string; password_hash: string; status: "active" | "disabled
 type MembershipRow = { organization_id: string; slug: string; role: MembershipRole };
 
 const UNIQUE_VIOLATION = "P2002";
+const MAX_ADMIN_ORGANIZATIONS = 20;
 
 function slugify(name: string): string {
   const base = name.normalize("NFKD").replace(/\P{ASCII}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
@@ -106,6 +107,45 @@ export class AuthService {
       });
       return this.openSession(tx, actor, { organization: org, role: chosen.role });
     });
+    await this.logout(auth); // revoke the previous session (audited in its own organization)
+    return session;
+  }
+
+  /**
+   * An authenticated user creates another organization and becomes its org_admin. The new session is opened in it and the previous
+   * one is revoked (same as switchOrganization). Abuse limit: at most MAX_ADMIN_ORGANIZATIONS organizations administered per user.
+   */
+  async createOrganization(auth: AuthContext, input: CreateOrganizationRequest): Promise<SessionDto> {
+    const mine = await this.db.withoutTenant((tx) => tx.$queryRaw<Array<{ name: string; role: MembershipRole }>>`SELECT * FROM auth_list_my_organizations(${auth.userId}::uuid)`);
+    if (mine.filter((m) => m.role === "org_admin").length >= MAX_ADMIN_ORGANIZATIONS) {
+      throw new ApiException(409, "CONFLICT", `Organization limit reached (${MAX_ADMIN_ORGANIZATIONS} administered organizations)`);
+    }
+    // Names are not globally unique (RLS hides other tenants and there is no unique index); a repeat within the caller's own organizations is refused.
+    if (mine.some((m) => m.name.trim().toLowerCase() === input.organizationName.toLowerCase())) {
+      throw new ApiException(409, "CONFLICT", "You already have an organization with that name");
+    }
+    const organizationId = randomUUID();
+    const ctx = { organizationId, userId: auth.userId, role: "org_admin" as const };
+    let session: SessionDto;
+    try {
+      session = await this.db.withTenant(ctx, async (tx) => {
+        const org = await tx.organization.create({
+          data: { id: organizationId, name: input.organizationName, slug: slugify(input.organizationName) },
+          select: { id: true, name: true, slug: true },
+        });
+        const membership = await tx.membership.create({
+          data: { organization_id: organizationId, user_id: auth.userId, role: "org_admin" },
+          select: { id: true },
+        });
+        const actor = { organizationId, userId: auth.userId, requestId: auth.requestId };
+        await this.audit.record(tx, actor, { action: "organization.created", resourceType: "organization", resourceId: organizationId });
+        await this.audit.record(tx, actor, { action: "membership.created", resourceType: "membership", resourceId: membership.id, metadata: { role: "org_admin" } });
+        return this.openSession(tx, actor, { organization: org, role: "org_admin" });
+      });
+    } catch (e) {
+      if ((e as { code?: string }).code === UNIQUE_VIOLATION) throw new ApiException(409, "CONFLICT", "An organization with that name already exists");
+      throw e;
+    }
     await this.logout(auth); // revoke the previous session (audited in its own organization)
     return session;
   }

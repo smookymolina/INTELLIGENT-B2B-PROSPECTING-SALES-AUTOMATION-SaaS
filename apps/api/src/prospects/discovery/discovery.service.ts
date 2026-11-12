@@ -1,5 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import {
+  AddContactRequest,
+  E164,
   OSM_ATTRIBUTION,
   OSM_SOURCE,
   prospectKeys,
@@ -11,7 +13,8 @@ import {
 } from "@prospecting/contracts";
 import { AuditService } from "../../audit/audit.service.js";
 import type { AuthContext } from "../../auth/auth.types.js";
-import { PrismaService } from "../../db/prisma.service.js";
+import { PrismaService, type Tx } from "../../db/prisma.service.js";
+import { privacyAddressHash } from "../../privacy/address-hash.js";
 import { ApiException } from "../../http/api-exception.js";
 import { ProspectsService, type SuppressionSets } from "../prospects.service.js";
 import { OsmDiscoveryAdapter, type OsmBusiness } from "./osm-discovery.adapter.js";
@@ -20,6 +23,14 @@ const TX_TIMEOUT_MS = 60_000;
 type Keys = ReturnType<typeof prospectKeys>;
 
 const keysOf = (b: OsmBusiness): Keys => prospectKeys(b.name, b.domain, b.country);
+/** "+52 (55) 1234-5678" -> "+525512345678"; null unless the number already carries "+" and is valid E.164 (no country guessing). */
+export const safeE164 = (raw: string | null): string | null => {
+  const v = raw?.trim();
+  if (!v?.startsWith("+")) return null;
+  const n = `+${v.replace(/\D/g, "")}`;
+  return E164.test(n) ? n : null;
+};
+
 const isSuppressed = (k: Keys, sets: SuppressionSets) => (k.domainKey !== null && sets.domains.has(k.domainKey)) || sets.names.has(k.nameKey);
 
 /**
@@ -35,6 +46,22 @@ export class DiscoveryService {
     @Inject(ProspectsService) private readonly prospects: ProspectsService,
     @Inject(OsmDiscoveryAdapter) private readonly osm: OsmDiscoveryAdapter,
   ) {}
+
+  /** Inserts one contact inside a savepoint: an erased or already-registered address is skipped without aborting the import. */
+  private async addContactSafely(tx: Tx, auth: AuthContext, prospectId: string, channel: "email" | "whatsapp", address: string): Promise<void> {
+    await tx.$executeRawUnsafe("SAVEPOINT discovery_contact");
+    try {
+      const hash = privacyAddressHash(auth.organizationId, channel, address);
+      await tx.$executeRaw`SELECT privacy_assert_address_free(${address}, ${hash})`;
+      const row = await tx.contact.create({
+        data: { organization_id: auth.organizationId, prospect_id: prospectId, channel, address, address_key: address, source: OSM_SOURCE, created_by: auth.userId },
+      });
+      await this.audit.record(tx, auth, { action: "contact.created", resourceType: "contact", resourceId: row.id, metadata: { prospectId, via: "discovery" } });
+      await tx.$executeRawUnsafe("RELEASE SAVEPOINT discovery_contact");
+    } catch {
+      await tx.$executeRawUnsafe("ROLLBACK TO SAVEPOINT discovery_contact");
+    }
+  }
 
   async search(auth: AuthContext, input: DiscoverySearchRequest): Promise<DiscoverySearchDto> {
     const place = await this.osm.geocode(input.place);
@@ -111,6 +138,11 @@ export class DiscoveryService {
                   INSERT INTO prospect_attributes (organization_id, prospect_id, key, value, value_key, confidence, source, created_by)
                   VALUES (${auth.organizationId}::uuid, ${row.id}::uuid, ${key}, btrim(${value}), lower(btrim(${value})), 'medium', ${OSM_SOURCE}, ${auth.userId}::uuid)`;
               }
+              // Contacts are born WITHOUT consent (none is recorded or assumed); they only make the prospect reachable by campaigns/drafts once consent is registered.
+              const email = b.email?.trim().toLowerCase() ?? null;
+              if (email && AddContactRequest.safeParse({ channel: "email", address: email, source: OSM_SOURCE }).success) await this.addContactSafely(tx, auth, row.id, "email", email);
+              const phone = safeE164(b.phone);
+              if (phone) await this.addContactSafely(tx, auth, row.id, "whatsapp", phone);
               items.push({ osmId, outcome: "created", prospectId: row.id });
             }
           }

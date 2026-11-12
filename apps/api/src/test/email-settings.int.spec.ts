@@ -261,6 +261,40 @@ describe("campaign delivery through the organization's SMTP", () => {
     expect(await asRuntime({ organizationId: b.orgId, role: "org_admin" }, async (c) => (await c.query("SELECT count(*)::int AS n FROM draft_deliveries")).rows[0].n)).toBe(0);
   });
 
+  it("draft deliveries respect the organization's daily cap over SMTP: capped ones stay queued and go out once there is room", async () => {
+    const a = await register("smtp-draft-cap");
+    await put(a.token, settings());
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const domain = `cap-${randomUUID().slice(0, 8)}.example`;
+      const p = (await api.call("POST", "/prospects", { token: a.token, body: { name: `Cliente Tope ${i}`, domain } })).body as { id: string };
+      const c = (await api.call("POST", `/prospects/${p.id}/contacts`, { token: a.token, body: { address: `compras@${domain}`, displayName: "Compras", source: "Formulario web" } })).body as { id: string };
+      await api.call("POST", `/contacts/${c.id}/consent`, { token: a.token, body: { event: "granted", evidence: "Casilla marcada en el formulario web", occurredAt: new Date(Date.now() - 60_000).toISOString() } });
+      const d = (await api.call("POST", "/message-drafts", { token: a.token, body: { contactId: c.id, channel: "email", subject: "Propuesta", body: "Hola, le comparto una propuesta breve.", evidenceRefs: [] } })).body as { id: string };
+      await api.call("POST", `/message-drafts/${d.id}/approve`, { token: a.token });
+      expect((await api.call("POST", `/message-drafts/${d.id}/send`, { token: a.token })).body).toMatchObject({ state: "queued" });
+      ids.push(d.id);
+    }
+    const deliveries = api.app.get(DraftDeliveryService);
+    process.env.EMAIL_MAX_PER_HOUR = "1";
+    process.env.EMAIL_MAX_PER_DAY = "2";
+    try {
+      // Stamped three hours ago: outside the hourly window, inside the daily one. Two go out, the third hits the DAILY cap.
+      expect(await deliveries.sendQueued(workerCtx(a), 50, new Date(Date.now() - 3 * 3_600_000))).toMatchObject({ processed: 2, sent: 2, failed: 0 });
+      expect(received).toHaveLength(2);
+      expect(await deliveries.sendQueued(workerCtx(a), 50)).toMatchObject({ processed: 0, sent: 0, failed: 0, noProvider: false });
+      const states = await owner.query("SELECT state, count(*)::int AS n FROM draft_deliveries WHERE organization_id = $1 GROUP BY state ORDER BY state", [a.orgId]);
+      expect(states.rows).toEqual([{ state: "queued", n: 1 }, { state: "sent", n: 2 }]);
+      process.env.EMAIL_MAX_PER_DAY = "3";
+      expect(await deliveries.sendQueued(workerCtx(a), 50)).toMatchObject({ processed: 1, sent: 1 }); // hourly window is empty: it goes out now
+      expect(received).toHaveLength(3);
+      expect(await deliveries.sendQueued(workerCtx(a), 50)).toMatchObject({ processed: 0 });
+    } finally {
+      delete process.env.EMAIL_MAX_PER_HOUR;
+      delete process.env.EMAIL_MAX_PER_DAY;
+    }
+  });
+
   it("marks the attempt failed when the server rejects the login", async () => {
     const a = await register("smtp-send-fail");
     await put(a.token, settings({ password: "wrong-password" }));

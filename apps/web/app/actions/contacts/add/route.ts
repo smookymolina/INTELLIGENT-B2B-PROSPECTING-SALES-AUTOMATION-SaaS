@@ -10,6 +10,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!UUID.test(prospectId)) return redirectWith("/prospects", "error", "notfound");
   const back = `/prospects/${prospectId}`;
   const name = text(ctx.form, "displayName", 120);
-  const result = await api(`/prospects/${prospectId}/contacts`, { method: "POST", token: ctx.token, body: { address: text(ctx.form, "address", 254), source: text(ctx.form, "source", 300), ...(name ? { displayName: name } : {}) } });
+  const channel = text(ctx.form, "channel", 20) === "whatsapp" ? "whatsapp" : "email";
+  const result = await api(`/prospects/${prospectId}/contacts`, { method: "POST", token: ctx.token, body: { channel, address: text(ctx.form, "address", 254), source: text(ctx.form, "source", 300), ...(name ? { displayName: name } : {}) } });
   return result.ok ? redirectWith(back, "ok", "contactadded") : redirectWith(back, "error", failureCode(result));
 }

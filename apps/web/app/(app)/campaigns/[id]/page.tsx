@@ -11,7 +11,7 @@ const REASONS: Record<string, string> = {
   no_consent: "Sin consentimiento vigente", opted_out: "Dados de baja", bounced: "Rebotados", suppressed: "En la lista de no contactar o descalificados",
   recently_contacted: "Contactados hace poco (intervalo mínimo)", already_in_campaign: "Ya incluidos en esta campaña",
 };
-const ATTEMPT: Record<string, string> = { queued: "En cola", sent: "Enviado (canal de pruebas)", skipped: "Omitido", failed: "Falló", cancelled: "Cancelado" };
+const ATTEMPT: Record<string, string> = { queued: "En cola", sent: "Enviado", skipped: "Omitido", failed: "Falló", cancelled: "Cancelado" };
 const SKIP: Record<string, string> = { ...REASONS };
 
 export default async function CampaignPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {

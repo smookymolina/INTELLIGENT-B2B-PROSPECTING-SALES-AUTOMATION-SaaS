@@ -16,6 +16,7 @@ import { AuditService } from "../audit/audit.service.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import { PrismaService, type Prisma, type Tx } from "../db/prisma.service.js";
 import { ApiException } from "../http/api-exception.js";
+import { NotificationsService } from "../notifications/notifications.service.js";
 import { ProspectsService } from "../prospects/prospects.service.js";
 import { classify } from "./classifier.js";
 
@@ -37,7 +38,19 @@ export class LeadsService {
     @Inject(PrismaService) private readonly db: PrismaService,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(ProspectsService) private readonly prospects: ProspectsService,
+    @Inject(NotificationsService) private readonly notifications: NotificationsService,
   ) {}
+
+  /** A new lead tells someone: its owner when it has one, else an organization admin. One notification per lead (dedupeKey). */
+  private async notifyNewLead(tx: Tx, auth: AuthContext, lead: { id: string; owner_user_id: string | null }, prospectName: string): Promise<void> {
+    const userId = lead.owner_user_id
+      ?? (await tx.membership.findFirst({ where: { organization_id: auth.organizationId, role: "org_admin", status: "active" }, orderBy: { created_at: "asc" }, select: { user_id: true } }))?.user_id;
+    if (!userId) return;
+    await this.notifications.notifyInTx(tx, auth.organizationId, {
+      userId, type: "lead_assigned", title: "Nuevo lead por revisar", body: prospectName.slice(0, 200),
+      resourceType: "lead", resourceId: lead.id, dedupeKey: `lead-assigned:${lead.id}`,
+    });
+  }
 
   /* ---------- settings ---------- */
 
@@ -95,6 +108,7 @@ export class LeadsService {
               data: { organization_id: auth.organizationId, prospect_id: p.id, origin: "rule", open_key: p.id, score_result_id: score.id, min_score: settings.min_score, created_by: auth.userId },
             });
             await this.audit.record(tx, auth, { action: "lead.created", resourceType: "lead", resourceId: lead.id, metadata: { origin: "rule", score: score.total, minScore: settings.min_score } });
+            await this.notifyNewLead(tx, auth, lead, p.name);
             out.created++;
           }
         }
@@ -186,6 +200,7 @@ export class LeadsService {
         if (!suppressed && !open) {
           const lead = await tx.lead.create({ data: { organization_id: auth.organizationId, prospect_id: prospectId, origin: "intent", open_key: prospectId, assessment_id: row.id, created_by: auth.userId } });
           await this.audit.record(tx, auth, { action: "lead.created", resourceType: "lead", resourceId: lead.id, metadata: { origin: "intent", class: result.class } });
+          await this.notifyNewLead(tx, auth, lead, prospect.name);
           leadId = lead.id;
         }
       }

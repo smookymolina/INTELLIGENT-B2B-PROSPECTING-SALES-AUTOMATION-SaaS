@@ -43,6 +43,10 @@ export const RegisterRequest = z.strictObject({
 });
 export type RegisterRequest = z.infer<typeof RegisterRequest>;
 
+/** An authenticated user creates another organization (becomes its org_admin). Same name rules as RegisterRequest. */
+export const CreateOrganizationRequest = z.strictObject({ organizationName: z.string().trim().min(2).max(100) });
+export type CreateOrganizationRequest = z.infer<typeof CreateOrganizationRequest>;
+
 export const LoginRequest = z.strictObject({
   email,
   password: z.string().min(1).max(128),

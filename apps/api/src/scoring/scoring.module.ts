@@ -1,12 +1,13 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module.js";
+import { NotificationsModule } from "../notifications/notifications.module.js";
 import { ProspectsModule } from "../prospects/prospects.module.js";
 import { LeadsService } from "./leads.service.js";
 import { LeadsController, ProspectInsightsController, ScoringController } from "./scoring.controller.js";
 import { ScoringService } from "./scoring.service.js";
 
 @Module({
-  imports: [AuditModule, ProspectsModule],
+  imports: [AuditModule, ProspectsModule, NotificationsModule],
   controllers: [ProspectInsightsController, ScoringController, LeadsController],
   providers: [ScoringService, LeadsService],
   exports: [ScoringService, LeadsService],

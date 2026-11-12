@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Headers, HttpCode, Inject, Param, ParseUUIDPipe, Post, Res } from "@nestjs/common";
 import type { Response } from "express";
-import { ChangePasswordRequest, IdempotencyKeyHeader, LoginRequest, RegisterRequest, SwitchOrganizationRequest, type ChangedPasswordDto, type MeDto, type MyOrganizationsDto, type SessionDto, type SessionInfoListDto } from "@prospecting/contracts";
+import { ChangePasswordRequest, CreateOrganizationRequest, IdempotencyKeyHeader, LoginRequest, RegisterRequest, SwitchOrganizationRequest, type ChangedPasswordDto, type MeDto, type MyOrganizationsDto, type SessionDto, type SessionInfoListDto } from "@prospecting/contracts";
 import { IdempotencyService } from "../http/idempotency.service.js";
 import { AuthService } from "./auth.service.js";
 import type { AuthContext } from "./auth.types.js";
@@ -42,6 +42,11 @@ export class AuthController {
   @HttpCode(200)
   switchOrganization(@Auth() auth: AuthContext, @Body(new ZodPipe(SwitchOrganizationRequest)) body: SwitchOrganizationRequest): Promise<SessionDto> {
     return this.auth.switchOrganization(auth, body.organizationSlug);
+  }
+
+  @Post("auth/organizations")
+  createOrganization(@Auth() auth: AuthContext, @Body(new ZodPipe(CreateOrganizationRequest)) body: CreateOrganizationRequest): Promise<SessionDto> {
+    return this.auth.createOrganization(auth, body);
   }
 
   @Post("auth/logout")

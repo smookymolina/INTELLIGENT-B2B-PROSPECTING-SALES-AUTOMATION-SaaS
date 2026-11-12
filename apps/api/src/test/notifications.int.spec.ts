@@ -130,7 +130,9 @@ describe("notifications", () => {
     expect(await svc.scanDue(ctx(a))).toEqual({ overdue: 1, dueSoon: 1 });
     expect(await svc.scanDue(ctx(a))).toEqual({ overdue: 0, dueSoon: 0 });
     const list = await api.call("GET", "/notifications", { token: a.token });
-    expect(list.body.items.map((n: { type: string }) => n.type).sort()).toEqual(["task_due_soon", "task_overdue"]);
+    // The lead behind the opportunity raises its own `lead_assigned` notice; only the task notices belong to scanDue.
+    const taskTypes = list.body.items.map((n: { type: string }) => n.type).filter((t: string) => t.startsWith("task_"));
+    expect(taskTypes.sort()).toEqual(["task_due_soon", "task_overdue"]);
   });
 
   it("rejects a recipient outside the organization", async () => {

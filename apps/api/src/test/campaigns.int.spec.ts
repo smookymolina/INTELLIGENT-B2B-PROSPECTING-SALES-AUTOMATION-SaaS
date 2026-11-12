@@ -240,6 +240,31 @@ describe("eligibility, launch and dispatch", () => {
     expect((await api.call("POST", `/campaigns/${id}/dispatch`, { token: a.token, body: { limit: 0 } })).status).toBe(400);
   });
 
+  it("stops at the organization's hourly email cap: the rest stays queued (not failed) and a later dispatch sends it", async () => {
+    const a = await register("cmp-cap");
+    const other = await register("cmp-cap-other");
+    for (let i = 0; i < 3; i++) await contact(a.token);
+    await contact(other.token);
+    const id = await approved(a.token);
+    const otherId = await approved(other.token);
+    await launch(a.token, id);
+    await launch(other.token, otherId);
+    process.env.EMAIL_MAX_PER_HOUR = "2";
+    try {
+      expect((await dispatch(a.token, id)).body).toMatchObject({ processed: 2, sent: 2, failed: 0, remainingQueued: 1, campaignState: "running" });
+      expect((await dispatch(a.token, id)).body).toMatchObject({ processed: 0, sent: 0, failed: 0, remainingQueued: 1, campaignState: "running" }); // cap used up
+      expect(outbox()).toHaveLength(2);
+      const states = await owner.query("SELECT state, count(*)::int AS n FROM send_attempts WHERE campaign_id = $1 GROUP BY state ORDER BY state", [id]);
+      expect(states.rows).toEqual([{ state: "queued", n: 1 }, { state: "sent", n: 2 }]);
+      expect((await dispatch(other.token, otherId)).body).toMatchObject({ sent: 1, campaignState: "completed" }); // the cap is per organization
+      process.env.EMAIL_MAX_PER_HOUR = "3"; // a later window / a higher cap: the pending attempt goes out
+      expect((await dispatch(a.token, id)).body).toMatchObject({ processed: 1, sent: 1, remainingQueued: 0, campaignState: "completed" });
+      expect(outbox()).toHaveLength(4);
+    } finally {
+      delete process.env.EMAIL_MAX_PER_HOUR;
+    }
+  });
+
   it("answers 503 without an email provider and refuses roles without campaigns:manage", async () => {
     const a = await register("cmp-prov");
     await contact(a.token);

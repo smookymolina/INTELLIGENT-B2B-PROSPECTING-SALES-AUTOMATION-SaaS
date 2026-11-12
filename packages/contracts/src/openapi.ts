@@ -212,6 +212,10 @@ export const OPERATIONS: readonly Operation[] = [
     body: C.SwitchOrganizationRequest, success: { status: 200, schema: C.SessionDto, description: "New session" }, errors: [400, 401, 404],
   },
   {
+    method: "post", path: "/auth/organizations", id: "createOrganization", summary: "Create another organization as org_admin and open a session in it (current session is revoked; max 20 administered organizations)", tag: "Auth",
+    body: C.CreateOrganizationRequest, success: { status: 201, schema: C.SessionDto, description: "Session in the new organization" }, errors: [400, 401, 409],
+  },
+  {
     method: "post", path: "/auth/change-password", id: "changePassword", summary: "Change the caller's password (verifies the current one, throttled) and revoke every other session in all organizations", tag: "Auth",
     body: C.ChangePasswordRequest, success: { status: 200, schema: C.ChangedPasswordDto, description: "Password changed" }, errors: [400, 401, 403, 429],
   },

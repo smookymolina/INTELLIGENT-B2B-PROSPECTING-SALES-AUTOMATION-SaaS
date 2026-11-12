@@ -202,6 +202,9 @@ describe("rule-created leads", () => {
 
     expect((await evaluate(a.token)).body).toMatchObject({ created: 0, alreadyOpen: 1 }); // idempotent
     expect((await leadsOf(a.token)).length).toBe(1);
+    // the new lead notified the org admin exactly once (no owner yet), and re-evaluating did not repeat it
+    const n = (await owner.query("SELECT user_id, type, resource_type, dedupe_key FROM notifications WHERE organization_id = $1 AND type = 'lead_assigned'", [a.orgId])).rows;
+    expect(n).toEqual([{ user_id: a.userId, type: "lead_assigned", resource_type: "lead", dedupe_key: `lead-assigned:${pending[0]?.id}` }]);
   });
 
   it("human review: accept or reject once; a rejected lead is not re-created from the same evidence but is from new evidence", async () => {
@@ -290,6 +293,8 @@ describe("reply classification", () => {
     const history = (await api.call("GET", `/prospects/${p.id}/replies`, { token: a.token })).body.items;
     expect(history).toHaveLength(2);
     expect(history.find((h: { id: string }) => h.id === res.body.id).effects.leadId).toBe(leads[0]?.id);
+    const n = (await owner.query("SELECT user_id, dedupe_key FROM notifications WHERE organization_id = $1 AND type = 'lead_assigned'", [a.orgId])).rows;
+    expect(n).toEqual([{ user_id: a.userId, dedupe_key: `lead-assigned:${leads[0]?.id}` }]);
   });
 
   it("an unsubscribe request wins: it suppresses the prospect, disqualifies it and closes its lead", async () => {

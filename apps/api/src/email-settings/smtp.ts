@@ -86,6 +86,16 @@ export async function verifySmtp(account: SmtpAccount, env: NodeJS.ProcessEnv = 
 }
 
 /**
+ * Overall deadline for one SMTP send (DNS + connect + TLS + auth + DATA). The per-phase timeouts in `transport` do not bound the total, and the
+ * send runs inside a transaction limited to SEND_TX_TIMEOUT_MS (60 s, campaigns/channels.ts): this keeps the SMTP side safely below it.
+ */
+export const SMTP_SEND_DEADLINE_MS = 45_000;
+
+export class SmtpSendTimeout extends Error {
+  readonly code = "ETIMEDOUT";
+}
+
+/**
  * One tenant's SMTP mailbox behind the common adapter shape. SMTP has no idempotency: the Message-ID is derived from the key so a duplicate
  * after a crash is at least recognisable; delivery is at-least-once. Asynchronous bounces go to the mailbox, not to this system.
  */
@@ -96,9 +106,14 @@ export class SmtpEmailAdapter implements EmailAdapter {
   async send(email: OutboundEmail): Promise<{ messageId: string }> {
     const domain = this.account.fromEmail.split("@")[1] ?? "localhost";
     const messageId = `<${createHash("sha256").update(email.idempotencyKey).digest("hex").slice(0, 32)}@${domain}>`;
-    const t = await transport(this.account, this.env);
+    let timer: NodeJS.Timeout | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new SmtpSendTimeout("SMTP send exceeded its deadline")), SMTP_SEND_DEADLINE_MS);
+    });
+    let t: Awaited<ReturnType<typeof transport>> | undefined;
     try {
-      await t.sendMail({
+      t = await Promise.race([transport(this.account, this.env), deadline]);
+      await Promise.race([t.sendMail({
         from: this.account.fromName ? { name: this.account.fromName, address: this.account.fromEmail } : this.account.fromEmail,
         to: email.to,
         ...(this.account.replyTo ? { replyTo: this.account.replyTo } : {}),
@@ -106,10 +121,11 @@ export class SmtpEmailAdapter implements EmailAdapter {
         text: email.body,
         messageId,
         ...(email.unsubscribeUrl ? { headers: { "List-Unsubscribe": `<${email.unsubscribeUrl}>` } } : {}),
-      });
+      }), deadline]);
       return { messageId };
     } finally {
-      t.close();
+      clearTimeout(timer);
+      t?.close();
     }
   }
 }

@@ -166,7 +166,9 @@ export default async function ProspectPage({ params, searchParams }: { params: P
           {manage ? (
             <form method="post" action="/actions/contacts/add" className="inline" aria-label="Nuevo contacto">
               <input type="hidden" name="prospectId" value={p.id} />
-              <label>Correo<input name="address" type="email" required maxLength={254} autoComplete="off" /></label>
+              <label>Canal<select name="channel" defaultValue="email"><option value="email">Correo</option><option value="whatsapp">WhatsApp</option></select></label>
+              <label>Dirección<input name="address" required maxLength={254} autoComplete="off" aria-describedby="address-help" /></label>
+              <p id="address-help" className="hint">Para WhatsApp usa formato internacional, por ejemplo +5215512345678</p>
               <label>Nombre (opcional)<input name="displayName" maxLength={120} /></label>
               <label>Origen del dato<input name="source" required minLength={3} maxLength={300} placeholder="Formulario web, 2026-09-01" /></label>
               <button type="submit">Agregar contacto</button>
